@@ -1,0 +1,11 @@
+<!-- This is a placeholder for the dashboard hero background image -->
+<!-- Replace the URL in the CSS file: frontend/src/index.css -->
+<!-- Look for: .dashboard-hero background property -->
+<!-- Current placeholder: https://images.unsplash.com/photo-1560518883-ce09059eeffa -->
+
+To replace with your own image:
+1. Add your image file to the public/images/ folder
+2. Update the CSS background URL to: url('/images/your-image-name.jpg')
+3. Recommended image size: 1920x1080 or larger
+4. Format: JPG, PNG, or WebP
+5. Keep file size under 2MB for optimal loading

@@ -1,0 +1,357 @@
+/* App Layout with Gold, Dark Grey, Black & White Theme */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--white);
+}
+
+/* Sidebar */
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  background: var(--gradient-dark);
+  color: var(--white);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-dark);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  border-right: 3px solid var(--gold-primary);
+}
+
+.sidebar-open {
+  width: 280px;
+}
+
+.sidebar-closed {
+  width: 80px;
+}
+
+/* Sidebar Header */
+.sidebar-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--gold-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 80px;
+  background: var(--grey-dark);
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.logo-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--gradient-gold);
+  border-radius: 12px;
+  color: var(--black);
+  flex-shrink: 0;
+  box-shadow: var(--shadow-gold);
+  border: 2px solid var(--gold-dark);
+}
+
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.company-name {
+  font-size: 1.375rem;
+  font-weight: 700;
+  margin: 0;
+  background: var(--gradient-gold);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.025em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.company-tagline {
+  font-size: 0.75rem;
+  margin: 0;
+  color: var(--gold-light);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sidebar-toggle {
+  background: none;
+  border: 2px solid var(--gold-primary);
+  color: var(--gold-primary);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-toggle:hover {
+  background: var(--gold-primary);
+  color: var(--black);
+  transform: scale(1.05);
+  box-shadow: var(--shadow-gold);
+}
+
+/* Navigation */
+.sidebar-nav {
+  flex: 1;
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: var(--white);
+  text-decoration: none;
+  padding: 0.875rem;
+  border-radius: 12px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 500;
+  font-size: 0.875rem;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid transparent;
+}
+
+.nav-link::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 100%;
+  background: var(--gradient-gold);
+  transition: width 0.3s ease;
+  border-radius: 12px;
+  opacity: 0.8;
+}
+
+.nav-link:hover::before {
+  width: 100%;
+}
+
+.nav-link:hover {
+  border-color: var(--gold-primary);
+  color: var(--black);
+  transform: translateX(4px);
+  box-shadow: var(--shadow-gold);
+}
+
+.nav-link.active {
+  background: var(--gradient-gold);
+  color: var(--black);
+  border-color: var(--gold-dark);
+  box-shadow: var(--shadow-gold);
+  font-weight: 600;
+}
+
+.nav-link.active::before {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.nav-icon {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.nav-text {
+  position: relative;
+  z-index: 1;
+  white-space: nowrap;
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+  padding: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: auto;
+}
+
+.footer-content {
+  text-align: center;
+}
+
+.footer-text {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin: 0 0 0.25rem 0;
+  font-weight: 500;
+}
+
+.footer-subtext {
+  font-size: 0.625rem;
+  color: #64748b;
+  margin: 0;
+  font-weight: 400;
+}
+
+/* Main Content */
+.main-content {
+  flex: 1;
+  padding: 2rem;
+  background-color: #f8fafc;
+  overflow-y: auto;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 100vh;
+}
+
+.main-content-expanded {
+  margin-left: 280px;
+}
+
+.main-content-collapsed {
+  margin-left: 80px;
+}
+
+/* Coming Soon */
+.coming-soon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 50vh;
+  font-size: 1.5rem;
+  color: var(--grey-text);
+  text-align: center;
+  background: var(--white);
+  border-radius: 16px;
+  box-shadow: var(--shadow-dark);
+  margin: 2rem 0;
+  border: 2px solid var(--gold-primary);
+  font-weight: 600;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .sidebar-closed {
+    width: 70px;
+  }
+  
+  .main-content-collapsed {
+    margin-left: 70px;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    transform: translateX(-100%);
+    z-index: 2000;
+  }
+  
+  .sidebar-open {
+    transform: translateX(0);
+    width: 280px;
+  }
+  
+  .sidebar-closed {
+    transform: translateX(-100%);
+    width: 280px;
+  }
+  
+  .main-content {
+    margin-left: 0 !important;
+    padding: 1rem;
+  }
+  
+  /* Mobile overlay */
+  .sidebar-open::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 280px;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .sidebar-header {
+    padding: 1rem;
+  }
+  
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .company-name {
+    font-size: 1.25rem;
+  }
+  
+  .nav-link {
+    padding: 0.75rem;
+  }
+  
+  .main-content {
+    padding: 1rem 0.75rem;
+  }
+}
+
+/* Scrollbar Styling */
+.sidebar-nav::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Focus States for Accessibility */
+.sidebar-toggle:focus,
+.nav-link:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Animation for sidebar content */
+.sidebar-open .nav-text,
+.sidebar-open .logo-text,
+.sidebar-open .sidebar-footer {
+  animation: fadeInSlide 0.3s ease-out forwards;
+}
+
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
