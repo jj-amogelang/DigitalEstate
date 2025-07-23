@@ -9,6 +9,24 @@ app.config.from_object(Config)
 db.init_app(app)
 CORS(app)
 
+@app.route('/', methods=['GET'])
+def health_check():
+    """Health check endpoint that doesn't require database"""
+    return jsonify({
+        'status': 'healthy',
+        'message': 'Digital Estate Backend API is running',
+        'version': '1.0.0',
+        'endpoints': [
+            '/locations/countries',
+            '/locations/provinces/<country_id>',
+            '/locations/cities/<province_id>',
+            '/locations/areas/<city_id>',
+            '/properties/all',
+            '/properties/<area_id>',
+            '/property-types'
+        ]
+    })
+
 @app.route('/locations/countries', methods=['GET'])
 def get_countries():
     try:
@@ -165,6 +183,5 @@ if __name__ == '__main__':
     # For local development
     app.run(debug=os.getenv('FLASK_ENV') != 'production')
 
-# Vercel serverless function handler
-def handler(event, context):
-    return app
+# Export app for Vercel
+app = app

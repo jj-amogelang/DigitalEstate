@@ -1,8 +1,13 @@
 import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from "react-router-dom";
+import { SettingsProvider } from "./context/SettingsContext";
+import AuthProvider from "./context/AuthContext";
 import Dashboard from "./pages/Dashboard";
 import Properties from "./pages/Properties";
 import PropertyDetails from "./pages/PropertyDetails";
+import Settings from "./pages/Settings";
+import ProfileButton from "./components/ProfileButton";
+import AuthModal from "./components/AuthModal";
 import "./App.css";
 
 function Sidebar({ isOpen, toggleSidebar }) {
@@ -105,26 +110,75 @@ function Sidebar({ isOpen, toggleSidebar }) {
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState('login');
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
+  const handleLoginClick = () => {
+    setAuthModalMode('login');
+    setAuthModalOpen(true);
+  };
+
+  const handleRegisterClick = () => {
+    setAuthModalMode('register');
+    setAuthModalOpen(true);
+  };
+
   return (
-    <Router>
-      <div className="app-layout">
-        <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <main className={`main-content ${sidebarOpen ? 'main-content-expanded' : 'main-content-collapsed'}`}>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/properties" element={<Properties />} />
-            <Route path="/property/:id" element={<PropertyDetails />} />
-            <Route path="/analytics" element={<div className="coming-soon">Analytics - Coming Soon...</div>} />
-            <Route path="/settings" element={<div className="coming-soon">Settings - Coming Soon...</div>} />
-          </Routes>
-        </main>
-      </div>
-    </Router>
+    <AuthProvider>
+      <SettingsProvider>
+        <Router>
+          <div className="app-layout">
+            <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+            <main className={`main-content ${sidebarOpen ? 'main-content-expanded' : 'main-content-collapsed'}`}>
+              {/* Top Navigation Bar with Profile Button */}
+              <div className="top-nav">
+                <div className="nav-left">
+                  <button 
+                    className="sidebar-toggle"
+                    onClick={toggleSidebar}
+                    aria-label="Toggle sidebar"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <line x1="3" y1="6" x2="21" y2="6"/>
+                      <line x1="3" y1="12" x2="21" y2="12"/>
+                      <line x1="3" y1="18" x2="21" y2="18"/>
+                    </svg>
+                  </button>
+                </div>
+                <div className="nav-right">
+                  <ProfileButton 
+                    onLoginClick={handleLoginClick}
+                    onRegisterClick={handleRegisterClick}
+                  />
+                </div>
+              </div>
+
+              {/* Main Content Area */}
+              <div className="content-area">
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/properties" element={<Properties />} />
+                  <Route path="/property/:id" element={<PropertyDetails />} />
+                  <Route path="/analytics" element={<div className="coming-soon">Analytics - Coming Soon...</div>} />
+                  <Route path="/settings" element={<Settings />} />
+                </Routes>
+              </div>
+            </main>
+
+            {/* Authentication Modal */}
+            <AuthModal 
+              isOpen={authModalOpen}
+              onClose={() => setAuthModalOpen(false)}
+              initialMode={authModalMode}
+            />
+          </div>
+        </Router>
+      </SettingsProvider>
+    </AuthProvider>
   );
 }
 

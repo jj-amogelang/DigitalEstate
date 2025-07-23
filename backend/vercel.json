@@ -1,20 +1,18 @@
 {
   "version": 2,
-  "name": "digital-estate-backend",
   "builds": [
     {
-      "src": "app.py",
+      "src": "wsgi.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "app.py"
+      "dest": "/wsgi.py"
     }
   ],
   "env": {
-    "DATABASE_URL": "@database-url",
     "FLASK_ENV": "production"
   }
 }

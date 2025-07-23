@@ -1,23 +1,39 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
 
   return (
     <div className="dashboard">
+      {/* Welcome Message for Authenticated Users */}
+      {isAuthenticated && (
+        <div className="welcome-banner">
+          <div className="welcome-content">
+            <h2 className="welcome-title">
+              Welcome back, {user.firstName}! 👋
+            </h2>
+            <p className="welcome-subtitle">
+              Ready to explore the South African property market? Your personalized dashboard awaits.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Hero Section with Background Image */}
       <div className="dashboard-hero">
         <div className="hero-overlay">
           <div className="hero-content">
-            <div className="hero-badge">Premium Real Estate Platform</div>
+            <div className="hero-badge">About Digital Estate</div>
             <h1 className="dashboard-title">
-              Discover Exceptional
-              <span className="title-highlight"> Properties</span>
+              Smart, Data-Driven
+              <span className="title-highlight"> Real Estate Dashboard</span>
             </h1>
             <p className="dashboard-subtitle">
-              Elevating South Africa's luxury real estate experience with cutting-edge technology 
-              and unparalleled market expertise
+              Designed to give you insights into all property in South Africa. 
+              A centralized, user-friendly platform to explore property listings, view real-time data, and access detailed insights — all in one place.
             </p>
             <div className="hero-actions">
               <button 
@@ -33,23 +49,23 @@ export default function Dashboard() {
                 onClick={() => navigate('/properties')} 
                 className="btn btn-secondary hero-cta-secondary"
               >
-                View Market Insights
+                View Live Data
               </button>
             </div>
             <div className="hero-metrics">
               <div className="metric">
-                <div className="metric-number">1.2K+</div>
-                <div className="metric-label">Premium Listings</div>
+                <div className="metric-number">Live</div>
+                <div className="metric-label">Property Data</div>
               </div>
               <div className="metric-divider"></div>
               <div className="metric">
-                <div className="metric-number">R4.8B+</div>
-                <div className="metric-label">Property Value</div>
+                <div className="metric-number">All</div>
+                <div className="metric-label">South Africa</div>
               </div>
               <div className="metric-divider"></div>
               <div className="metric">
-                <div className="metric-number">98%</div>
-                <div className="metric-label">Success Rate</div>
+                <div className="metric-number">Smart</div>
+                <div className="metric-label">Insights</div>
               </div>
             </div>
           </div>
@@ -61,168 +77,234 @@ export default function Dashboard() {
       </div>
       
       <div className="dashboard-content">
-        {/* Trust Indicators */}
-        <div className="trust-section">
-          <div className="trust-badge">
-            <div className="trust-icon">🏆</div>
-            <div className="trust-text">
-              <div className="trust-title">Industry Leaders</div>
-              <div className="trust-subtitle">Trusted by thousands of property investors</div>
+        {/* Who We Serve Section */}
+        <div className="trust-section-classic">
+          <div className="trust-item">
+            <div className="trust-icon-small">💼</div>
+            <div className="trust-content">
+              <h4 className="trust-heading">Investors</h4>
+              <p className="trust-description">Make informed investment decisions with comprehensive data</p>
             </div>
           </div>
-          <div className="trust-badge">
-            <div className="trust-icon">🔒</div>
-            <div className="trust-text">
-              <div className="trust-title">Secure Transactions</div>
-              <div className="trust-subtitle">Bank-level security & verification</div>
+          <div className="trust-item">
+            <div className="trust-icon-small">🏢</div>
+            <div className="trust-content">
+              <h4 className="trust-heading">Facilities Managers</h4>
+              <p className="trust-description">Manage and optimize property portfolios efficiently</p>
             </div>
           </div>
-          <div className="trust-badge">
-            <div className="trust-icon">⚡</div>
-            <div className="trust-text">
-              <div className="trust-title">Real-time Data</div>
-              <div className="trust-subtitle">Live market updates & analytics</div>
+          <div className="trust-item">
+            <div className="trust-icon-small">🏗️</div>
+            <div className="trust-content">
+              <h4 className="trust-heading">Property Developers</h4>
+              <p className="trust-description">Access market insights for strategic development</p>
+            </div>
+          </div>
+          <div className="trust-item">
+            <div className="trust-icon-small">🔬</div>
+            <div className="trust-content">
+              <h4 className="trust-heading">Researchers</h4>
+              <p className="trust-description">Analyze trends and patterns in the property market</p>
             </div>
           </div>
         </div>
 
-        {/* Enhanced Stats */}
-        <div className="dashboard-stats">
-          <div className="stat-card featured">
-            <div className="stat-header">
-              <div className="stat-icon-modern">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                  <path d="M3 9.5L12 4L21 9.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="currentColor" strokeWidth="1.5"/>
-                  <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.5"/>
-                </svg>
-              </div>
-              <div className="stat-trend">↗ +12%</div>
-            </div>
-            <h3 className="stat-number">1,247</h3>
-            <p className="stat-label">Active Properties</p>
-            <p className="stat-sublabel">Across premium locations</p>
+        {/* Platform Features */}
+        <div className="services-section-classic">
+          <div className="section-header-classic">
+            <h2 className="section-title-classic">Platform Features</h2>
+            <p className="section-subtitle-classic">Everything you need for property insights in one place</p>
           </div>
           
-          <div className="stat-card">
-            <div className="stat-header">
-              <div className="stat-icon-modern">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" strokeWidth="1.5"/>
-                </svg>
-              </div>
-              <div className="stat-trend positive">↗ +8%</div>
-            </div>
-            <h3 className="stat-number">R4.2M</h3>
-            <p className="stat-label">Average Value</p>
-            <p className="stat-sublabel">Luxury segment</p>
-          </div>
-          
-          <div className="stat-card">
-            <div className="stat-header">
-              <div className="stat-icon-modern">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5"/>
-                  <path d="M8 14s1.5 2 4 2 4-2 4-2" stroke="currentColor" strokeWidth="1.5"/>
-                  <path d="M9 9h.01M15 9h.01" stroke="currentColor" strokeWidth="1.5"/>
-                </svg>
-              </div>
-              <div className="stat-trend positive">↗ +15%</div>
-            </div>
-            <h3 className="stat-number">98.5%</h3>
-            <p className="stat-label">Client Satisfaction</p>
-            <p className="stat-sublabel">5-star rated service</p>
-          </div>
-          
-          <div className="stat-card">
-            <div className="stat-header">
-              <div className="stat-icon-modern">
+          <div className="services-grid">
+            <div className="service-card">
+              <div className="service-icon">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke="currentColor" strokeWidth="1.5"/>
                   <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="1.5"/>
                 </svg>
               </div>
-              <div className="stat-trend">↗ +5%</div>
+              <div className="service-content">
+                <h4 className="service-title">Search by Location</h4>
+                <p className="service-description">
+                  Explore properties across South Africa with intuitive location-based search. 
+                  Filter by country, province, city, and specific areas.
+                </p>
+              </div>
             </div>
-            <h3 className="stat-number">156</h3>
-            <p className="stat-label">Prime Locations</p>
-            <p className="stat-sublabel">Major cities covered</p>
+            
+            <div className="service-card">
+              <div className="service-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <path d="M3 9.5L12 4L21 9.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.5"/>
+                </svg>
+              </div>
+              <div className="service-content">
+                <h4 className="service-title">Property Type Filtering</h4>
+                <p className="service-description">
+                  Categorize and explore by property types — residential, commercial, 
+                  industrial, and retail — for focused exploration.
+                </p>
+              </div>
+            </div>
+            
+            <div className="service-card">
+              <div className="service-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <path d="M3 3v18h18" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" stroke="currentColor" strokeWidth="1.5"/>
+                </svg>
+              </div>
+              <div className="service-content">
+                <h4 className="service-title">Real-Time Data</h4>
+                <p className="service-description">
+                  Access live property data with up-to-date information on pricing, 
+                  availability, and market trends across all regions.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
-        
-        {/* Enhanced Features */}
-        <div className="features-section">
-          <div className="section-header">
-            <h2 className="section-title">Why Choose DigitalEstate</h2>
-            <p className="section-subtitle">Experience the future of real estate with our advanced platform</p>
+
+        {/* Property Information Section */}
+        <div className="services-section-classic">
+          <div className="section-header-classic">
+            <h2 className="section-title-classic">Comprehensive Property Details</h2>
+            <p className="section-subtitle-classic">Every listing includes detailed information for informed decisions</p>
           </div>
           
-          <div className="dashboard-features">
-            <div className="feature-card premium">
-              <div className="feature-header">
-                <div className="feature-icon-modern">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-                    <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.5"/>
-                    <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.5"/>
-                    <circle cx="11" cy="11" r="3" stroke="currentColor" strokeWidth="1.5"/>
-                  </svg>
-                </div>
-                <div className="feature-badge">AI Powered</div>
+          <div className="services-grid">
+            <div className="service-card">
+              <div className="service-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" strokeWidth="1.5"/>
+                  <circle cx="8.5" cy="8.5" r="1.5" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M21 15l-5-5L5 21" stroke="currentColor" strokeWidth="1.5"/>
+                </svg>
               </div>
-              <h4 className="feature-title">Intelligent Search</h4>
-              <p className="feature-description">
-                Advanced AI algorithms match you with properties that perfectly align with your 
-                preferences, budget, and lifestyle requirements.
-              </p>
-              <div className="feature-benefits">
-                <div className="benefit">✓ Smart recommendations</div>
-                <div className="benefit">✓ Price predictions</div>
-                <div className="benefit">✓ Market insights</div>
+              <div className="service-content">
+                <h4 className="service-title">High-Quality Images</h4>
+                <p className="service-description">
+                  Professional property photography and visual documentation 
+                  to give you a clear view of every listing.
+                </p>
               </div>
             </div>
             
-            <div className="feature-card">
-              <div className="feature-header">
-                <div className="feature-icon-modern">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-                    <path d="M3 3v18h18" stroke="currentColor" strokeWidth="1.5"/>
-                    <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" stroke="currentColor" strokeWidth="1.5"/>
-                  </svg>
-                </div>
-                <div className="feature-badge">Live Data</div>
+            <div className="service-card">
+              <div className="service-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" strokeWidth="1.5"/>
+                </svg>
               </div>
-              <h4 className="feature-title">Real-Time Analytics</h4>
-              <p className="feature-description">
-                Access comprehensive market data, trend analysis, and investment insights 
-                updated in real-time to make informed decisions.
-              </p>
-              <div className="feature-benefits">
-                <div className="benefit">✓ Market trends</div>
-                <div className="benefit">✓ Investment ROI</div>
-                <div className="benefit">✓ Area analysis</div>
+              <div className="service-content">
+                <h4 className="service-title">Cost Information</h4>
+                <p className="service-description">
+                  Transparent pricing data with detailed cost breakdowns 
+                  and market value comparisons for accurate assessments.
+                </p>
               </div>
             </div>
             
-            <div className="feature-card">
-              <div className="feature-header">
-                <div className="feature-icon-modern">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-                    <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="1.5"/>
-                    <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.5"/>
-                    <path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" strokeWidth="1.5"/>
+            <div className="service-card">
+              <div className="service-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" stroke="currentColor" strokeWidth="1.5"/>
+                  <polyline points="3.27,6.96 12,12.01 20.73,6.96" stroke="currentColor" strokeWidth="1.5"/>
+                  <line x1="12" y1="22.08" x2="12" y2="12" stroke="currentColor" strokeWidth="1.5"/>
+                </svg>
+              </div>
+              <div className="service-content">
+                <h4 className="service-title">ERF Size & Developer Details</h4>
+                <p className="service-description">
+                  Complete property specifications including erf size, 
+                  developer information, and technical details for thorough evaluation.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Our Vision Section */}
+        <div className="services-section-classic">
+          <div className="section-header-classic">
+            <h2 className="section-title-classic">Our Vision</h2>
+            <p className="section-subtitle-classic">Reimagining property data access in South Africa</p>
+          </div>
+          
+          <div className="vision-content">
+            <div className="vision-statement">
+              <h3 className="vision-title">Making Property Data Accessible, Meaningful, and Beautiful</h3>
+              <p className="vision-description">
+                We are reimagining how property data is accessed and understood in South Africa — 
+                making it accessible, meaningful, and beautiful. With Digital Estate, we aim to 
+                empower users with insights that drive smarter decisions and bring clarity to the real estate landscape.
+              </p>
+            </div>
+            
+            <div className="vision-goals">
+              <div className="vision-goal">
+                <div className="goal-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/>
                   </svg>
                 </div>
-                <div className="feature-badge">24/7 Support</div>
+                <div className="goal-content">
+                  <h4>Accessible</h4>
+                  <p>Property data available to everyone, everywhere</p>
+                </div>
               </div>
-              <h4 className="feature-title">Expert Consultation</h4>
-              <p className="feature-description">
-                Connect with certified real estate professionals who provide personalized 
-                guidance throughout your property journey.
-              </p>
-              <div className="feature-benefits">
-                <div className="benefit">✓ Licensed agents</div>
-                <div className="benefit">✓ Legal support</div>
-                <div className="benefit">✓ Investment advice</div>
+              
+              <div className="vision-goal">
+                <div className="goal-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2"/>
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                </div>
+                <div className="goal-content">
+                  <h4>Meaningful</h4>
+                  <p>Insights that drive smarter decisions</p>
+                </div>
               </div>
+              
+              <div className="vision-goal">
+                <div className="goal-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z" stroke="currentColor" strokeWidth="1.5"/>
+                  </svg>
+                </div>
+                <div className="goal-content">
+                  <h4>Beautiful</h4>
+                  <p>Clean, modern interface for better understanding</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Platform Benefits */}
+        <div className="trust-section-classic">
+          <div className="trust-item">
+            <div className="trust-icon-small">🔗</div>
+            <div className="trust-content">
+              <h4 className="trust-heading">Robust Backend</h4>
+              <p className="trust-description">Seamless connection to comprehensive property database</p>
+            </div>
+          </div>
+          <div className="trust-item">
+            <div className="trust-icon-small">🎯</div>
+            <div className="trust-content">
+              <h4 className="trust-heading">One-Click Details</h4>
+              <p className="trust-description">View detailed property information with simple interaction</p>
+            </div>
+          </div>
+          <div className="trust-item">
+            <div className="trust-icon-small">✨</div>
+            <div className="trust-content">
+              <h4 className="trust-heading">Modern Interface</h4>
+              <p className="trust-description">Clean, user-friendly design for optimal experience</p>
             </div>
           </div>
         </div>
