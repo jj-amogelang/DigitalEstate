@@ -284,6 +284,78 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Market Research Section */}
+        <div className="services-section-classic">
+          <div className="section-header-classic">
+            <h2 className="section-title-classic">Advanced Market Research</h2>
+            <p className="section-subtitle-classic">Data-driven insights for Sandton, Centurion, and Rosebank markets</p>
+          </div>
+          
+          <div className="services-grid">
+            <div className="service-card">
+              <div className="service-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <path d="M9 17H7V10H9V17ZM13 17H11V7H13V17ZM17 17H15V13H17V17ZM19.5 19.1H4.5V5H19.5V19.1Z" stroke="currentColor" strokeWidth="1.5"/>
+                </svg>
+              </div>
+              <div className="service-content">
+                <h4 className="service-title">Market Trends Analysis</h4>
+                <p className="service-description">
+                  Interactive charts showing average prices, rental yields, and growth rates 
+                  across premium South African locations.
+                </p>
+              </div>
+            </div>
+            
+            <div className="service-card">
+              <div className="service-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <path d="M4 4H20V20H4V4ZM6 6V18H18V6H6ZM8 8H16V10H8V8ZM8 12H16V14H8V12Z" stroke="currentColor" strokeWidth="1.5"/>
+                </svg>
+              </div>
+              <div className="service-content">
+                <h4 className="service-title">Property Research Database</h4>
+                <p className="service-description">
+                  Comprehensive PostgreSQL database with sortable tables showing 
+                  vacancy rates, yield analysis, and market performance metrics.
+                </p>
+              </div>
+            </div>
+            
+            <div className="service-card">
+              <div className="service-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="1.5"/>
+                  <polyline points="14,2 14,8 20,8" stroke="currentColor" strokeWidth="1.5"/>
+                </svg>
+              </div>
+              <div className="service-content">
+                <h4 className="service-title">Excel Data Upload</h4>
+                <p className="service-description">
+                  Upload and refresh market data with Excel files through our 
+                  FastAPI backend for real-time research updates.
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="research-cta-section">
+            <div className="research-cta-content">
+              <h3>Explore Comprehensive Market Research</h3>
+              <p>Access detailed analytics, interactive charts, and real-time data for informed property investment decisions.</p>
+              <button 
+                onClick={() => navigate('/research')} 
+                className="btn btn-primary research-cta-btn"
+              >
+                <span>View Market Research</span>
+                <svg className="cta-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Platform Benefits */}
         <div className="trust-section-classic">
           <div className="trust-item">

@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import Properties from "./pages/Properties";
 import PropertyDetails from "./pages/PropertyDetails";
 import Settings from "./pages/Settings";
+import ResearchDashboard from "./pages/ResearchDashboard";
 import ProfileButton from "./components/ProfileButton";
 import AuthModal from "./components/AuthModal";
 import "./App.css";
@@ -69,6 +70,17 @@ function Sidebar({ isOpen, toggleSidebar }) {
             <path d="M10 20V14H14V20H19V12H22L12 3L2 12H5V20H10Z" fill="currentColor"/>
           </svg>
           {isOpen && <span className="nav-text">Properties</span>}
+        </Link>
+
+        <Link 
+          to="/research" 
+          className={`nav-link ${location.pathname === '/research' ? 'active' : ''}`}
+          title="Market Research"
+        >
+          <svg className="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 17H7V10H9V17ZM13 17H11V7H13V17ZM17 17H15V13H17V17ZM19.5 19.1H4.5V5H19.5V19.1ZM19.5 3H4.5C3.4 3 2.5 3.9 2.5 5V19.1C2.5 20.2 3.4 21.1 4.5 21.1H19.5C20.6 21.1 21.5 20.2 21.5 19.1V5C21.5 3.9 20.6 3 19.5 3Z" fill="currentColor"/>
+          </svg>
+          {isOpen && <span className="nav-text">Market Research</span>}
         </Link>
 
         <Link 
@@ -163,6 +175,7 @@ function App() {
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/properties" element={<Properties />} />
                   <Route path="/property/:id" element={<PropertyDetails />} />
+                  <Route path="/research" element={<ResearchDashboard />} />
                   <Route path="/analytics" element={<div className="coming-soon">Analytics - Coming Soon...</div>} />
                   <Route path="/settings" element={<Settings />} />
                 </Routes>

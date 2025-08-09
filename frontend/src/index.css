@@ -2763,3 +2763,96 @@ code {
     flex-direction: column;
   }
 }
+
+/* Research CTA Section */
+.research-cta-section {
+  margin-top: 3rem;
+  padding: 3rem 2rem;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 16px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.research-cta-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.research-cta-content {
+  position: relative;
+  z-index: 2;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.research-cta-content h3 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--black);
+  margin-bottom: 1rem;
+  line-height: 1.3;
+}
+
+.research-cta-content p {
+  font-size: 1.1rem;
+  color: var(--grey-text);
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.research-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.1rem;
+  padding: 1rem 2rem;
+  border-radius: 50px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.research-cta-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(212, 175, 55, 0.3);
+}
+
+.research-cta-btn .cta-arrow {
+  transition: transform 0.3s ease;
+}
+
+.research-cta-btn:hover .cta-arrow {
+  transform: translateX(3px);
+}
+
+/* Mobile responsiveness for Research CTA */
+@media (max-width: 768px) {
+  .research-cta-section {
+    margin-top: 2rem;
+    padding: 2rem 1rem;
+  }
+  
+  .research-cta-content h3 {
+    font-size: 1.5rem;
+  }
+  
+  .research-cta-content p {
+    font-size: 1rem;
+  }
+  
+  .research-cta-btn {
+    padding: 0.875rem 1.5rem;
+    font-size: 1rem;
+  }
+}
