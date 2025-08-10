@@ -20,10 +20,38 @@
   --shadow-dark: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
+/* Enhanced Responsive Typography and Layout */
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+/* Base font size adjustments for better mobile readability */
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+}
+
+@media (max-width: 768px) {
+  html {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 320px) {
+  html {
+    font-size: 13px;
+  }
 }
 
 body {
@@ -36,6 +64,94 @@ body {
   background-color: var(--white);
   color: var(--black);
   line-height: 1.6;
+  overflow-x: hidden;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 100vh;
+}
+
+/* Enhanced mobile typography scaling */
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.2;
+  font-weight: 300;
+  margin-bottom: 0.5em;
+  word-wrap: break-word;
+  hyphens: auto;
+}
+
+h1 {
+  font-size: clamp(1.5rem, 4vw, 3rem);
+}
+
+h2 {
+  font-size: clamp(1.25rem, 3.5vw, 2.5rem);
+}
+
+h3 {
+  font-size: clamp(1.125rem, 3vw, 2rem);
+}
+
+h4 {
+  font-size: clamp(1rem, 2.5vw, 1.5rem);
+}
+
+h5 {
+  font-size: clamp(0.875rem, 2vw, 1.25rem);
+}
+
+h6 {
+  font-size: clamp(0.75rem, 1.5vw, 1rem);
+}
+
+p {
+  font-size: clamp(0.875rem, 2vw, 1rem);
+  line-height: 1.6;
+  margin-bottom: 1em;
+  word-wrap: break-word;
+}
+
+/* Enhanced button responsive scaling and touch optimization */
+button {
+  font-size: clamp(0.75rem, 2vw, 0.875rem);
+  padding: clamp(0.5rem, 2vw, 0.75rem) clamp(1rem, 3vw, 1.5rem);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+  border: none;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  min-height: 44px; /* iOS touch target minimum */
+  min-width: 44px;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+/* Enhanced input responsive scaling and touch optimization */
+input, textarea, select {
+  font-size: clamp(0.875rem, 2vw, 1rem);
+  padding: clamp(0.5rem, 2vw, 0.75rem);
+  touch-action: manipulation;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 4px;
+  border: 1px solid var(--border-grey, #e0e0e0);
+  min-height: 44px; /* iOS touch target minimum */
+}
+
+/* Prevent zoom on input focus on iOS */
+@media screen and (max-width: 768px) {
+  input[type="email"],
+  input[type="password"],
+  input[type="text"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  textarea,
+  select {
+    font-size: 16px;
+  }
 }
 
 code {
@@ -43,11 +159,95 @@ code {
     monospace;
 }
 
-/* Container and Layout */
+/* Mobile-specific utilities */
+.mobile-hidden {
+  display: block;
+}
+
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-hidden {
+    display: none;
+  }
+  
+  .mobile-only {
+    display: block;
+  }
+}
+
+/* Touch-friendly scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--light-grey, #f5f5f5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--medium-grey, #cccccc);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--dark-grey, #999999);
+}
+
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+}
+
+/* Safe area insets for devices with notches */
+@supports (padding: max(0px)) {
+  .safe-area-inset-top {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+  
+  .safe-area-inset-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  
+  .safe-area-inset-left {
+    padding-left: max(1rem, env(safe-area-inset-left));
+  }
+  
+  .safe-area-inset-right {
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+}
+
+/* Enhanced Responsive Container and Layout */
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 clamp(1rem, 4vw, 2rem);
+  width: 100%;
+}
+
+/* Mobile-first responsive container */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0 0.75rem;
+  }
+}
+
+@media (max-width: 320px) {
+  .container {
+    padding: 0 0.5rem;
+  }
 }
 
 .flex {
@@ -71,14 +271,14 @@ code {
 }
 
 .gap-4 {
-  gap: 1rem;
+  gap: clamp(0.75rem, 2vw, 1rem);
 }
 
 .gap-6 {
-  gap: 1.5rem;
+  gap: clamp(1rem, 3vw, 1.5rem);
 }
 
-/* Grid */
+/* Enhanced Responsive Grid */
 .grid {
   display: grid;
 }
@@ -95,12 +295,25 @@ code {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+/* Mobile-first grid breakpoints */
+@media (min-width: 640px) {
+  .sm\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sm\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 @media (min-width: 768px) {
   .md\:grid-cols-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .md\:grid-cols-3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .md\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -111,42 +324,136 @@ code {
   .lg\:grid-cols-4 {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
+  .lg\:grid-cols-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
 }
 
-/* Spacing */
+@media (min-width: 1280px) {
+  .xl\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .xl\:grid-cols-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .xl\:grid-cols-6 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+/* Enhanced Responsive Spacing */
 .p-4 {
-  padding: 1rem;
+  padding: clamp(0.75rem, 2vw, 1rem);
 }
 
 .p-6 {
-  padding: 1.5rem;
+  padding: clamp(1rem, 3vw, 1.5rem);
+}
+
+.p-8 {
+  padding: clamp(1.5rem, 4vw, 2rem);
 }
 
 .py-2 {
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
+  padding-top: clamp(0.375rem, 1vw, 0.5rem);
+  padding-bottom: clamp(0.375rem, 1vw, 0.5rem);
+}
+
+.py-4 {
+  padding-top: clamp(0.75rem, 2vw, 1rem);
+  padding-bottom: clamp(0.75rem, 2vw, 1rem);
 }
 
 .py-8 {
-  padding-top: 2rem;
-  padding-bottom: 2rem;
+  padding-top: clamp(1.5rem, 4vw, 2rem);
+  padding-bottom: clamp(1.5rem, 4vw, 2rem);
 }
 
 .px-4 {
-  padding-left: 1rem;
-  padding-right: 1rem;
+  padding-left: clamp(0.75rem, 2vw, 1rem);
+  padding-right: clamp(0.75rem, 2vw, 1rem);
+}
+
+.px-6 {
+  padding-left: clamp(1rem, 3vw, 1.5rem);
+  padding-right: clamp(1rem, 3vw, 1.5rem);
 }
 
 .m-4 {
-  margin: 1rem;
+  margin: clamp(0.75rem, 2vw, 1rem);
+}
+
+.m-6 {
+  margin: clamp(1rem, 3vw, 1.5rem);
 }
 
 .mb-4 {
-  margin-bottom: 1rem;
+  margin-bottom: clamp(0.75rem, 2vw, 1rem);
 }
 
 .mb-6 {
-  margin-bottom: 1.5rem;
+  margin-bottom: clamp(1rem, 3vw, 1.5rem);
+}
+
+.mb-8 {
+  margin-bottom: clamp(1.5rem, 4vw, 2rem);
+}
+
+.mt-4 {
+  margin-top: clamp(0.75rem, 2vw, 1rem);
+}
+
+.mt-6 {
+  margin-top: clamp(1rem, 3vw, 1.5rem);
+}
+
+.mt-8 {
+  margin-top: clamp(1.5rem, 4vw, 2rem);
+}
+
+/* Mobile-specific spacing adjustments */
+@media (max-width: 768px) {
+  .mobile\:p-2 {
+    padding: 0.5rem;
+  }
+  
+  .mobile\:p-4 {
+    padding: 1rem;
+  }
+  
+  .mobile\:py-2 {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  
+  .mobile\:px-4 {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  .mobile\:mb-2 {
+    margin-bottom: 0.5rem;
+  }
+  
+  .mobile\:mb-4 {
+    margin-bottom: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .small-mobile\:p-2 {
+    padding: 0.5rem;
+  }
+  
+  .small-mobile\:px-2 {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  
+  .small-mobile\:py-1 {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
 }
 
 .mt-8 {
