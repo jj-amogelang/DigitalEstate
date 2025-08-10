@@ -1068,22 +1068,6 @@
     height: 220px;
   }
 }
-  }
-  
-  .thumbnail-item {
-    height: 100px;
-  }
-  
-  .property-gallery {
-    padding: 1rem;
-  }
-  
-  .nav-button {
-    width: 40px;
-    height: 40px;
-    font-size: 1.2rem;
-  }
-}
 
 /* Additional minimalist touches */
 .property-nav,
@@ -1116,4 +1100,22 @@ textarea:focus,
 select:focus {
   outline: 1px solid var(--primary-black);
   outline-offset: 2px;
+}
+
+/* Additional minimalist touches */
+.property-nav,
+.property-details-section,
+.property-hero {
+  border-color: var(--border-grey);
+}
+
+/* Clean selection styles */
+::selection {
+  background: var(--primary-black);
+  color: var(--white);
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
 }
