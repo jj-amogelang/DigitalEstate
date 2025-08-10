@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { API_ENDPOINTS } from "../config/api";
 import "../components/DropdownFix.css";
-import "./PropertiesZara.css";
+import "./PropertiesModern.css";
 
 export default function Properties() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [countries, setCountries] = useState([]);
   const [provinces, setProvinces] = useState([]);
   const [cities, setCities] = useState([]);
@@ -17,49 +16,9 @@ export default function Properties() {
   const [selectedPropertyType, setSelectedPropertyType] = useState('all');
   const [loading, setLoading] = useState(false);
 
-  // Get initial state from navigation state or localStorage
-  const getInitialFilters = () => {
-    if (location.state?.filters) {
-      return location.state.filters;
-    }
-    const savedFilters = localStorage.getItem('propertyFilters');
-    return savedFilters ? JSON.parse(savedFilters) : {
-      country: "", province: "", city: "", area: "", areaName: ""
-    };
-  };
-
-  const [selected, setSelected] = useState(getInitialFilters());
-
-  // Save filters to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('propertyFilters', JSON.stringify(selected));
-    localStorage.setItem('propertyType', selectedPropertyType);
-  }, [selected, selectedPropertyType]);
-
-  // Restore property type from localStorage
-  useEffect(() => {
-    const savedPropertyType = localStorage.getItem('propertyType');
-    if (savedPropertyType) {
-      setSelectedPropertyType(savedPropertyType);
-    }
-  }, []);
-
-  // Enhanced navigation function that preserves filters
-  const navigateToProperty = (propertyId) => {
-    const currentFilters = {
-      selected,
-      selectedPropertyType,
-      propertyList,
-      filteredProperties
-    };
-    
-    navigate(`/property/${propertyId}`, {
-      state: { 
-        filters: currentFilters,
-        returnUrl: '/properties'
-      }
-    });
-  };
+  const [selected, setSelected] = useState({
+    country: "", province: "", city: "", area: "", areaName: ""
+  });
 
   // Fetch all countries on mount
   useEffect(() => {
@@ -209,41 +168,12 @@ export default function Properties() {
 
   return (
     <div className="properties-page-modern">
-      {/* Hero Section */}
-      <div className="hero-section-premium">
-        <div className="hero-overlay"></div>
-        <div className="hero-content-premium">
-          <div className="hero-text-premium">
-            <h1 className="hero-title-premium">
-              Find Your Perfect <span className="hero-accent">Investment</span>
-            </h1>
-            <p className="hero-subtitle-premium">
-              Discover exceptional properties across South Africa's most prestigious locations
-            </p>
-          </div>
-          <div className="hero-stats-premium">
-            <div className="stat-card-premium">
-              <div className="stat-number-premium">{propertyList.length || 0}+</div>
-              <div className="stat-label-premium">PROPERTIES</div>
-            </div>
-            <div className="stat-card-premium">
-              <div className="stat-number-premium">25+</div>
-              <div className="stat-label-premium">LOCATIONS</div>
-            </div>
-            <div className="stat-card-premium">
-              <div className="stat-number-premium">R2.5M</div>
-              <div className="stat-label-premium">AVG. VALUE</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Header Section */}
       <div className="properties-header-modern">
         <div className="header-content-modern">
-          <h2 className="page-title-modern">Property Search</h2>
+          <h1 className="page-title-modern">Premium Properties</h1>
           <p className="page-subtitle-modern">
-            Use our advanced filters to find your perfect property investment
+            Discover exceptional real estate opportunities across South Africa's most sought-after locations
           </p>
         </div>
       </div>
@@ -376,7 +306,7 @@ export default function Properties() {
             {filteredProperties.length > 0 ? (
               <div className="properties-grid-modern">
                 {filteredProperties.map(property => (
-                  <div key={property.id} className="property-card-modern" onClick={() => navigateToProperty(property.id)}>
+                  <div key={property.id} className="property-card-modern" onClick={() => navigate(`/property/${property.id}`)}>
                     <div className="property-image-modern">
                       <img 
                         src={property.image_url} 

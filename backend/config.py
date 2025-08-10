@@ -1,9 +1,37 @@
 import os
 from dotenv import load_dotenv
+from urllib.parse import quote_plus
 
 load_dotenv()
 
 class Config:
-    # PostgreSQL connection string
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'postgresql://username:password@localhost:5432/digitalestate')
+    # Database configuration
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    
+    # Use environment variable if available, otherwise use local PostgreSQL
+    DATABASE_URL = os.environ.get('DATABASE_URL')
+    
+    if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
+        # Vercel/Heroku compatibility - update deprecated postgres:// to postgresql://
+        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+    
+    if DATABASE_URL:
+        SQLALCHEMY_DATABASE_URI = DATABASE_URL
+    else:
+        # Local development - use PostgreSQL digitalestate2 database
+        # Update these values with your local PostgreSQL credentials
+        DB_USER = 'postgres'
+        DB_PASSWORD = 'postgres'  # Update with your actual password
+        DB_HOST = 'localhost'
+        DB_PORT = '5432'
+        DB_NAME = 'digitalestate2'  # Updated to use digitalestate2 database
+        
+        # Create PostgreSQL connection string
+        SQLALCHEMY_DATABASE_URI = f'postgresql://{DB_USER}:{quote_plus(DB_PASSWORD)}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
+    
+    # Additional Flask configuration
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
+    DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    
+    # Enable CORS for development
+    CORS_ENABLED = True
