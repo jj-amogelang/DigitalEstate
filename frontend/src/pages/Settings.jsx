@@ -1,367 +1,464 @@
 import React, { useState } from 'react';
-import { useSettings } from '../context/SettingsContext';
-import './Settings.css';
 
 const Settings = () => {
-  const { settings, updateSettings, resetSettings } = useSettings();
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [activeSection, setActiveSection] = useState('general');
+  const [activeTab, setActiveTab] = useState('Account');
+  const [selectedPlan, setSelectedPlan] = useState('Growth Plan');
+  const [billingCycle, setBillingCycle] = useState('Monthly');
 
-  const handleThemeChange = (theme) => {
-    updateSettings({ theme });
-  };
-
-  const handleLanguageChange = (e) => {
-    updateSettings({ language: e.target.value });
-  };
-
-  const handleNotificationToggle = (type) => {
-    updateSettings({
-      notifications: {
-        ...settings.notifications,
-        [type]: !settings.notifications[type]
-      }
-    });
-  };
-
-  const handleDisplayToggle = (type) => {
-    updateSettings({
-      display: {
-        ...settings.display,
-        [type]: !settings.display[type]
-      }
-    });
-  };
-
-  const handlePrivacyToggle = (type) => {
-    updateSettings({
-      privacy: {
-        ...settings.privacy,
-        [type]: !settings.privacy[type]
-      }
-    });
-  };
-
-  const handleCurrencyChange = (e) => {
-    updateSettings({ currency: e.target.value });
-  };
-
-  const handleReset = () => {
-    resetSettings();
-    setShowResetConfirm(false);
-  };
-
-  const sections = [
-    { id: 'general', label: 'General', icon: '⚙️' },
-    { id: 'display', label: 'Display', icon: '🎨' },
-    { id: 'notifications', label: 'Notifications', icon: '🔔' },
-    { id: 'privacy', label: 'Privacy', icon: '🔒' },
-    { id: 'advanced', label: 'Advanced', icon: '🔧' }
+  const tabs = [
+    'Account',
+    'Team Management', 
+    'Preferences',
+    'Integration',
+    'Billing & Subscription',
+    'Security',
+    'Report & Analytics'
   ];
 
-  return (
-    <div className="settings-container">
-      <div className="settings-header">
-        <h1>Settings</h1>
-        <p>Customize your property dashboard experience</p>
-      </div>
+  const plans = [
+    {
+      name: 'Starter Plan',
+      price: 10.00,
+      badge: 'FREE',
+      badgeColor: 'orange',
+      features: [
+        'Manage up to 1,000 contacts',
+        'Basic customer management tools',
+        'Task and workflow automation',
+        'Integration with third-party apps (limited)',
+        'Customizable dashboards'
+      ],
+      isCurrent: false
+    },
+    {
+      name: 'Growth Plan',
+      price: 79.00,
+      badge: 'PRO',
+      badgeColor: 'orange',
+      features: [
+        'Manage up to 10,000 contacts',
+        'Advanced customer management',
+        'Full automation capabilities',
+        'Real time reporting and analytics',
+        'Collaborative team features'
+      ],
+      isCurrent: true,
+      isHighlighted: true
+    },
+    {
+      name: 'Enterprise Plan',
+      price: 'Custom',
+      badge: 'ADVANCE',
+      badgeColor: 'green',
+      features: [
+        'Unlimited contacts and data storage',
+        'Custom workflow and automation setups',
+        'Dedicated account manager',
+        'Advanced analytics and reporting',
+        'Full API access and custom integrations'
+      ],
+      isCurrent: false,
+      isCustom: true
+    }
+  ];
 
-      <div className="settings-content">
-        <div className="settings-sidebar">
-          <nav className="settings-nav">
-            {sections.map(section => (
-              <button
-                key={section.id}
-                className={`nav-item ${activeSection === section.id ? 'active' : ''}`}
-                onClick={() => setActiveSection(section.id)}
-              >
-                <span className="nav-icon">{section.icon}</span>
-                <span className="nav-label">{section.label}</span>
-              </button>
-            ))}
-          </nav>
-        </div>
+  const billingHistory = [
+    {
+      planName: 'Starter Plan - Jun 2024',
+      amount: 10.00,
+      purchaseDate: '2024-06-01',
+      endDate: '2024-06-31',
+      status: 'Processing'
+    },
+    {
+      planName: 'Growth Plan - May 2024',
+      amount: 79.00,
+      purchaseDate: '2024-05-01',
+      endDate: '2024-05-31',
+      status: 'Success'
+    },
+    {
+      planName: 'Starter Plan - Apr 2024',
+      amount: 10.00,
+      purchaseDate: '2024-04-01',
+      endDate: '2024-04-30',
+      status: 'Success'
+    },
+    {
+      planName: 'Starter Plan - Mar 2024',
+      amount: 10.00,
+      purchaseDate: '2024-03-01',
+      endDate: '2024-03-31',
+      status: 'Success'
+    }
+  ];
 
-        <div className="settings-main">
-          {activeSection === 'general' && (
-            <div className="settings-section">
-              <h2>General Settings</h2>
-              
-              <div className="setting-group">
-                <label>Theme</label>
-                <div className="theme-selector">
-                  <button
-                    className={`theme-option light ${settings.theme === 'light' ? 'active' : ''}`}
-                    onClick={() => handleThemeChange('light')}
-                  >
-                    <div className="theme-preview light-preview"></div>
-                    <span>Light</span>
-                  </button>
-                  <button
-                    className={`theme-option dark ${settings.theme === 'dark' ? 'active' : ''}`}
-                    onClick={() => handleThemeChange('dark')}
-                  >
-                    <div className="theme-preview dark-preview"></div>
-                    <span>Dark</span>
-                  </button>
-                  <button
-                    className={`theme-option auto ${settings.theme === 'auto' ? 'active' : ''}`}
-                    onClick={() => handleThemeChange('auto')}
-                  >
-                    <div className="theme-preview auto-preview"></div>
-                    <span>Auto</span>
-                  </button>
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'Account':
+        return (
+          <div className="settings-tab-content">
+            <h2>Account Settings</h2>
+            <div className="settings-form">
+              <div className="form-group">
+                <label>Full Name</label>
+                <input type="text" className="form-input" defaultValue="John Doe" />
+              </div>
+              <div className="form-group">
+                <label>Email Address</label>
+                <input type="email" className="form-input" defaultValue="john@example.com" />
+              </div>
+              <div className="form-group">
+                <label>Phone Number</label>
+                <input type="tel" className="form-input" defaultValue="+1 (555) 123-4567" />
+              </div>
+              <div className="form-group">
+                <label>Company</label>
+                <input type="text" className="form-input" defaultValue="Digital Estate Co." />
+              </div>
+              <div className="form-actions">
+                <button className="btn btn-primary">Save Changes</button>
+                <button className="btn btn-outline">Cancel</button>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'Team Management':
+        return (
+          <div className="settings-tab-content">
+            <h2>Team Management</h2>
+            <div className="team-section">
+              <div className="team-header">
+                <h3>Team Members</h3>
+                <button className="btn btn-primary">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  Add Member
+                </button>
+              </div>
+              <div className="team-list">
+                {['John Doe (Admin)', 'Jane Smith (Editor)', 'Mike Johnson (Viewer)'].map((member, index) => (
+                  <div key={index} className="team-member">
+                    <div className="member-info">
+                      <div className="member-avatar">{member.charAt(0)}</div>
+                      <span>{member}</span>
+                    </div>
+                    <button className="btn-icon">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="12" cy="12" r="1"/>
+                        <circle cx="19" cy="12" r="1"/>
+                        <circle cx="5" cy="12" r="1"/>
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'Preferences':
+        return (
+          <div className="settings-tab-content">
+            <h2>Preferences</h2>
+            <div className="preferences-section">
+              <div className="preference-group">
+                <h3>Theme</h3>
+                <div className="theme-options">
+                  {['Light', 'Dark', 'Auto'].map(theme => (
+                    <button key={theme} className={`theme-btn ${theme === 'Dark' ? 'active' : ''}`}>
+                      {theme}
+                    </button>
+                  ))}
                 </div>
               </div>
-
-              <div className="setting-group">
-                <label htmlFor="language">Language</label>
-                <select
-                  id="language"
-                  value={settings.language}
-                  onChange={handleLanguageChange}
-                  className="setting-select"
-                >
-                  <option value="en">English</option>
-                  <option value="es">Español</option>
-                  <option value="fr">Français</option>
-                  <option value="de">Deutsch</option>
-                  <option value="zh">中文</option>
+              <div className="preference-group">
+                <h3>Language</h3>
+                <select className="form-select">
+                  <option>English</option>
+                  <option>Spanish</option>
+                  <option>French</option>
                 </select>
               </div>
+              <div className="preference-group">
+                <h3>Notifications</h3>
+                <div className="toggle-group">
+                  <div className="toggle-item">
+                    <label>Email Notifications</label>
+                    <div className="toggle-switch active">
+                      <span className="toggle-slider"></span>
+                    </div>
+                  </div>
+                  <div className="toggle-item">
+                    <label>Push Notifications</label>
+                    <div className="toggle-switch">
+                      <span className="toggle-slider"></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
 
-              <div className="setting-group">
-                <label htmlFor="currency">Currency</label>
-                <select
-                  id="currency"
-                  value={settings.currency}
-                  onChange={handleCurrencyChange}
-                  className="setting-select"
+      case 'Integration':
+        return (
+          <div className="settings-tab-content">
+            <h2>Integration</h2>
+            <div className="integration-section">
+              <div className="integration-list">
+                {['Slack', 'Zapier', 'Google Workspace', 'Microsoft 365'].map((integration, index) => (
+                  <div key={index} className="integration-item">
+                    <div className="integration-info">
+                      <div className="integration-icon">{integration.charAt(0)}</div>
+                      <div>
+                        <h4>{integration}</h4>
+                        <p>Connect your {integration} account</p>
+                      </div>
+                    </div>
+                    <button className="btn btn-outline">Connect</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'Billing & Subscription':
+        return (
+          <div className="settings-tab-content">
+            <div className="billing-header">
+              <h2>Billing & Subscription</h2>
+              <p className="billing-subtitle">Keep track of your subscription details, update your billing information, and control your account's payment</p>
+              <div className="billing-cycle-toggle">
+                <button 
+                  className={`cycle-btn ${billingCycle === 'Monthly' ? 'active' : ''}`}
+                  onClick={() => setBillingCycle('Monthly')}
                 >
-                  <option value="USD">USD ($)</option>
-                  <option value="EUR">EUR (€)</option>
-                  <option value="GBP">GBP (£)</option>
-                  <option value="ZAR">ZAR (R)</option>
-                  <option value="JPY">JPY (¥)</option>
-                  <option value="CAD">CAD (C$)</option>
-                </select>
+                  Monthly
+                </button>
+                <button 
+                  className={`cycle-btn ${billingCycle === 'Yearly' ? 'active' : ''}`}
+                  onClick={() => setBillingCycle('Yearly')}
+                >
+                  Yearly
+                </button>
               </div>
             </div>
-          )}
-
-          {activeSection === 'display' && (
-            <div className="settings-section">
-              <h2>Display Settings</h2>
-              
-              <div className="setting-group">
-                <div className="setting-toggle">
-                  <label>Show Property Images</label>
-                  <button
-                    className={`toggle ${settings.display.showImages ? 'active' : ''}`}
-                    onClick={() => handleDisplayToggle('showImages')}
-                  >
-                    <span className="toggle-slider"></span>
-                  </button>
+            
+            <div className="subscription-plans">
+              {plans.map((plan, index) => (
+                <div key={index} className={`plan-card ${plan.isHighlighted ? 'highlighted' : ''} ${plan.isCurrent ? 'current' : ''}`}>
+                  <div className="plan-header">
+                    <div className="plan-title">
+                      <h3>{plan.name}</h3>
+                      <span className={`plan-badge ${plan.badgeColor}`}>{plan.badge}</span>
+                    </div>
+                    <div className="plan-price">
+                      {plan.isCustom ? (
+                        <span className="custom-price">Custom</span>
+                      ) : (
+                        <>
+                          <span className="price">${plan.price}</span>
+                          <span className="period">/{billingCycle.toLowerCase().slice(0, -2)}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="plan-features">
+                    {plan.features.map((feature, fIndex) => (
+                      <div key={fIndex} className="feature-item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="20,6 9,17 4,12"/>
+                        </svg>
+                        {feature}
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="plan-action">
+                    {plan.isCurrent ? (
+                      <button className="btn btn-current">Current Plan</button>
+                    ) : plan.isCustom ? (
+                      <button className="btn btn-contact">Contact Us</button>
+                    ) : (
+                      <button className="btn btn-upgrade">Upgrade Plan</button>
+                    )}
+                  </div>
                 </div>
-                <p className="setting-description">Display property images in listings</p>
-              </div>
-
-              <div className="setting-group">
-                <div className="setting-toggle">
-                  <label>Compact View</label>
-                  <button
-                    className={`toggle ${settings.display.compactView ? 'active' : ''}`}
-                    onClick={() => handleDisplayToggle('compactView')}
-                  >
-                    <span className="toggle-slider"></span>
-                  </button>
-                </div>
-                <p className="setting-description">Show more properties per page</p>
-              </div>
-
-              <div className="setting-group">
-                <div className="setting-toggle">
-                  <label>Show Price Trends</label>
-                  <button
-                    className={`toggle ${settings.display.showPriceTrends ? 'active' : ''}`}
-                    onClick={() => handleDisplayToggle('showPriceTrends')}
-                  >
-                    <span className="toggle-slider"></span>
-                  </button>
-                </div>
-                <p className="setting-description">Display price trend indicators</p>
-              </div>
+              ))}
             </div>
-          )}
 
-          {activeSection === 'notifications' && (
-            <div className="settings-section">
-              <h2>Notification Settings</h2>
+            <div className="billing-history">
+              <div className="history-header">
+                <h3>Billing History</h3>
+                <div className="history-actions">
+                  <input type="text" placeholder="Search..." className="search-input" />
+                  <button className="btn-icon" title="Filter">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46"/>
+                    </svg>
+                  </button>
+                  <button className="btn-icon" title="Export">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="7,10 12,15 17,10"/>
+                      <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
               
-              <div className="setting-group">
-                <div className="setting-toggle">
-                  <label>Email Notifications</label>
-                  <button
-                    className={`toggle ${settings.notifications.email ? 'active' : ''}`}
-                    onClick={() => handleNotificationToggle('email')}
-                  >
-                    <span className="toggle-slider"></span>
-                  </button>
+              <div className="history-table">
+                <div className="table-header">
+                  <div>Plan Name</div>
+                  <div>Amounts</div>
+                  <div>Purchase Date</div>
+                  <div>End Date</div>
+                  <div>Status</div>
+                  <div>Action</div>
                 </div>
-                <p className="setting-description">Receive email updates about new properties</p>
-              </div>
-
-              <div className="setting-group">
-                <div className="setting-toggle">
-                  <label>Push Notifications</label>
-                  <button
-                    className={`toggle ${settings.notifications.push ? 'active' : ''}`}
-                    onClick={() => handleNotificationToggle('push')}
-                  >
-                    <span className="toggle-slider"></span>
-                  </button>
-                </div>
-                <p className="setting-description">Get instant notifications in your browser</p>
-              </div>
-
-              <div className="setting-group">
-                <div className="setting-toggle">
-                  <label>Price Alerts</label>
-                  <button
-                    className={`toggle ${settings.notifications.priceAlerts ? 'active' : ''}`}
-                    onClick={() => handleNotificationToggle('priceAlerts')}
-                  >
-                    <span className="toggle-slider"></span>
-                  </button>
-                </div>
-                <p className="setting-description">Notify when property prices change</p>
-              </div>
-
-              <div className="setting-group">
-                <div className="setting-toggle">
-                  <label>Weekly Summary</label>
-                  <button
-                    className={`toggle ${settings.notifications.weeklySummary ? 'active' : ''}`}
-                    onClick={() => handleNotificationToggle('weeklySummary')}
-                  >
-                    <span className="toggle-slider"></span>
-                  </button>
-                </div>
-                <p className="setting-description">Receive weekly market updates</p>
-              </div>
-            </div>
-          )}
-
-          {activeSection === 'privacy' && (
-            <div className="settings-section">
-              <h2>Privacy Settings</h2>
-              
-              <div className="setting-group">
-                <div className="setting-toggle">
-                  <label>Analytics</label>
-                  <button
-                    className={`toggle ${settings.privacy.analytics ? 'active' : ''}`}
-                    onClick={() => handlePrivacyToggle('analytics')}
-                  >
-                    <span className="toggle-slider"></span>
-                  </button>
-                </div>
-                <p className="setting-description">Help improve our service by sharing usage data</p>
-              </div>
-
-              <div className="setting-group">
-                <div className="setting-toggle">
-                  <label>Location Tracking</label>
-                  <button
-                    className={`toggle ${settings.privacy.locationTracking ? 'active' : ''}`}
-                    onClick={() => handlePrivacyToggle('locationTracking')}
-                  >
-                    <span className="toggle-slider"></span>
-                  </button>
-                </div>
-                <p className="setting-description">Use your location for better property recommendations</p>
-              </div>
-
-              <div className="setting-group">
-                <div className="setting-toggle">
-                  <label>Third-party Cookies</label>
-                  <button
-                    className={`toggle ${settings.privacy.thirdPartyCookies ? 'active' : ''}`}
-                    onClick={() => handlePrivacyToggle('thirdPartyCookies')}
-                  >
-                    <span className="toggle-slider"></span>
-                  </button>
-                </div>
-                <p className="setting-description">Allow third-party services for enhanced features</p>
-              </div>
-            </div>
-          )}
-
-          {activeSection === 'advanced' && (
-            <div className="settings-section">
-              <h2>Advanced Settings</h2>
-              
-              <div className="setting-group">
-                <label>Reset All Settings</label>
-                <p className="setting-description">This will reset all settings to their default values</p>
-                {showResetConfirm ? (
-                  <div className="reset-confirm">
-                    <p>Are you sure you want to reset all settings?</p>
-                    <div className="reset-buttons">
-                      <button
-                        className="btn btn-danger"
-                        onClick={handleReset}
-                      >
-                        Yes, Reset
+                {billingHistory.map((record, index) => (
+                  <div key={index} className="table-row">
+                    <div>{record.planName}</div>
+                    <div>${record.amount.toFixed(2)}</div>
+                    <div>{record.purchaseDate}</div>
+                    <div>{record.endDate}</div>
+                    <div>
+                      <span className={`status ${record.status.toLowerCase()}`}>
+                        {record.status}
+                      </span>
+                    </div>
+                    <div className="row-actions">
+                      <button className="btn-icon" title="Download">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                          <polyline points="7,10 12,15 17,10"/>
+                          <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
                       </button>
-                      <button
-                        className="btn btn-secondary"
-                        onClick={() => setShowResetConfirm(false)}
-                      >
-                        Cancel
+                      <button className="btn-icon" title="View">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                          <circle cx="12" cy="12" r="3"/>
+                        </svg>
                       </button>
                     </div>
                   </div>
-                ) : (
-                  <button
-                    className="btn btn-outline-danger"
-                    onClick={() => setShowResetConfirm(true)}
-                  >
-                    Reset Settings
-                  </button>
-                )}
+                ))}
               </div>
+            </div>
+          </div>
+        );
 
-              <div className="setting-group">
-                <label>Export Settings</label>
-                <p className="setting-description">Download your current settings as a backup</p>
-                <button
-                  className="btn btn-outline-primary"
-                  onClick={() => {
-                    const dataStr = JSON.stringify(settings, null, 2);
-                    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-                    const exportFileDefaultName = 'settings.json';
-                    const linkElement = document.createElement('a');
-                    linkElement.setAttribute('href', dataUri);
-                    linkElement.setAttribute('download', exportFileDefaultName);
-                    linkElement.click();
-                  }}
-                >
-                  Export Settings
-                </button>
+      case 'Security':
+        return (
+          <div className="settings-tab-content">
+            <h2>Security Settings</h2>
+            <div className="security-section">
+              <div className="security-group">
+                <h3>Password</h3>
+                <p>Ensure your account is using a strong password</p>
+                <button className="btn btn-outline">Change Password</button>
               </div>
-
-              <div className="setting-group">
-                <label>Debug Information</label>
-                <div className="debug-info">
-                  <p><strong>Version:</strong> 1.0.0</p>
-                  <p><strong>Last Updated:</strong> {new Date().toLocaleDateString()}</p>
-                  <p><strong>Settings Loaded:</strong> {Object.keys(settings).length} categories</p>
+              <div className="security-group">
+                <h3>Two-Factor Authentication</h3>
+                <p>Add an extra layer of security to your account</p>
+                <div className="toggle-item">
+                  <label>Enable 2FA</label>
+                  <div className="toggle-switch">
+                    <span className="toggle-slider"></span>
+                  </div>
+                </div>
+              </div>
+              <div className="security-group">
+                <h3>Login History</h3>
+                <p>Review recent login activity</p>
+                <div className="login-history">
+                  {['Chrome on Windows - 2 hours ago', 'Safari on iPhone - 1 day ago', 'Firefox on macOS - 3 days ago'].map((login, index) => (
+                    <div key={index} className="login-item">
+                      <span>{login}</span>
+                      <button className="btn-text">Revoke</button>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-          )}
+          </div>
+        );
+
+      case 'Report & Analytics':
+        return (
+          <div className="settings-tab-content">
+            <h2>Report & Analytics</h2>
+            <div className="analytics-section">
+              <div className="analytics-group">
+                <h3>Data Export</h3>
+                <p>Export your data in various formats</p>
+                <div className="export-options">
+                  <button className="btn btn-outline">Export CSV</button>
+                  <button className="btn btn-outline">Export PDF</button>
+                  <button className="btn btn-outline">Export Excel</button>
+                </div>
+              </div>
+              <div className="analytics-group">
+                <h3>Report Frequency</h3>
+                <p>Choose how often you receive reports</p>
+                <select className="form-select">
+                  <option>Daily</option>
+                  <option>Weekly</option>
+                  <option>Monthly</option>
+                </select>
+              </div>
+              <div className="analytics-group">
+                <h3>Data Retention</h3>
+                <p>Control how long your data is stored</p>
+                <select className="form-select">
+                  <option>6 months</option>
+                  <option>1 year</option>
+                  <option>2 years</option>
+                  <option>Forever</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        );
+
+      default:
+        return <div>Select a tab</div>;
+    }
+  };
+
+  return (
+    <div className="settings-page">
+      <div className="settings-header-section">
+        <div className="header-content">
+          <h1>Settings</h1>
+          <div className="header-actions">
+            <button className="btn btn-outline">Cancel</button>
+            <button className="btn btn-primary">Save Changes</button>
+          </div>
         </div>
+      </div>
+
+      <div className="settings-tabs">
+        {tabs.map((tab, index) => (
+          <button
+            key={index}
+            className={`tab-button ${activeTab === tab ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab)}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      <div className="settings-content">
+        {renderTabContent()}
       </div>
     </div>
   );

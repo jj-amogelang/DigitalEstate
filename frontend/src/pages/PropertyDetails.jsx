@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { API_ENDPOINTS } from '../config/api';
-import './PropertyDetailsZara.css';
+import './PropertyDetails.css';
 
 export default function PropertyDetails() {
   const { id } = useParams();
@@ -114,10 +114,19 @@ export default function PropertyDetails() {
   if (error) {
     return (
       <div className="property-details-error">
-        <div className="error-icon">⚠️</div>
+        <div className="error-icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/>
+            <line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" strokeWidth="2"/>
+            <line x1="9" y1="9" x2="15" y2="15" stroke="currentColor" strokeWidth="2"/>
+          </svg>
+        </div>
         <h2>Error Loading Property</h2>
         <p>{error}</p>
         <button className="btn-primary" onClick={() => navigate('/properties')}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2"/>
+          </svg>
           Back to Properties
         </button>
       </div>
@@ -127,10 +136,19 @@ export default function PropertyDetails() {
   if (!property) {
     return (
       <div className="property-details-error">
-        <div className="error-icon">🏠</div>
+        <div className="error-icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" strokeWidth="2" fill="none"/>
+            <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="2" fill="none"/>
+            <circle cx="12" cy="8" r="1" fill="currentColor"/>
+          </svg>
+        </div>
         <h2>Property Not Found</h2>
         <p>The requested property could not be found.</p>
         <button className="btn-primary" onClick={() => navigate('/properties')}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2"/>
+          </svg>
           Back to Properties
         </button>
       </div>
@@ -247,19 +265,31 @@ export default function PropertyDetails() {
         </div>
 
         <div className="property-actions">
-          <button className="action-button" onClick={() => {
+          <button className="action-button primary" onClick={() => {
             alert('Contact form would open here in a real application');
           }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" stroke="currentColor" strokeWidth="2" fill="none"/>
+            </svg>
             Contact Agent
           </button>
           
-          <button className="action-button" onClick={handleSaveProperty}>
+          <button className="action-button secondary" onClick={handleSaveProperty}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z" stroke="currentColor" strokeWidth="2" fill="none"/>
+            </svg>
             Save Property
           </button>
           
-          <button className="action-button" onClick={() => {
+          <button className="action-button tertiary" onClick={() => {
             alert('Viewing scheduled! We will contact you to confirm the appointment.');
           }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" strokeWidth="2" fill="none"/>
+              <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" strokeWidth="2"/>
+              <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2"/>
+              <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2"/>
+            </svg>
             Schedule Viewing
           </button>
         </div>
@@ -268,78 +298,240 @@ export default function PropertyDetails() {
       {/* Detailed Information */}
       <div className="property-content">
         <div className="content-main">
+          {/* Property Information Section */}
           <section className="property-section">
-            <h2 className="section-title">Property Description</h2>
+            <h2 className="section-title">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="section-icon">
+                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" strokeWidth="2" fill="none"/>
+                <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="2" fill="none"/>
+              </svg>
+              Property Information
+            </h2>
+            <div className="info-grid">
+              <div className="info-item">
+                <span className="info-label">Property Name</span>
+                <span className="info-value">{property.name || 'N/A'}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">ERF Number</span>
+                <span className="info-value">{property.erf_number || property.erf_size || 'N/A'}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Street Address</span>
+                <span className="info-value">{property.street_address || property.location || 'N/A'}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Suburb</span>
+                <span className="info-value">{property.area || 'N/A'}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">City</span>
+                <span className="info-value">{property.city || 'N/A'}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Province</span>
+                <span className="info-value">{property.province || 'N/A'}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Postal Code</span>
+                <span className="info-value">{property.postal_code || 'N/A'}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Property Type</span>
+                <span className="info-value">{property.type || 'N/A'}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Building Size</span>
+                <span className="info-value">{property.building_size || property.erf_size || 'N/A'}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Condition</span>
+                <span className="info-value">{property.condition || 'Good'}</span>
+              </div>
+            </div>
+          </section>
+
+          {/* Owner Information Section */}
+          <section className="property-section">
+            <h2 className="section-title">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="section-icon">
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="2" fill="none"/>
+                <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="2" fill="none"/>
+              </svg>
+              Owner Information
+            </h2>
+            <div className="owner-info-grid">
+              <div className="owner-card">
+                <div className="owner-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="2" fill="none"/>
+                    <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="2" fill="none"/>
+                  </svg>
+                </div>
+                <div className="owner-details">
+                  <h4>Owner Name</h4>
+                  <p>{property.owner_name || property.developer || 'N/A'}</p>
+                </div>
+              </div>
+              <div className="owner-card">
+                <div className="owner-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="2" fill="none"/>
+                  </svg>
+                </div>
+                <div className="owner-details">
+                  <h4>Ownership Type</h4>
+                  <p>{property.ownership_type || 'Freehold'}</p>
+                </div>
+              </div>
+              <div className="owner-card">
+                <div className="owner-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="currentColor" strokeWidth="2" fill="none"/>
+                  </svg>
+                </div>
+                <div className="owner-details">
+                  <h4>Purchase Price</h4>
+                  <p>{property.purchase_price ? formatPrice(property.purchase_price) : property.cost ? formatPrice(property.cost) : 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Public Valuations Section */}
+          <section className="property-section">
+            <h2 className="section-title">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="section-icon">
+                <path d="M9 11H7a2 2 0 00-2 2v7a2 2 0 002 2h2a2 2 0 002-2v-7a2 2 0 00-2-2zM13 7H11a2 2 0 00-2 2v11a2 2 0 002 2h2a2 2 0 002-2V9a2 2 0 00-2-2zM17 3h-2a2 2 0 00-2 2v15a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2z" stroke="currentColor" strokeWidth="2" fill="none"/>
+              </svg>
+              Public Valuations
+            </h2>
+            <div className="valuations-container">
+              {property.valuations && property.valuations.length > 0 ? (
+                property.valuations.map((valuation, index) => (
+                  <div key={index} className="valuation-card">
+                    <div className="valuation-header">
+                      <div className="valuation-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/>
+                          <path d="M12 6v6l4 2" stroke="currentColor" strokeWidth="2" fill="none"/>
+                        </svg>
+                      </div>
+                      <h4>{valuation.type || 'Municipal Valuation'}</h4>
+                    </div>
+                    <div className="valuation-details">
+                      <div className="valuation-item">
+                        <span className="valuation-label">Amount</span>
+                        <span className="valuation-value">{valuation.amount ? formatPrice(valuation.amount) : 'N/A'}</span>
+                      </div>
+                      <div className="valuation-item">
+                        <span className="valuation-label">Date</span>
+                        <span className="valuation-value">{valuation.date || 'N/A'}</span>
+                      </div>
+                      <div className="valuation-item">
+                        <span className="valuation-label">Source</span>
+                        <span className="valuation-value">{valuation.source || 'Municipal Records'}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="valuation-card">
+                  <div className="valuation-header">
+                    <div className="valuation-icon">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/>
+                        <path d="M12 6v6l4 2" stroke="currentColor" strokeWidth="2" fill="none"/>
+                      </svg>
+                    </div>
+                    <h4>Current Market Valuation</h4>
+                  </div>
+                  <div className="valuation-details">
+                    <div className="valuation-item">
+                      <span className="valuation-label">Amount</span>
+                      <span className="valuation-value">{property.cost ? formatPrice(property.cost) : 'Contact for Valuation'}</span>
+                    </div>
+                    <div className="valuation-item">
+                      <span className="valuation-label">Date</span>
+                      <span className="valuation-value">{new Date().getFullYear()}</span>
+                    </div>
+                    <div className="valuation-item">
+                      <span className="valuation-label">Source</span>
+                      <span className="valuation-value">Market Analysis</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Zoning Information Section */}
+          <section className="property-section">
+            <h2 className="section-title">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="section-icon">
+                <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" stroke="currentColor" strokeWidth="2" fill="none"/>
+                <path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12" stroke="currentColor" strokeWidth="2" fill="none"/>
+              </svg>
+              Zoning Information
+            </h2>
+            <div className="zoning-grid">
+              <div className="zoning-item">
+                <div className="zoning-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="2" fill="none"/>
+                  </svg>
+                </div>
+                <div className="zoning-content">
+                  <h4>Zoning Classification</h4>
+                  <p>{property.zoning_classification || property.zoning || 'Residential'}</p>
+                </div>
+              </div>
+              
+              <div className="zoning-item">
+                <div className="zoning-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 11H7a2 2 0 00-2 2v7a2 2 0 002 2h2a2 2 0 002-2v-7a2 2 0 00-2-2zM13 7H11a2 2 0 00-2 2v11a2 2 0 002 2h2a2 2 0 002-2V9a2 2 0 00-2-2zM17 3h-2a2 2 0 00-2 2v15a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2z" stroke="currentColor" strokeWidth="2" fill="none"/>
+                  </svg>
+                </div>
+                <div className="zoning-content">
+                  <h4>Permissible Use</h4>
+                  <p>{property.permissible_use || 'Residential Development, Single Family Homes'}</p>
+                </div>
+              </div>
+              
+              <div className="zoning-item">
+                <div className="zoning-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" fill="none"/>
+                    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" strokeWidth="2" fill="none"/>
+                  </svg>
+                </div>
+                <div className="zoning-content">
+                  <h4>Restrictions</h4>
+                  <p>{property.zoning_restrictions || 'Standard municipal building regulations apply'}</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Additional Notes Section */}
+          <section className="property-section">
+            <h2 className="section-title">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="section-icon">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" strokeWidth="2" fill="none"/>
+                <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" strokeWidth="2" fill="none"/>
+              </svg>
+              Additional Information
+            </h2>
             <div className="property-description">
               <p>
-                {property.description || `This ${property.type.toLowerCase()} property in ${property.area} offers excellent potential for investment or development. Located in one of ${property.city}'s most desirable areas, this property combines convenience with quality.`}
+                {property.description || `This ${property.type?.toLowerCase() || 'property'} in ${property.area || 'the area'} offers excellent potential for investment or development. Located in one of ${property.city || 'the city'}'s most desirable areas, this property combines convenience with quality.`}
               </p>
-              <p>
-                Developed by {property.developer}, this property represents quality construction and attention to detail. The location provides easy access to major transport routes, shopping centers, schools, and other essential amenities.
-              </p>
-            </div>
-          </section>
-
-          <section className="property-section">
-            <h2 className="section-title">Property Features</h2>
-            <div className="features-grid">
-              <div className="feature-item">
-                <span className="feature-icon">🏠</span>
-                <div className="feature-content">
-                  <h4>Property Type</h4>
-                  <p>{property.type}</p>
-                </div>
-              </div>
-              
-              <div className="feature-item">
-                <span className="feature-icon">📐</span>
-                <div className="feature-content">
-                  <h4>Property Size</h4>
-                  <p>{property.erf_size || 'Contact for details'}</p>
-                </div>
-              </div>
-              
-              <div className="feature-item">
-                <span className="feature-icon">🏗️</span>
-                <div className="feature-content">
-                  <h4>Developer</h4>
-                  <p>{property.developer}</p>
-                </div>
-              </div>
-              
-              <div className="feature-item">
-                <span className="feature-icon">📍</span>
-                <div className="feature-content">
-                  <h4>Location</h4>
-                  <p>{property.location}</p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="property-section">
-            <h2 className="section-title">Location & Amenities</h2>
-            <div className="location-info">
-              <div className="location-details">
-                <h4>Neighborhood: {property.area}</h4>
+              {property.developer && (
                 <p>
-                  {property.area} is a well-established area in {property.city}, {property.province}. 
-                  The location offers excellent connectivity and access to various amenities including 
-                  shopping centers, schools, healthcare facilities, and recreational areas.
+                  Developed by {property.developer}, this property represents quality construction and attention to detail. The location provides easy access to major transport routes, shopping centers, schools, and other essential amenities.
                 </p>
-              </div>
-              
-              <div className="amenities-list">
-                <h4>Nearby Amenities</h4>
-                <ul>
-                  <li>🏪 Shopping Centers</li>
-                  <li>🏫 Educational Institutions</li>
-                  <li>🏥 Healthcare Facilities</li>
-                  <li>🚗 Transport Links</li>
-                  <li>🌳 Parks & Recreation</li>
-                  <li>🍽️ Restaurants & Entertainment</li>
-                </ul>
-              </div>
+              )}
             </div>
           </section>
         </div>
