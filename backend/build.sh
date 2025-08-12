@@ -4,7 +4,7 @@
 # Install dependencies
 pip install -r requirements.txt
 
-# Set up the database with sample data
+# Set up the database with sample data and Excel import
 python -c "
 from app import app, db
 from models import EnhancedProperty, Owner, Valuation, Zoning
@@ -17,12 +17,12 @@ with app.app_context():
     
     # Check if we need to add sample data
     if EnhancedProperty.query.count() == 0:
-        print('📝 Adding sample data...')
+        print('📝 Adding sample data with Excel import...')
         from init_sqlite import init_sample_data
         init_sample_data()
         print('✅ Sample data added successfully!')
     else:
         print('✅ Database already contains data')
         
-    print(f'📊 Total properties in database: {Property.query.count()}')
+    print(f'📊 Total properties in database: {EnhancedProperty.query.count()}')
 "

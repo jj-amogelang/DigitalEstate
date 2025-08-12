@@ -1,10 +1,12 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 from config import Config
 from models import db, Property, EnhancedProperty, Owner, Valuation, Zoning, MarketTrend, LegacyProperty, Country, Province, City, Area
 from sqlalchemy import func, desc, and_, or_
 from datetime import datetime, date
 import os
+import tempfile
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -28,7 +30,11 @@ def health_check():
             '/api/market-trends',
             '/api/search/properties',
             '/api/dashboard/stats',
-            '/api/dashboard/charts'
+            '/api/dashboard/charts',
+            '/init-data',
+            '/import-excel',
+            '/upload-excel',
+            '/excel-summary'
         ]
     })
 
@@ -64,6 +70,116 @@ def initialize_data():
         return jsonify({
             'status': 'error',
             'message': f'Failed to initialize data: {str(e)}'
+        }), 500
+
+@app.route('/import-excel', methods=['POST'])
+def import_excel_data():
+    """Import data from Excel file"""
+    try:
+        from excel_import import import_excel_properties
+        
+        # Check if Excel file exists
+        excel_path = os.path.join(os.path.dirname(__file__), 'property_research_sample.xlsx')
+        if not os.path.exists(excel_path):
+            return jsonify({
+                'status': 'error',
+                'message': 'Excel file not found on server'
+            }), 404
+        
+        # Import Excel data
+        success = import_excel_properties(excel_path)
+        
+        if success:
+            property_count = EnhancedProperty.query.count()
+            return jsonify({
+                'status': 'success',
+                'message': f'Successfully imported Excel data. Total properties: {property_count}',
+                'total_properties': property_count
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed to import Excel data'
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Excel import error: {str(e)}'
+        }), 500
+
+@app.route('/upload-excel', methods=['POST'])
+def upload_excel_file():
+    """Upload and import new Excel file"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({
+                'status': 'error',
+                'message': 'No file provided'
+            }), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({
+                'status': 'error',
+                'message': 'No file selected'
+            }), 400
+        
+        if not file.filename.lower().endswith(('.xlsx', '.xls')):
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid file type. Please upload Excel file (.xlsx or .xls)'
+            }), 400
+        
+        # Save uploaded file temporarily
+        filename = secure_filename(file.filename)
+        temp_path = os.path.join(tempfile.gettempdir(), filename)
+        file.save(temp_path)
+        
+        # Import the uploaded file
+        from excel_import import import_excel_properties
+        success = import_excel_properties(temp_path)
+        
+        # Clean up temp file
+        os.remove(temp_path)
+        
+        if success:
+            property_count = EnhancedProperty.query.count()
+            return jsonify({
+                'status': 'success',
+                'message': f'Successfully imported {filename}. Total properties: {property_count}',
+                'total_properties': property_count
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed to import uploaded Excel file'
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Upload error: {str(e)}'
+        }), 500
+
+@app.route('/excel-summary', methods=['GET'])
+def get_excel_summary():
+    """Get summary of Excel file data"""
+    try:
+        from excel_import import get_excel_data_summary
+        
+        excel_path = os.path.join(os.path.dirname(__file__), 'property_research_sample.xlsx')
+        summary = get_excel_data_summary(excel_path)
+        
+        return jsonify({
+            'status': 'success',
+            'summary': summary
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error reading Excel summary: {str(e)}'
         }), 500
 
 @app.before_request

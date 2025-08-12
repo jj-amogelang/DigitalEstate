@@ -27,7 +27,11 @@ export const API_ENDPOINTS = {
   RESEARCH_PROPERTIES: `${API_BASE_URL}/api/properties`,
   RESEARCH_PROPERTY_BY_ID: (id) => `${API_BASE_URL}/api/properties/${id}`,
   MARKET_TRENDS: `${API_BASE_URL}/api/market-trends`,
-  UPLOAD_EXCEL: `${API_BASE_URL}/upload_excel`,
+  
+  // Excel import endpoints
+  UPLOAD_EXCEL: `${API_BASE_URL}/upload-excel`,
+  IMPORT_EXCEL: `${API_BASE_URL}/import-excel`,
+  EXCEL_SUMMARY: `${API_BASE_URL}/excel-summary`,
   
   // Test endpoints
   TEST_DB: `${API_BASE_URL}/test-db`,
