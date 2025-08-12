@@ -1,0 +1,12 @@
+# Render Frontend Configuration
+services:
+  - type: web
+    name: digital-estate-frontend
+    env: static
+    buildCommand: ./build.sh
+    staticPublishPath: ./build
+    envVars:
+      - key: NODE_VERSION
+        value: 18
+      - key: REACT_APP_API_URL
+        value: https://digital-estate-backend.onrender.com
