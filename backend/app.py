@@ -450,6 +450,8 @@ def get_properties_by_area(area_id):
 if __name__ == '__main__':
     with app.app_context():
         try:
+            # Create database tables
+            db.create_all()
             # Test database connection using SQLAlchemy 2.0 syntax
             from sqlalchemy import text
             with db.engine.connect() as connection:
@@ -461,6 +463,17 @@ if __name__ == '__main__':
     
     # For local development
     app.run(debug=os.getenv('FLASK_ENV') != 'production')
+
+# Ensure database tables are created on import (for Vercel)
+with app.app_context():
+    try:
+        db.create_all()
+        # If using SQLite, initialize with sample data
+        if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']:
+            from init_sqlite import init_sample_data
+            init_sample_data()
+    except Exception as e:
+        print(f"Database initialization error: {e}")
 
 # Export app for Vercel
 app = app

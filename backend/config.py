@@ -18,16 +18,8 @@ class Config:
     if DATABASE_URL:
         SQLALCHEMY_DATABASE_URI = DATABASE_URL
     else:
-        # Local development - use PostgreSQL digitalestate2 database
-        # Update these values with your local PostgreSQL credentials
-        DB_USER = 'postgres'
-        DB_PASSWORD = 'postgres'  # Update with your actual password
-        DB_HOST = 'localhost'
-        DB_PORT = '5432'
-        DB_NAME = 'digitalestate2'  # Updated to use digitalestate2 database
-        
-        # Create PostgreSQL connection string
-        SQLALCHEMY_DATABASE_URI = f'postgresql://{DB_USER}:{quote_plus(DB_PASSWORD)}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
+        # Fallback: use SQLite for testing/production when DATABASE_URL is not available
+        SQLALCHEMY_DATABASE_URI = 'sqlite:///property_dashboard.db'
     
     # Additional Flask configuration
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
