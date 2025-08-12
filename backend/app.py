@@ -9,7 +9,7 @@ import os
 app = Flask(__name__)
 app.config.from_object(Config)
 db.init_app(app)
-CORS(app)
+CORS(app, origins=['*'], allow_headers=['Content-Type', 'Authorization'], methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 
 @app.route('/', methods=['GET'])
 def health_check():
@@ -31,6 +31,15 @@ def health_check():
             '/api/dashboard/charts'
         ]
     })
+
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = jsonify({'message': 'OK'})
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add('Access-Control-Allow-Headers', "*")
+        response.headers.add('Access-Control-Allow-Methods', "*")
+        return response
 
 # ============ PROPERTY ENDPOINTS ============
 
