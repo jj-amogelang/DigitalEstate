@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from config import Config
-from models import db, Property, Owner, Valuation, Zoning, MarketTrend, LegacyProperty, Country, Province, City, Area
+from models import db, Property, EnhancedProperty, Owner, Valuation, Zoning, MarketTrend, LegacyProperty, Country, Province, City, Area
 from sqlalchemy import func, desc, and_, or_
 from datetime import datetime, date
 import os
@@ -37,8 +37,8 @@ def initialize_data():
     """Manual endpoint to initialize database with sample data"""
     try:
         with app.app_context():
-            # Check current state
-            property_count = Property.query.count()
+            # Check current state using EnhancedProperty
+            property_count = EnhancedProperty.query.count()
             
             if property_count > 0:
                 return jsonify({
@@ -52,7 +52,7 @@ def initialize_data():
             init_sample_data()
             
             # Verify data was added
-            new_count = Property.query.count()
+            new_count = EnhancedProperty.query.count()
             
             return jsonify({
                 'status': 'success',
@@ -79,43 +79,35 @@ def handle_preflight():
 
 @app.route('/api/properties', methods=['GET'])
 def get_properties():
-    """Get all properties with filtering and pagination - adapted for current table structure"""
+    """Get all properties with filtering and pagination"""
     try:
         # Get query parameters
         page = request.args.get('page', 1, type=int)
         per_page = min(request.args.get('per_page', 50, type=int), 100)
         property_type = request.args.get('type')
-        min_price = request.args.get('min_price', type=float)
-        max_price = request.args.get('max_price', type=float)
+        city = request.args.get('city')
+        status = request.args.get('status')
         
-        # Start with base query
-        query = Property.query
+        # Start with base query using EnhancedProperty
+        query = EnhancedProperty.query
         
-        # Apply filters that exist in our current table
+        # Apply filters
         if property_type and property_type != 'all':
-            # Map common types to what might be in our database
-            type_mapping = {
-                'residential': 'Residential',
-                'commercial': 'Commercial',
-                'industrial': 'Industrial', 
-                'retail': 'Retail'
-            }
-            db_type = type_mapping.get(property_type.lower(), property_type)
-            query = query.filter(Property.type.ilike(f'%{db_type}%'))
+            query = query.filter(EnhancedProperty.property_type.ilike(f'%{property_type}%'))
         
-        # Filter by price range using cost field
-        if min_price:
-            query = query.filter(Property.cost >= min_price)
-        if max_price:
-            query = query.filter(Property.cost <= max_price)
+        if city:
+            query = query.filter(EnhancedProperty.city.ilike(f'%{city}%'))
+            
+        if status:
+            query = query.filter(EnhancedProperty.status.ilike(f'%{status}%'))
         
-        # Order by id (since we don't have listing_date in current table)
-        query = query.order_by(desc(Property.id))
+        # Order by listing_date (newest first)
+        query = query.order_by(desc(EnhancedProperty.listing_date))
         
         # Get total count for pagination
         total = query.count()
         
-        # Apply pagination manually
+        # Apply pagination
         offset = (page - 1) * per_page
         properties = query.offset(offset).limit(per_page).all()
         
@@ -144,7 +136,7 @@ def get_properties():
 def get_property_detail(property_id):
     """Get detailed property information"""
     try:
-        prop = Property.query.get_or_404(property_id)
+        prop = EnhancedProperty.query.get_or_404(property_id)
         
         # Get property details with related data
         property_data = prop.to_dict()
@@ -166,19 +158,22 @@ def get_property_detail(property_id):
 
 @app.route('/api/search/properties', methods=['GET'])
 def search_properties():
-    """Search properties by text query - adapted for current table structure"""
+    """Search properties by text query"""
     try:
         query_text = request.args.get('q', '').strip()
         if not query_text:
             return jsonify({'properties': []})
         
-        # Search in available fields from current table structure
+        # Search in available fields from EnhancedProperty
         search = f'%{query_text}%'
-        properties = Property.query.filter(
+        properties = EnhancedProperty.query.filter(
             or_(
-                Property.name.ilike(search),
-                Property.type.ilike(search),
-                Property.developer.ilike(search)
+                EnhancedProperty.property_name.ilike(search),
+                EnhancedProperty.property_type.ilike(search),
+                EnhancedProperty.address.ilike(search),
+                EnhancedProperty.city.ilike(search),
+                EnhancedProperty.province.ilike(search),
+                EnhancedProperty.description.ilike(search)
             )
         ).limit(20).all()
         
@@ -208,8 +203,8 @@ def get_owner_detail(owner_id):
         owner = Owner.query.get_or_404(owner_id)
         owner_data = owner.to_dict()
         
-        # Add owner's properties
-        properties = Property.query.filter_by(owner_id=owner_id).all()
+        # Add owner's properties using EnhancedProperty
+        properties = EnhancedProperty.query.filter_by(owner_id=owner_id).all()
         owner_data['properties'] = [prop.to_dict() for prop in properties]
         
         return jsonify(owner_data)
@@ -244,28 +239,28 @@ def get_market_trends():
 def get_dashboard_stats():
     """Get dashboard statistics"""
     try:
-        # Get basic counts
-        total_properties = Property.query.count()
+        # Get basic counts using EnhancedProperty
+        total_properties = EnhancedProperty.query.count()
         total_owners = Owner.query.count()
         
         # Available vs sold properties
-        available_properties = Property.query.filter_by(status='available').count()
-        sold_properties = Property.query.filter_by(status='sold').count()
+        available_properties = EnhancedProperty.query.filter_by(status='available').count()
+        sold_properties = EnhancedProperty.query.filter_by(status='sold').count()
         
         # Property types breakdown
         property_types = db.session.query(
-            Property.property_type,
-            func.count(Property.id).label('count')
-        ).group_by(Property.property_type).all()
+            EnhancedProperty.property_type,
+            func.count(EnhancedProperty.id).label('count')
+        ).group_by(EnhancedProperty.property_type).all()
         
         # Recent valuations
         recent_valuations = db.session.query(func.avg(Valuation.market_value)).scalar() or 0
         
         # Cities with most properties
         cities = db.session.query(
-            Property.city,
-            func.count(Property.id).label('count')
-        ).group_by(Property.city).order_by(desc('count')).limit(5).all()
+            EnhancedProperty.city,
+            func.count(EnhancedProperty.id).label('count')
+        ).group_by(EnhancedProperty.city).order_by(desc('count')).limit(5).all()
         
         return jsonify({
             'total_properties': total_properties,
@@ -292,16 +287,16 @@ def get_chart_data():
         
         # Property distribution by type
         type_distribution = db.session.query(
-            Property.property_type,
-            func.count(Property.id).label('count')
-        ).group_by(Property.property_type).all()
+            EnhancedProperty.property_type,
+            func.count(EnhancedProperty.id).label('count')
+        ).group_by(EnhancedProperty.property_type).all()
         
         # Geographic distribution
         geographic_data = db.session.query(
-            Property.province,
-            func.count(Property.id).label('count'),
+            EnhancedProperty.province,
+            func.count(EnhancedProperty.id).label('count'),
             func.avg(Valuation.market_value).label('avg_value')
-        ).join(Valuation).group_by(Property.province).all()
+        ).join(Valuation, EnhancedProperty.id == Valuation.property_id).group_by(EnhancedProperty.province).all()
         
         return jsonify({
             'price_trends': [
