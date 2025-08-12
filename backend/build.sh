@@ -4,10 +4,25 @@
 # Install dependencies
 pip install -r requirements.txt
 
-# Set up the database
+# Set up the database with sample data
 python -c "
 from app import app, db
+from models import Property, Owner, Valuation, Zoning
+from datetime import datetime, date
+
 with app.app_context():
+    print('🔧 Creating database tables...')
     db.create_all()
-    print('Database tables created successfully!')
+    print('✅ Database tables created successfully!')
+    
+    # Check if we need to add sample data
+    if Property.query.count() == 0:
+        print('📝 Adding sample data...')
+        from init_sqlite import init_sample_data
+        init_sample_data()
+        print('✅ Sample data added successfully!')
+    else:
+        print('✅ Database already contains data')
+        
+    print(f'📊 Total properties in database: {Property.query.count()}')
 "
