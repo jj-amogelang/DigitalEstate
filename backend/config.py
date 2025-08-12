@@ -18,8 +18,8 @@ class Config:
     if DATABASE_URL:
         SQLALCHEMY_DATABASE_URI = DATABASE_URL
     else:
-        # Fallback: use SQLite for testing/production when DATABASE_URL is not available
-        SQLALCHEMY_DATABASE_URI = 'sqlite:///property_dashboard.db'
+        # Fallback: use SQLite in /tmp for Vercel (writable directory)
+        SQLALCHEMY_DATABASE_URI = 'sqlite:////tmp/property_dashboard.db'
     
     # Additional Flask configuration
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
