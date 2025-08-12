@@ -32,6 +32,40 @@ def health_check():
         ]
     })
 
+@app.route('/init-data', methods=['GET', 'POST'])
+def initialize_data():
+    """Manual endpoint to initialize database with sample data"""
+    try:
+        with app.app_context():
+            # Check current state
+            property_count = Property.query.count()
+            
+            if property_count > 0:
+                return jsonify({
+                    'status': 'already_initialized',
+                    'message': f'Database already contains {property_count} properties',
+                    'properties': property_count
+                })
+            
+            # Initialize data
+            from init_sqlite import init_sample_data
+            init_sample_data()
+            
+            # Verify data was added
+            new_count = Property.query.count()
+            
+            return jsonify({
+                'status': 'success',
+                'message': f'Successfully initialized database with {new_count} properties',
+                'properties_added': new_count
+            })
+            
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to initialize data: {str(e)}'
+        }), 500
+
 @app.before_request
 def handle_preflight():
     if request.method == "OPTIONS":
