@@ -7,7 +7,7 @@ pip install -r requirements.txt
 # Set up the database with sample data
 python -c "
 from app import app, db
-from models import Property, Owner, Valuation, Zoning
+from models import EnhancedProperty, Owner, Valuation, Zoning
 from datetime import datetime, date
 
 with app.app_context():
@@ -16,7 +16,7 @@ with app.app_context():
     print('✅ Database tables created successfully!')
     
     # Check if we need to add sample data
-    if Property.query.count() == 0:
+    if EnhancedProperty.query.count() == 0:
         print('📝 Adding sample data...')
         from init_sqlite import init_sample_data
         init_sample_data()
