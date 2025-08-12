@@ -493,18 +493,18 @@ if __name__ == '__main__':
     # For local development
     app.run(debug=os.getenv('FLASK_ENV') != 'production')
 
-# Ensure database tables are created on import (for Vercel)
+# Ensure database tables are created on startup
 with app.app_context():
     try:
         db.create_all()
         # If using SQLite, initialize with sample data
         if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']:
             # Import and run initialization without circular dependency
-            if Property.query.first() is None:
+            if EnhancedProperty.query.first() is None:
                 from init_sqlite import init_sample_data
                 init_sample_data()
     except Exception as e:
         print(f"Database initialization error: {e}")
 
-# Export app for Vercel
-app = app
+if __name__ == '__main__':
+    app.run(debug=True)

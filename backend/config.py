@@ -12,14 +12,14 @@ class Config:
     DATABASE_URL = os.environ.get('DATABASE_URL')
     
     if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
-        # Vercel/Heroku compatibility - update deprecated postgres:// to postgresql://
+        # Render/Heroku compatibility - update deprecated postgres:// to postgresql://
         DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
     
     if DATABASE_URL:
         SQLALCHEMY_DATABASE_URI = DATABASE_URL
     else:
-        # Fallback: use SQLite in /tmp for Vercel (writable directory)
-        SQLALCHEMY_DATABASE_URI = 'sqlite:////tmp/property_dashboard.db'
+        # Fallback: use local SQLite for development
+        SQLALCHEMY_DATABASE_URI = 'sqlite:///instance/property_dashboard.db'
     
     # Additional Flask configuration
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
