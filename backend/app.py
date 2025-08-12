@@ -470,8 +470,10 @@ with app.app_context():
         db.create_all()
         # If using SQLite, initialize with sample data
         if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']:
-            from init_sqlite import init_sample_data
-            init_sample_data()
+            # Import and run initialization without circular dependency
+            if Property.query.first() is None:
+                from init_sqlite import init_sample_data
+                init_sample_data()
     except Exception as e:
         print(f"Database initialization error: {e}")
 
