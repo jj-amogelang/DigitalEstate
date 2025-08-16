@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from "react-router-dom";
 import SettingsProvider from "./context/SettingsContext";
 import { AuthProvider } from "./context/AuthContext";
-import Dashboard from "./pages/Dashboard";
-import Properties from "./pages/Properties";
-import PropertyDetails from "./pages/PropertyDetails";
+import DashboardPage from "./pages/DashboardPage";
+import PropertyListPage from "./pages/PropertyListPage";
+import PropertyDetailsPage from "./pages/PropertyDetailsPage";
 import Settings from "./pages/Settings";
 import ResearchDashboard from "./pages/ResearchDashboard";
 import ProfileButton from "./components/ProfileButton";
@@ -184,9 +184,9 @@ function App() {
               {/* Main Content Area */}
               <div className="content-area">
                 <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/properties" element={<Properties />} />
-                  <Route path="/property/:id" element={<PropertyDetails />} />
+                  <Route path="/" element={<DashboardPage />} />
+                  <Route path="/properties" element={<PropertyListPage />} />
+                  <Route path="/property/:id" element={<PropertyDetailsPage />} />
                   <Route path="/research" element={<ResearchDashboard />} />
                   <Route path="/analytics" element={<div className="coming-soon">Analytics - Coming Soon...</div>} />
                   <Route path="/settings" element={<Settings />} />
