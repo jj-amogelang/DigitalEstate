@@ -16,166 +16,282 @@ export default function Properties() {
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [selectedPropertyType, setSelectedPropertyType] = useState('all');
   const [loading, setLoading] = useState(false);
+  const [showLocationFilters, setShowLocationFilters] = useState(false);
+  const [isRestoringFilters, setIsRestoringFilters] = useState(false);
 
-  // Get initial state from navigation state or localStorage
-  const getInitialFilters = () => {
-    if (location.state?.filters) {
-      return location.state.filters;
-    }
+  // Simplified filter state management
+  const [selected, setSelected] = useState({
+    country: "", 
+    province: "", 
+    city: "", 
+    area: "", 
+    areaName: ""
+  });
+
+  // Restore filters from URL parameters, navigation state, or localStorage on component mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const navigationState = location.state?.filters;
     const savedFilters = localStorage.getItem('propertyFilters');
-    return savedFilters ? JSON.parse(savedFilters) : {
-      country: "", province: "", city: "", area: "", areaName: ""
-    };
-  };
-
-  const [selected, setSelected] = useState(getInitialFilters());
+    const savedPropertyType = localStorage.getItem('propertyType');
+    
+    console.log('🔄 Checking filter sources:', {
+      urlParams: Object.fromEntries(urlParams),
+      navigationState,
+      savedFilters: savedFilters ? JSON.parse(savedFilters) : null
+    });
+    
+    setIsRestoringFilters(true);
+    
+    // Priority: URL parameters > Navigation state > localStorage
+    let filtersToRestore = {};
+    let propertyTypeToRestore = 'all';
+    
+    // First check URL parameters (highest priority - browser navigation)
+    if (urlParams.toString()) {
+      console.log('🔄 Restoring filters from URL parameters');
+      filtersToRestore = {
+        country: urlParams.get('country') || '',
+        province: urlParams.get('province') || '',
+        city: urlParams.get('city') || '',
+        area: urlParams.get('area') || '',
+        areaName: urlParams.get('area') || ''
+      };
+      propertyTypeToRestore = urlParams.get('type') || 'all';
+    }
+    // Then check navigation state (back from property details)
+    else if (navigationState) {
+      console.log('🔄 Restoring filters from navigation state:', navigationState);
+      filtersToRestore = {
+        country: navigationState.country || '',
+        province: navigationState.province || '',
+        city: navigationState.city || '',
+        area: navigationState.area || '',
+        areaName: navigationState.areaName || navigationState.area || ''
+      };
+      propertyTypeToRestore = navigationState.propertyType || 'all';
+    }
+    // Finally fallback to localStorage
+    else if (savedFilters) {
+      console.log('🔄 Restoring filters from localStorage');
+      filtersToRestore = JSON.parse(savedFilters);
+      propertyTypeToRestore = savedPropertyType || 'all';
+    }
+    
+    // Apply the restored filters
+    if (Object.keys(filtersToRestore).length > 0) {
+      setSelected(filtersToRestore);
+    }
+    setSelectedPropertyType(propertyTypeToRestore);
+    
+    // Reset the restoration flag after a short delay
+    setTimeout(() => setIsRestoringFilters(false), 100);
+  }, [location.search, location.state]);
 
   // Save filters to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('propertyFilters', JSON.stringify(selected));
     localStorage.setItem('propertyType', selectedPropertyType);
+    console.log('💾 Saved filters to localStorage:', selected, selectedPropertyType);
   }, [selected, selectedPropertyType]);
 
-  // Restore property type from localStorage
+  // Update browser URL when filters change (for proper browser history)
   useEffect(() => {
-    const savedPropertyType = localStorage.getItem('propertyType');
-    if (savedPropertyType) {
-      setSelectedPropertyType(savedPropertyType);
+    if (!isRestoringFilters) { // Only update URL when user actively changes filters
+      const searchParams = new URLSearchParams();
+      
+      if (selected.country) searchParams.set('country', selected.country);
+      if (selected.province) searchParams.set('province', selected.province);
+      if (selected.city) searchParams.set('city', selected.city);
+      if (selected.area) searchParams.set('area', selected.area);
+      if (selectedPropertyType !== 'all') searchParams.set('type', selectedPropertyType);
+      
+      const newUrl = `/properties${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+      
+      // Use replace instead of push to avoid creating too many history entries
+      if (window.location.pathname + window.location.search !== newUrl) {
+        navigate(newUrl, { replace: true });
+        console.log('🔄 Updated browser URL:', newUrl);
+      }
     }
-  }, []);
+  }, [selected, selectedPropertyType, isRestoringFilters]);
 
-  // Enhanced navigation function that preserves filters
+  // Enhanced navigation function that preserves filters and browser history
   const navigateToProperty = (propertyId) => {
+    console.log('🔍 Navigating to property ID:', propertyId);
+    console.log('🔍 Current filters being saved:', { selected, selectedPropertyType });
+    
+    // Create the current state to preserve filters and location
     const currentFilters = {
-      selected,
-      selectedPropertyType,
-      propertyList,
-      filteredProperties
+      ...selected,
+      propertyType: selectedPropertyType
     };
     
+    // Build current URL with query parameters for browser history
+    const searchParams = new URLSearchParams();
+    if (selected.country) searchParams.set('country', selected.country);
+    if (selected.province) searchParams.set('province', selected.province);
+    if (selected.city) searchParams.set('city', selected.city);
+    if (selected.area) searchParams.set('area', selected.area);
+    if (selectedPropertyType !== 'all') searchParams.set('type', selectedPropertyType);
+    
+    const currentUrl = `/properties${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+    
+    // Navigate with state preservation for back navigation
     navigate(`/property/${propertyId}`, {
-      state: { 
+      state: {
         filters: currentFilters,
-        returnUrl: '/properties'
+        returnUrl: currentUrl,
+        fromPropertiesPage: true
       }
     });
   };
 
-  // Fetch all countries on mount
+  // Debug: Test API connection on mount
   useEffect(() => {
-    console.log('🌍 Fetching countries from API...');
-    setLoading(true);
-    
-    axios.get(API_ENDPOINTS.COUNTRIES)
+    console.log('🔧 Testing API connection...');
+    axios.get(API_ENDPOINTS.API_PROPERTIES)
       .then(res => {
-        console.log('✅ Countries fetched successfully:', res.data);
-        setCountries(res.data);
-        setLoading(false);
+        console.log('✅ API Connection test successful:', res.status);
+        console.log('✅ Response data:', res.data);
       })
       .catch(err => {
-        console.error('❌ Error fetching countries:', err);
-        console.error('Error details:', err.response?.data || err.message);
-        setLoading(false);
+        console.error('❌ API Connection test failed:', err);
+        console.error('❌ Error details:', err.response?.data || err.message);
       });
   }, []);
 
-  // Fetch all properties from PostgreSQL database on mount (only if no area selected)
+  // Fetch all countries on mount
   useEffect(() => {
-    if (!selected.area) {
-      setLoading(true);
+    console.log('🌍 Loading properties and basic location data...');
+    setLoading(true);
+    
+    // For PostgreSQL setup, we'll skip the complex location hierarchy
+    // and populate the dropdowns from the actual property data
+    loadPropertiesAndPopulateFilters();
+  }, []);
+
+  // Load properties and populate filter dropdowns from actual data
+  const loadPropertiesAndPopulateFilters = async () => {
+    try {
+      console.log('🔍 Fetching properties from PostgreSQL...');
+      const response = await axios.get(API_ENDPOINTS.API_PROPERTIES);
+      const properties = response.data.properties || response.data;
       
-      // Use new enhanced API endpoint with better filtering
-      const filters = {};
-      if (selectedPropertyType !== 'all') {
-        filters.type = selectedPropertyType;
+      console.log('✅ Properties loaded:', properties.length);
+      setPropertyList(properties);
+      setFilteredProperties(properties);
+      
+      // Extract unique values for filter dropdowns
+      // Since all properties are in South Africa, set that as the only country
+      const uniqueCountries = [{ id: "south-africa", name: "South Africa" }];
+      const uniqueProvinces = [...new Set(properties.map(p => p.province).filter(Boolean))];
+      const uniqueCities = [...new Set(properties.map(p => p.city).filter(Boolean))];
+      const uniqueAreas = [...new Set(properties.map(p => p.suburb).filter(Boolean))];
+      
+      // Populate dropdown data with actual property data
+      setCountries(uniqueCountries);
+      setProvinces(uniqueProvinces.map((name, index) => ({ id: name, name })));
+      setCities(uniqueCities.map((name, index) => ({ id: name, name })));
+      setAreas(uniqueAreas.map((name, index) => ({ id: name, name })));
+      
+      setLoading(false);
+    } catch (err) {
+      console.error('❌ Error loading properties:', err);
+      setLoading(false);
+    }
+  };
+
+  // Simplified location filtering using actual property data
+  useEffect(() => {
+    if (selected.country === "south-africa" && propertyList.length > 0) {
+      // When South Africa is selected, show all available provinces from property data
+      const uniqueProvinces = [...new Set(propertyList.map(p => p.province).filter(Boolean))];
+      setProvinces(uniqueProvinces.map(name => ({ id: name, name })));
+      
+      // Only clear dependent selections when country changes (not when propertyList changes)
+      // and only if we're not restoring filters and the current province is not valid
+      if (!isRestoringFilters && selected.province && 
+          !uniqueProvinces.includes(selected.province)) {
+        console.log('🔄 Clearing invalid province selection');
+        setCities([]);
+        setAreas([]);
+        setSelected(prev => ({ ...prev, province: "", city: "", area: "", areaName: "" }));
       }
-
-      const params = new URLSearchParams(filters);
-      const url = `${API_ENDPOINTS.API_PROPERTIES}?${params.toString()}`;
-      
-      console.log('🔍 Fetching properties from:', url);
-      
-      axios.get(url)
-        .then(res => {
-          console.log('✅ Properties fetched successfully:', res.data);
-          const properties = res.data.properties || res.data;
-          setPropertyList(properties);
-          setFilteredProperties(properties);
-          setLoading(false);
-        })
-        .catch(err => {
-          console.error('❌ Error fetching properties:', err);
-          console.error('Error details:', err.response?.data || err.message);
-          setLoading(false);
-        });
     }
-  }, [selectedPropertyType, selected.area]);
+  }, [selected.country, propertyList, isRestoringFilters, selected.province]);
 
-  // Fetch provinces when country changes
+  // Filter cities when province changes
   useEffect(() => {
-    if (selected.country) {
-      axios.get(API_ENDPOINTS.PROVINCES(selected.country))
-        .then(res => {
-          setProvinces(res.data);
-          setCities([]);
-          setAreas([]);
-          setSelected(prev => ({ ...prev, province: "", city: "", area: "", areaName: "" }));
-        })
-        .catch(err => console.error('Error fetching provinces:', err));
+    if (selected.province && propertyList.length > 0) {
+      // Filter cities based on the selected province (using property data)
+      const relevantProperties = propertyList.filter(p => p.province === selected.province);
+      const uniqueCities = [...new Set(relevantProperties.map(p => p.city).filter(Boolean))];
+      setCities(uniqueCities.map(name => ({ id: name, name })));
+      
+      // Only clear city selection if it's invalid for the current province
+      if (!isRestoringFilters && selected.city && 
+          !uniqueCities.includes(selected.city)) {
+        console.log('🔄 Clearing invalid city selection');
+        setAreas([]);
+        setSelected(prev => ({ ...prev, city: "", area: "", areaName: "" }));
+      }
     }
-  }, [selected.country]);
+  }, [selected.province, propertyList, isRestoringFilters, selected.city]);
 
-  // Fetch cities when province changes
+  // Filter areas when city changes
   useEffect(() => {
+    if (selected.city && propertyList.length > 0) {
+      // Filter areas (suburbs) based on the selected city (using property data)
+      const relevantProperties = propertyList.filter(p => p.city === selected.city);
+      const uniqueAreas = [...new Set(relevantProperties.map(p => p.suburb).filter(Boolean))];
+      setAreas(uniqueAreas.map(name => ({ id: name, name })));
+      
+      // Only clear area selection if it's invalid for the current city
+      if (!isRestoringFilters && selected.area && 
+          !uniqueAreas.includes(selected.area)) {
+        console.log('🔄 Clearing invalid area selection');
+        setSelected(prev => ({ ...prev, area: "", areaName: "" }));
+      }
+    }
+  }, [selected.city, propertyList, isRestoringFilters, selected.area]);
+
+  // Filter properties based on current selections
+  useEffect(() => {
+    let filtered = [...propertyList];
+    
+    console.log('🔍 Filtering properties. Total properties:', propertyList.length);
+    console.log('🔍 Current filters:', { province: selected.province, city: selected.city, area: selected.area, type: selectedPropertyType });
+    
+    // Filter by province
     if (selected.province) {
-      axios.get(API_ENDPOINTS.CITIES(selected.province))
-        .then(res => {
-          setCities(res.data);
-          setAreas([]);
-          setSelected(prev => ({ ...prev, city: "", area: "", areaName: "" }));
-        })
-        .catch(err => console.error('Error fetching cities:', err));
+      filtered = filtered.filter(p => p.province === selected.province);
+      console.log('🔍 After province filter:', filtered.length);
     }
-  }, [selected.province]);
-
-  // Fetch areas when city changes
-  useEffect(() => {
+    
+    // Filter by city
     if (selected.city) {
-      axios.get(API_ENDPOINTS.AREAS(selected.city))
-        .then(res => {
-          setAreas(res.data);
-          setSelected(prev => ({ ...prev, area: "", areaName: "" }));
-        })
-        .catch(err => console.error('Error fetching areas:', err));
+      filtered = filtered.filter(p => p.city === selected.city);
+      console.log('🔍 After city filter:', filtered.length);
     }
-  }, [selected.city]);
-
-  // Fetch properties when area changes
-  useEffect(() => {
+    
+    // Filter by area/suburb
     if (selected.area) {
-      setLoading(true);
-      axios.get(API_ENDPOINTS.PROPERTIES_BY_AREA(selected.area))
-        .then(res => {
-          console.log('✅ Area properties fetched:', res.data);
-          let properties = res.data;
-          
-          // Apply property type filter
-          if (selectedPropertyType !== 'all') {
-            properties = properties.filter(property => 
-              property.type && property.type.toLowerCase().includes(selectedPropertyType.toLowerCase())
-            );
-          }
-          
-          setFilteredProperties(properties);
-          setPropertyList(properties);
-          setLoading(false);
-        })
-        .catch(err => {
-          console.error('❌ Error fetching area properties:', err);
-          setLoading(false);
-        });
+      filtered = filtered.filter(p => p.suburb === selected.area);
+      console.log('🔍 After area filter:', filtered.length);
     }
-  }, [selected.area, selectedPropertyType]);
+    
+    // Filter by property type
+    if (selectedPropertyType !== 'all') {
+      filtered = filtered.filter(property => 
+        property.type && property.type.toLowerCase().includes(selectedPropertyType.toLowerCase())
+      );
+      console.log('🔍 After type filter:', filtered.length);
+    }
+    
+    console.log('🔍 Final filtered properties:', filtered.length);
+    setFilteredProperties(filtered);
+  }, [selected.province, selected.city, selected.area, selectedPropertyType, propertyList]);
 
   const propertyTypesFilter = [
     { value: 'all', label: 'All Properties', icon: '🏠' },
@@ -308,8 +424,6 @@ export default function Properties() {
                     const selectedAreaId = e.target.value;
                     const selectedAreaName = areas.find(a => a.id === selectedAreaId)?.name || '';
                     setSelected(prev => ({ ...prev, area: selectedAreaId, areaName: selectedAreaName }));
-                    setPropertyList([]);
-                    setFilteredProperties([]);
                   }}
                   disabled={!selected.city}
                 >

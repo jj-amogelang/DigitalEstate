@@ -23,14 +23,35 @@ export default function PropertyDetails() {
   const returnFilters = location.state?.filters;
   const returnUrl = location.state?.returnUrl || '/properties';
 
-  // Enhanced back navigation function
+  // Enhanced back navigation function with proper browser history
   const handleBackToProperties = () => {
-    if (returnFilters) {
+    console.log('🔄 Navigating back with browser history support');
+    console.log('🔄 Return filters:', returnFilters);
+    console.log('🔄 Return URL:', returnUrl);
+    
+    // Use browser's back navigation if we came from properties page
+    if (location.state?.fromPropertiesPage && window.history.length > 1) {
+      console.log('🔄 Using browser back navigation');
+      navigate(-1); // Go back in history
+    }
+    // Fallback: navigate with filter restoration
+    else if (returnFilters) {
+      console.log('🔄 Navigating with state restoration');
       navigate(returnUrl, {
         state: { filters: returnFilters }
       });
-    } else {
-      navigate(returnUrl);
+    } 
+    // Final fallback: restore from localStorage
+    else {
+      console.log('🔄 Fallback: restoring from localStorage');
+      const savedFilters = localStorage.getItem('propertyFilters');
+      if (savedFilters) {
+        navigate(returnUrl, {
+          state: { filters: JSON.parse(savedFilters) }
+        });
+      } else {
+        navigate(returnUrl);
+      }
     }
   };
 
@@ -58,6 +79,7 @@ export default function PropertyDetails() {
   };
 
   useEffect(() => {
+    console.log('🔍 PropertyDetails received ID:', id);
     if (id) {
       fetchPropertyDetails();
     }
@@ -65,12 +87,13 @@ export default function PropertyDetails() {
 
   const fetchPropertyDetails = async () => {
     try {
+      console.log('🔍 Fetching property details for ID:', id);
       setLoading(true);
       const response = await axios.get(API_ENDPOINTS.API_PROPERTY_BY_ID(id));
       setProperty(response.data);
       setError(null);
     } catch (err) {
-      console.error('Error fetching property details:', err);
+      console.error('❌ Error fetching property details for ID:', id, err);
       setError('Failed to load property details');
     } finally {
       setLoading(false);
@@ -123,7 +146,7 @@ export default function PropertyDetails() {
         </div>
         <h2>Error Loading Property</h2>
         <p>{error}</p>
-        <button className="btn-primary" onClick={() => navigate('/properties')}>
+        <button className="btn-primary" onClick={handleBackToProperties}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
             <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2"/>
           </svg>
@@ -145,7 +168,7 @@ export default function PropertyDetails() {
         </div>
         <h2>Property Not Found</h2>
         <p>The requested property could not be found.</p>
-        <button className="btn-primary" onClick={() => navigate('/properties')}>
+        <button className="btn-primary" onClick={handleBackToProperties}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
             <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2"/>
           </svg>
@@ -173,7 +196,7 @@ export default function PropertyDetails() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2"/>
           </svg>
-          <span>{property.area}</span>
+          <span>{property.suburb || property.area}</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2"/>
           </svg>
@@ -211,7 +234,7 @@ export default function PropertyDetails() {
               {activeImageIndex + 1} / {images.length}
             </div>
             <div className="property-type-badge">
-              {property.type}
+              {property.property_type || property.type}
             </div>
           </div>
           
@@ -239,7 +262,7 @@ export default function PropertyDetails() {
             {property.location}
           </div>
           <div className="property-price">
-            {formatPrice(property.cost)}
+            {formatPrice(property.price || property.cost)}
           </div>
         </div>
 
@@ -251,15 +274,15 @@ export default function PropertyDetails() {
             </div>
             <div className="stat-item">
               <span className="stat-label">Developer</span>
-              <span className="stat-value">{property.developer}</span>
+              <span className="stat-value">{property.developer || 'Contact for details'}</span>
             </div>
             <div className="stat-item">
               <span className="stat-label">Location</span>
-              <span className="stat-value">{property.area}</span>
+              <span className="stat-value">{property.suburb || property.area}</span>
             </div>
             <div className="stat-item">
               <span className="stat-label">Type</span>
-              <span className="stat-value">{property.type}</span>
+              <span className="stat-value">{property.property_type || property.type}</span>
             </div>
           </div>
         </div>
@@ -318,11 +341,11 @@ export default function PropertyDetails() {
               </div>
               <div className="info-item">
                 <span className="info-label">Street Address</span>
-                <span className="info-value">{property.street_address || property.location || 'N/A'}</span>
+                <span className="info-value">{property.address || property.street_address || property.location || 'N/A'}</span>
               </div>
               <div className="info-item">
                 <span className="info-label">Suburb</span>
-                <span className="info-value">{property.area || 'N/A'}</span>
+                <span className="info-value">{property.suburb || property.area || 'N/A'}</span>
               </div>
               <div className="info-item">
                 <span className="info-label">City</span>
@@ -338,7 +361,7 @@ export default function PropertyDetails() {
               </div>
               <div className="info-item">
                 <span className="info-label">Property Type</span>
-                <span className="info-value">{property.type || 'N/A'}</span>
+                <span className="info-value">{property.property_type || property.type || 'N/A'}</span>
               </div>
               <div className="info-item">
                 <span className="info-label">Building Size</span>
