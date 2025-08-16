@@ -5,7 +5,7 @@ Production readiness check for Digital Estate Backend
 import os
 import sys
 from flask import Flask
-from config import Config
+from app_config import Config
 
 def check_environment():
     """Check if all required environment variables are set for production"""

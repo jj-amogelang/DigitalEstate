@@ -6,8 +6,8 @@ pip install -r requirements.txt
 
 # Set up the database with sample data and Excel import
 python -c "
-from app import app, db
-from models import EnhancedProperty, Owner, Valuation, Zoning
+from main import app, db
+from database_models import EnhancedProperty, Owner, Valuation, Zoning
 from datetime import datetime, date
 
 with app.app_context():
@@ -17,10 +17,8 @@ with app.app_context():
     
     # Check if we need to add sample data
     if EnhancedProperty.query.count() == 0:
-        print('📝 Adding sample data with Excel import...')
-        from init_sqlite import init_sample_data
-        init_sample_data()
-        print('✅ Sample data added successfully!')
+        print('📝 Database initialized with empty tables')
+        print('💡 Use render_database_init.py to populate with Excel data')
     else:
         print('✅ Database already contains data')
         
