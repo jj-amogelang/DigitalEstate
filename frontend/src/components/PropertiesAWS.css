@@ -1,8 +1,5 @@
 /* AWS-Inspired Properties Component Styles */
 
-/* Import AWS theme variables */
-@import url('../styles/aws-theme.css');
-
 /* AWS-style Property Type Filter */
 .property-type-filter-modern {
   max-width: 1400px;

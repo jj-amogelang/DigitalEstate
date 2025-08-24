@@ -1,7 +1,5 @@
 /* AWS-Inspired Property Modal Styles */
 
-@import url('../styles/aws-theme.css');
-
 /* Modal Overlay */
 .modal-overlay {
   position: fixed;

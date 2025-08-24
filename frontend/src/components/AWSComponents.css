@@ -1,7 +1,5 @@
 /* AWS-Inspired Button and Form Components */
 
-@import url('../styles/aws-theme.css');
-
 /* AWS-style Buttons */
 .aws-button {
   display: inline-flex;
