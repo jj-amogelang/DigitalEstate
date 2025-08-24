@@ -1,24 +1,28 @@
-/* App Layout with Gold, Dark Grey, Black & White Theme */
+/* AWS-Inspired App Layout */
+/* Import AWS theme and components */
+@import url('./styles/aws-theme.css');
+@import url('./components/AWSComponents.css');
+
 .app-layout {
   display: flex;
   min-height: 100vh;
-  background-color: var(--white);
+  background-color: var(--aws-light-grey);
 }
 
-/* Sidebar */
+/* AWS-style Sidebar */
 .sidebar {
   position: fixed;
   left: 0;
   top: 0;
   height: 100vh;
-  background: var(--gradient-dark);
-  color: var(--white);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: var(--shadow-dark);
-  z-index: 1000;
+  background: var(--aws-gradient-dark);
+  color: var(--aws-white);
+  transition: all var(--aws-transition-normal);
+  box-shadow: var(--aws-shadow-lg);
+  z-index: var(--aws-z-fixed);
   display: flex;
   flex-direction: column;
-  border-right: 3px solid var(--gold-primary);
+  border-right: 2px solid var(--aws-orange);
 }
 
 .sidebar-open {
@@ -29,21 +33,21 @@
   width: 80px;
 }
 
-/* Sidebar Header */
+/* AWS-style Sidebar Header */
 .sidebar-header {
-  padding: 1.5rem;
-  border-bottom: 1px solid var(--gold-primary);
+  padding: var(--aws-space-lg);
+  border-bottom: 1px solid var(--aws-orange);
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: 80px;
-  background: var(--grey-dark);
+  background: var(--aws-blue);
 }
 
 .logo-container {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--aws-space-md);
   flex: 1;
 }
 
@@ -53,12 +57,12 @@
   justify-content: center;
   width: 40px;
   height: 40px;
-  background: var(--gradient-gold);
-  border-radius: 12px;
-  color: var(--black);
+  background: var(--aws-gradient-primary);
+  border-radius: var(--aws-radius-lg);
+  color: var(--aws-white);
   flex-shrink: 0;
-  box-shadow: var(--shadow-gold);
-  border: 2px solid var(--gold-dark);
+  box-shadow: var(--aws-shadow-md);
+  border: 2px solid var(--aws-orange-dark);
 }
 
 .logo-text {
@@ -68,70 +72,71 @@
 }
 
 .company-name {
-  font-size: 1.375rem;
-  font-weight: 700;
+  font-size: var(--aws-text-xl);
+  font-weight: var(--aws-font-bold);
   margin: 0;
-  background: var(--gradient-gold);
+  background: var(--aws-gradient-primary);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: -0.025em;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  font-family: var(--aws-font-family);
 }
 
 .company-tagline {
-  font-size: 0.75rem;
+  font-size: var(--aws-text-xs);
   margin: 0;
-  color: var(--gold-light);
-  font-weight: 500;
+  color: var(--aws-orange-light);
+  font-weight: var(--aws-font-medium);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .sidebar-toggle {
   background: none;
-  border: 2px solid var(--gold-primary);
-  color: var(--gold-primary);
+  border: 2px solid var(--aws-orange);
+  color: var(--aws-orange);
   cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 8px;
-  transition: all 0.2s ease;
+  padding: var(--aws-space-sm);
+  border-radius: var(--aws-radius-md);
+  transition: all var(--aws-transition-fast);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .sidebar-toggle:hover {
-  background: var(--gold-primary);
-  color: var(--black);
+  background: var(--aws-orange);
+  color: var(--aws-white);
   transform: scale(1.05);
-  box-shadow: var(--shadow-gold);
+  box-shadow: var(--aws-shadow-md);
 }
 
-/* Navigation */
+/* AWS-style Navigation */
 .sidebar-nav {
   flex: 1;
-  padding: 1.5rem 1rem;
+  padding: var(--aws-space-lg) var(--aws-space-md);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--aws-space-xs);
   overflow-y: auto;
 }
 
 .nav-link {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  color: var(--white);
+  gap: var(--aws-space-md);
+  color: var(--aws-white);
   text-decoration: none;
-  padding: 0.875rem;
-  border-radius: 12px;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  font-weight: 500;
-  font-size: 0.875rem;
+  padding: var(--aws-space-md);
+  border-radius: var(--aws-radius-md);
+  transition: all var(--aws-transition-normal);
+  font-weight: var(--aws-font-medium);
+  font-size: var(--aws-text-sm);
   position: relative;
   overflow: hidden;
   border: 1px solid transparent;
+  font-family: var(--aws-font-family);
 }
 
 .nav-link::before {
@@ -141,10 +146,10 @@
   top: 0;
   width: 0;
   height: 100%;
-  background: var(--gradient-gold);
-  transition: width 0.3s ease;
-  border-radius: 12px;
-  opacity: 0.8;
+  background: var(--aws-gradient-primary);
+  transition: width var(--aws-transition-normal);
+  border-radius: var(--aws-radius-md);
+  opacity: 0.9;
 }
 
 .nav-link:hover::before {
@@ -152,18 +157,18 @@
 }
 
 .nav-link:hover {
-  border-color: var(--gold-primary);
-  color: var(--black);
-  transform: translateX(4px);
-  box-shadow: var(--shadow-gold);
+  border-color: var(--aws-orange);
+  color: var(--aws-white);
+  transform: translateX(var(--aws-space-xs));
+  background-color: rgba(255, 153, 0, 0.1);
 }
 
 .nav-link.active {
-  background: var(--gradient-gold);
-  color: var(--black);
-  border-color: var(--gold-dark);
-  box-shadow: var(--shadow-gold);
-  font-weight: 600;
+  background: var(--aws-gradient-primary);
+  color: var(--aws-white);
+  border-color: var(--aws-orange-dark);
+  box-shadow: var(--aws-shadow-md);
+  font-weight: var(--aws-font-semibold);
 }
 
 .nav-link.active::before {
@@ -183,9 +188,9 @@
   white-space: nowrap;
 }
 
-/* Sidebar Footer */
+/* AWS-style Sidebar Footer */
 .sidebar-footer {
-  padding: 1.5rem;
+  padding: var(--aws-space-lg);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   margin-top: auto;
 }
@@ -195,25 +200,26 @@
 }
 
 .footer-text {
-  font-size: 0.75rem;
-  color: #94a3b8;
+  font-size: var(--aws-text-xs);
+  color: var(--aws-text-grey);
   margin: 0 0 0.25rem 0;
   font-weight: 500;
 }
 
 .footer-subtext {
-  font-size: 0.625rem;
-  color: #64748b;
+  font-size: var(--aws-text-xs);
+  color: var(--aws-text-grey);
   margin: 0;
-  font-weight: 400;
+  font-weight: var(--aws-font-regular);
+  opacity: 0.8;
 }
 
-/* Main Content */
+/* AWS-style Main Content */
 .main-content {
   flex: 1;
-  background-color: #f8fafc;
+  background-color: var(--aws-light-grey);
   overflow-y: auto;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--aws-transition-normal);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -227,16 +233,16 @@
   margin-left: 80px;
 }
 
-/* Top Navigation Bar */
+/* AWS-style Top Navigation Bar */
 .top-nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px;
-  background: var(--bg-primary, white);
-  border-bottom: 1px solid var(--border-color, #e1e5e9);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  z-index: 100;
+  padding: var(--aws-space-md) var(--aws-space-lg);
+  background: var(--aws-white);
+  border-bottom: 1px solid var(--aws-border-grey);
+  box-shadow: var(--aws-shadow-sm);
+  z-index: var(--aws-z-sticky);
   position: sticky;
   top: 0;
 }
@@ -244,7 +250,7 @@
 .nav-left {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--aws-space-md);
 }
 
 .nav-right {

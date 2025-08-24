@@ -3,6 +3,8 @@ import axios from "axios";
 import { useNavigate, useLocation } from "react-router-dom";
 import { API_ENDPOINTS } from "../config/api";
 import "../components/DropdownFix.css";
+import "../components/PropertiesAWS.css";
+import "../components/AWSComponents.css";
 import "./property-list-page.css";
 
 export default function PropertyListPage() {

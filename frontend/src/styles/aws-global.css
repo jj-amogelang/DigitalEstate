@@ -1,0 +1,389 @@
+/* AWS-Inspired Dashboard Theme - Complete Implementation */
+
+/* Global CSS Reset and AWS Theme Integration */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Import AWS theme variables */
+@import url('./styles/aws-theme.css');
+
+/* Global Button Styles - AWS Style */
+button {
+  font-family: var(--aws-font-family);
+  cursor: pointer;
+  border: none;
+  transition: all var(--aws-transition-fast);
+}
+
+/* Global Input Styles - AWS Style */
+input, select, textarea {
+  font-family: var(--aws-font-family);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Global Link Styles - AWS Style */
+a {
+  color: var(--aws-link);
+  text-decoration: none;
+  transition: color var(--aws-transition-fast);
+}
+
+a:hover {
+  color: var(--aws-link-hover);
+}
+
+/* Typography Enhancements */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--aws-font-family);
+  color: var(--aws-dark-grey);
+}
+
+p {
+  font-family: var(--aws-font-family);
+  color: var(--aws-text-grey);
+  line-height: var(--aws-leading-normal);
+}
+
+/* AWS-style Page Container */
+.aws-page-container {
+  background: var(--aws-light-grey);
+  min-height: 100vh;
+  padding: var(--aws-space-lg);
+}
+
+.aws-content-wrapper {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* AWS-style Page Header */
+.aws-page-header {
+  background: var(--aws-white);
+  border-radius: var(--aws-radius-lg);
+  box-shadow: var(--aws-shadow-sm);
+  padding: var(--aws-space-2xl);
+  margin-bottom: var(--aws-space-2xl);
+  border-left: 4px solid var(--aws-orange);
+}
+
+.aws-page-title {
+  font-size: var(--aws-text-3xl);
+  font-weight: var(--aws-font-bold);
+  color: var(--aws-dark-grey);
+  margin-bottom: var(--aws-space-sm);
+}
+
+.aws-page-subtitle {
+  font-size: var(--aws-text-lg);
+  color: var(--aws-text-grey);
+  font-weight: var(--aws-font-regular);
+}
+
+/* AWS-style Breadcrumb */
+.aws-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--aws-space-sm);
+  font-size: var(--aws-text-sm);
+  color: var(--aws-text-grey);
+  margin-bottom: var(--aws-space-lg);
+}
+
+.aws-breadcrumb-item {
+  color: var(--aws-text-grey);
+}
+
+.aws-breadcrumb-item.active {
+  color: var(--aws-orange);
+  font-weight: var(--aws-font-medium);
+}
+
+.aws-breadcrumb-separator {
+  color: var(--aws-border-grey);
+}
+
+/* AWS-style Loading Spinner */
+.aws-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--aws-space-3xl);
+}
+
+.aws-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--aws-border-grey);
+  border-top: 3px solid var(--aws-orange);
+  border-radius: 50%;
+  animation: aws-spin 1s linear infinite;
+}
+
+@keyframes aws-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* AWS-style Empty State */
+.aws-empty-state {
+  text-align: center;
+  padding: var(--aws-space-3xl);
+  background: var(--aws-white);
+  border-radius: var(--aws-radius-lg);
+  box-shadow: var(--aws-shadow-sm);
+}
+
+.aws-empty-state-icon {
+  font-size: var(--aws-text-5xl);
+  color: var(--aws-text-grey);
+  margin-bottom: var(--aws-space-lg);
+  opacity: 0.5;
+}
+
+.aws-empty-state-title {
+  font-size: var(--aws-text-xl);
+  font-weight: var(--aws-font-semibold);
+  color: var(--aws-dark-grey);
+  margin-bottom: var(--aws-space-sm);
+}
+
+.aws-empty-state-description {
+  color: var(--aws-text-grey);
+  font-size: var(--aws-text-base);
+  margin-bottom: var(--aws-space-lg);
+}
+
+/* AWS-style Stats Cards */
+.aws-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--aws-space-lg);
+  margin-bottom: var(--aws-space-2xl);
+}
+
+.aws-stat-card {
+  background: var(--aws-white);
+  border: 1px solid var(--aws-border-grey);
+  border-radius: var(--aws-radius-lg);
+  padding: var(--aws-space-lg);
+  box-shadow: var(--aws-shadow-sm);
+  transition: all var(--aws-transition-normal);
+}
+
+.aws-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--aws-shadow-md);
+}
+
+.aws-stat-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: between;
+  margin-bottom: var(--aws-space-md);
+}
+
+.aws-stat-card-icon {
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 153, 0, 0.1);
+  border-radius: var(--aws-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--aws-orange);
+  font-size: var(--aws-text-xl);
+}
+
+.aws-stat-card-value {
+  font-size: var(--aws-text-3xl);
+  font-weight: var(--aws-font-bold);
+  color: var(--aws-dark-grey);
+  margin-bottom: var(--aws-space-xs);
+}
+
+.aws-stat-card-label {
+  font-size: var(--aws-text-sm);
+  color: var(--aws-text-grey);
+  font-weight: var(--aws-font-medium);
+}
+
+.aws-stat-card-change {
+  font-size: var(--aws-text-xs);
+  font-weight: var(--aws-font-medium);
+  margin-top: var(--aws-space-xs);
+}
+
+.aws-stat-card-change.positive {
+  color: var(--aws-success);
+}
+
+.aws-stat-card-change.negative {
+  color: var(--aws-error);
+}
+
+/* AWS-style Table */
+.aws-table {
+  width: 100%;
+  background: var(--aws-white);
+  border-radius: var(--aws-radius-lg);
+  box-shadow: var(--aws-shadow-sm);
+  overflow: hidden;
+  border: 1px solid var(--aws-border-grey);
+}
+
+.aws-table-header {
+  background: var(--aws-light-grey);
+  border-bottom: 1px solid var(--aws-border-grey);
+}
+
+.aws-table-row {
+  border-bottom: 1px solid var(--aws-border-grey);
+  transition: background-color var(--aws-transition-fast);
+}
+
+.aws-table-row:hover {
+  background-color: rgba(255, 153, 0, 0.02);
+}
+
+.aws-table-cell {
+  padding: var(--aws-space-md) var(--aws-space-lg);
+  font-family: var(--aws-font-family);
+  font-size: var(--aws-text-sm);
+}
+
+.aws-table-header .aws-table-cell {
+  font-weight: var(--aws-font-semibold);
+  color: var(--aws-dark-grey);
+}
+
+/* AWS-style Navigation Tabs */
+.aws-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--aws-border-grey);
+  margin-bottom: var(--aws-space-2xl);
+  background: var(--aws-white);
+  border-radius: var(--aws-radius-lg) var(--aws-radius-lg) 0 0;
+  overflow: hidden;
+}
+
+.aws-tab {
+  padding: var(--aws-space-md) var(--aws-space-lg);
+  color: var(--aws-text-grey);
+  cursor: pointer;
+  transition: all var(--aws-transition-fast);
+  font-weight: var(--aws-font-medium);
+  font-family: var(--aws-font-family);
+  border-bottom: 3px solid transparent;
+}
+
+.aws-tab:hover {
+  background-color: var(--aws-light-grey);
+  color: var(--aws-dark-grey);
+}
+
+.aws-tab.active {
+  background-color: var(--aws-white);
+  color: var(--aws-orange);
+  border-bottom-color: var(--aws-orange);
+  font-weight: var(--aws-font-semibold);
+}
+
+/* AWS-style Modal Overlay */
+.aws-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(35, 47, 62, 0.8);
+  z-index: var(--aws-z-modal-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--aws-space-lg);
+}
+
+/* AWS-style Utility Classes */
+.aws-text-center { text-align: center; }
+.aws-text-left { text-align: left; }
+.aws-text-right { text-align: right; }
+
+.aws-font-light { font-weight: var(--aws-font-light); }
+.aws-font-normal { font-weight: var(--aws-font-regular); }
+.aws-font-medium { font-weight: var(--aws-font-medium); }
+.aws-font-semibold { font-weight: var(--aws-font-semibold); }
+.aws-font-bold { font-weight: var(--aws-font-bold); }
+
+.aws-text-orange { color: var(--aws-orange); }
+.aws-text-blue { color: var(--aws-blue); }
+.aws-text-grey { color: var(--aws-text-grey); }
+.aws-text-dark { color: var(--aws-dark-grey); }
+
+.aws-bg-white { background-color: var(--aws-white); }
+.aws-bg-light { background-color: var(--aws-light-grey); }
+.aws-bg-orange { background-color: var(--aws-orange); }
+.aws-bg-blue { background-color: var(--aws-blue); }
+
+.aws-rounded-sm { border-radius: var(--aws-radius-sm); }
+.aws-rounded { border-radius: var(--aws-radius-md); }
+.aws-rounded-lg { border-radius: var(--aws-radius-lg); }
+.aws-rounded-xl { border-radius: var(--aws-radius-xl); }
+
+.aws-shadow-sm { box-shadow: var(--aws-shadow-sm); }
+.aws-shadow { box-shadow: var(--aws-shadow-md); }
+.aws-shadow-lg { box-shadow: var(--aws-shadow-lg); }
+.aws-shadow-xl { box-shadow: var(--aws-shadow-xl); }
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .aws-page-container {
+    padding: var(--aws-space-md);
+  }
+  
+  .aws-stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--aws-space-md);
+  }
+}
+
+@media (max-width: 768px) {
+  .aws-page-header {
+    padding: var(--aws-space-lg);
+  }
+  
+  .aws-page-title {
+    font-size: var(--aws-text-2xl);
+  }
+  
+  .aws-page-subtitle {
+    font-size: var(--aws-text-base);
+  }
+  
+  .aws-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .aws-tabs {
+    flex-wrap: wrap;
+  }
+  
+  .aws-tab {
+    flex: 1;
+    text-align: center;
+    padding: var(--aws-space-sm) var(--aws-space-md);
+  }
+}
+
+@media (max-width: 480px) {
+  .aws-page-container {
+    padding: var(--aws-space-sm);
+  }
+  
+  .aws-modal-backdrop {
+    padding: var(--aws-space-sm);
+  }
+}

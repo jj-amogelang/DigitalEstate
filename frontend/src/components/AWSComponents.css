@@ -1,0 +1,376 @@
+/* AWS-Inspired Button and Form Components */
+
+@import url('../styles/aws-theme.css');
+
+/* AWS-style Buttons */
+.aws-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--aws-space-sm);
+  padding: var(--aws-space-sm) var(--aws-space-lg);
+  border-radius: var(--aws-radius-md);
+  font-family: var(--aws-font-family);
+  font-size: var(--aws-text-base);
+  font-weight: var(--aws-font-medium);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all var(--aws-transition-fast);
+  border: 2px solid transparent;
+  position: relative;
+  overflow: hidden;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.aws-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.aws-button:focus {
+  outline: 2px solid var(--aws-focus);
+  outline-offset: 2px;
+}
+
+/* Primary Button (AWS Orange) */
+.aws-button-primary {
+  background: var(--aws-orange);
+  color: var(--aws-white);
+  border-color: var(--aws-orange);
+  box-shadow: var(--aws-shadow-sm);
+}
+
+.aws-button-primary:hover:not(:disabled) {
+  background: var(--aws-orange-dark);
+  border-color: var(--aws-orange-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--aws-shadow-md);
+}
+
+.aws-button-primary:active {
+  transform: translateY(0);
+  box-shadow: var(--aws-shadow-sm);
+}
+
+/* Secondary Button (AWS Blue) */
+.aws-button-secondary {
+  background: transparent;
+  color: var(--aws-blue);
+  border-color: var(--aws-blue);
+}
+
+.aws-button-secondary:hover:not(:disabled) {
+  background: var(--aws-blue);
+  color: var(--aws-white);
+  transform: translateY(-1px);
+  box-shadow: var(--aws-shadow-md);
+}
+
+/* Outline Button */
+.aws-button-outline {
+  background: transparent;
+  color: var(--aws-orange);
+  border-color: var(--aws-orange);
+}
+
+.aws-button-outline:hover:not(:disabled) {
+  background: var(--aws-orange);
+  color: var(--aws-white);
+  transform: translateY(-1px);
+  box-shadow: var(--aws-shadow-md);
+}
+
+/* Ghost Button */
+.aws-button-ghost {
+  background: transparent;
+  color: var(--aws-text-grey);
+  border-color: transparent;
+}
+
+.aws-button-ghost:hover:not(:disabled) {
+  background: var(--aws-light-grey);
+  color: var(--aws-dark-grey);
+}
+
+/* Button Sizes */
+.aws-button-sm {
+  padding: var(--aws-space-xs) var(--aws-space-md);
+  font-size: var(--aws-text-sm);
+  min-height: 36px;
+}
+
+.aws-button-lg {
+  padding: var(--aws-space-md) var(--aws-space-xl);
+  font-size: var(--aws-text-lg);
+  min-height: 52px;
+}
+
+.aws-button-xl {
+  padding: var(--aws-space-lg) var(--aws-space-2xl);
+  font-size: var(--aws-text-xl);
+  min-height: 60px;
+}
+
+/* Full Width Button */
+.aws-button-full {
+  width: 100%;
+}
+
+/* AWS-style Form Elements */
+.aws-form-group {
+  margin-bottom: var(--aws-space-lg);
+}
+
+.aws-form-label {
+  display: block;
+  font-size: var(--aws-text-sm);
+  font-weight: var(--aws-font-semibold);
+  color: var(--aws-dark-grey);
+  margin-bottom: var(--aws-space-xs);
+  font-family: var(--aws-font-family);
+}
+
+.aws-form-label.required::after {
+  content: ' *';
+  color: var(--aws-error);
+}
+
+.aws-form-input,
+.aws-form-select,
+.aws-form-textarea {
+  width: 100%;
+  padding: var(--aws-space-sm) var(--aws-space-md);
+  border: 2px solid var(--aws-border-grey);
+  border-radius: var(--aws-radius-md);
+  background: var(--aws-white);
+  font-family: var(--aws-font-family);
+  font-size: var(--aws-text-base);
+  transition: all var(--aws-transition-fast);
+  box-sizing: border-box;
+}
+
+.aws-form-input:focus,
+.aws-form-select:focus,
+.aws-form-textarea:focus {
+  outline: none;
+  border-color: var(--aws-orange);
+  box-shadow: 0 0 0 3px rgba(255, 153, 0, 0.1);
+}
+
+.aws-form-input:hover,
+.aws-form-select:hover,
+.aws-form-textarea:hover {
+  border-color: var(--aws-orange);
+}
+
+.aws-form-input.error,
+.aws-form-select.error,
+.aws-form-textarea.error {
+  border-color: var(--aws-error);
+  box-shadow: 0 0 0 3px rgba(209, 50, 18, 0.1);
+}
+
+.aws-form-textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+/* AWS-style Select Dropdown */
+.aws-form-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right var(--aws-space-sm) center;
+  background-repeat: no-repeat;
+  background-size: 16px;
+  padding-right: var(--aws-space-2xl);
+}
+
+/* AWS-style Form Helper Text */
+.aws-form-helper {
+  font-size: var(--aws-text-xs);
+  color: var(--aws-text-grey);
+  margin-top: var(--aws-space-xs);
+}
+
+.aws-form-error {
+  font-size: var(--aws-text-xs);
+  color: var(--aws-error);
+  margin-top: var(--aws-space-xs);
+  display: flex;
+  align-items: center;
+  gap: var(--aws-space-xs);
+}
+
+/* AWS-style Search Input */
+.aws-search-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.aws-search-input {
+  padding-left: var(--aws-space-2xl);
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z'/%3e%3c/svg%3e");
+  background-position: left var(--aws-space-sm) center;
+  background-repeat: no-repeat;
+  background-size: 16px;
+}
+
+/* AWS-style Checkbox */
+.aws-checkbox-container {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--aws-space-sm);
+  cursor: pointer;
+}
+
+.aws-checkbox {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--aws-border-grey);
+  border-radius: var(--aws-radius-sm);
+  background: var(--aws-white);
+  position: relative;
+  cursor: pointer;
+  transition: all var(--aws-transition-fast);
+  flex-shrink: 0;
+}
+
+.aws-checkbox:checked {
+  background: var(--aws-orange);
+  border-color: var(--aws-orange);
+}
+
+.aws-checkbox:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--aws-white);
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.aws-checkbox-label {
+  font-size: var(--aws-text-sm);
+  color: var(--aws-dark-grey);
+  line-height: var(--aws-leading-normal);
+  cursor: pointer;
+  font-family: var(--aws-font-family);
+}
+
+/* AWS-style Card */
+.aws-card {
+  background: var(--aws-white);
+  border: 1px solid var(--aws-border-grey);
+  border-radius: var(--aws-radius-lg);
+  box-shadow: var(--aws-shadow-sm);
+  overflow: hidden;
+  transition: all var(--aws-transition-normal);
+}
+
+.aws-card:hover {
+  box-shadow: var(--aws-shadow-md);
+  transform: translateY(-2px);
+}
+
+.aws-card-header {
+  padding: var(--aws-space-lg);
+  border-bottom: 1px solid var(--aws-border-grey);
+  background: var(--aws-light-grey);
+}
+
+.aws-card-title {
+  font-size: var(--aws-text-lg);
+  font-weight: var(--aws-font-semibold);
+  color: var(--aws-dark-grey);
+  margin: 0;
+  font-family: var(--aws-font-family);
+}
+
+.aws-card-body {
+  padding: var(--aws-space-lg);
+}
+
+.aws-card-footer {
+  padding: var(--aws-space-lg);
+  border-top: 1px solid var(--aws-border-grey);
+  background: var(--aws-light-grey);
+}
+
+/* AWS-style Alert/Notification */
+.aws-alert {
+  padding: var(--aws-space-md) var(--aws-space-lg);
+  border-radius: var(--aws-radius-md);
+  border-left: 4px solid;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--aws-space-sm);
+  margin-bottom: var(--aws-space-lg);
+}
+
+.aws-alert-success {
+  background: rgba(3, 127, 1, 0.1);
+  border-color: var(--aws-success);
+  color: var(--aws-success);
+}
+
+.aws-alert-warning {
+  background: rgba(255, 149, 0, 0.1);
+  border-color: var(--aws-warning);
+  color: var(--aws-warning);
+}
+
+.aws-alert-error {
+  background: rgba(209, 50, 18, 0.1);
+  border-color: var(--aws-error);
+  color: var(--aws-error);
+}
+
+.aws-alert-info {
+  background: rgba(0, 115, 187, 0.1);
+  border-color: var(--aws-info);
+  color: var(--aws-info);
+}
+
+.aws-alert-content {
+  flex: 1;
+}
+
+.aws-alert-title {
+  font-weight: var(--aws-font-semibold);
+  margin-bottom: var(--aws-space-xs);
+  font-family: var(--aws-font-family);
+}
+
+.aws-alert-message {
+  font-size: var(--aws-text-sm);
+  line-height: var(--aws-leading-normal);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .aws-button {
+    padding: var(--aws-space-sm) var(--aws-space-md);
+    font-size: var(--aws-text-sm);
+  }
+  
+  .aws-button-lg {
+    padding: var(--aws-space-md) var(--aws-space-lg);
+    font-size: var(--aws-text-base);
+  }
+  
+  .aws-button-xl {
+    padding: var(--aws-space-md) var(--aws-space-xl);
+    font-size: var(--aws-text-lg);
+  }
+  
+  .aws-card-header,
+  .aws-card-body,
+  .aws-card-footer {
+    padding: var(--aws-space-md);
+  }
+}

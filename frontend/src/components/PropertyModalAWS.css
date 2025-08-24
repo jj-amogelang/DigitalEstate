@@ -1,0 +1,368 @@
+/* AWS-Inspired Property Modal Styles */
+
+@import url('../styles/aws-theme.css');
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(35, 47, 62, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--aws-z-modal);
+  padding: var(--aws-space-md);
+  backdrop-filter: blur(8px);
+  animation: modal-fade-in var(--aws-transition-normal);
+}
+
+.modal-container {
+  background: var(--aws-white);
+  border: 1px solid var(--aws-border-grey);
+  border-radius: var(--aws-radius-xl);
+  max-width: 1000px;
+  max-height: 90vh;
+  width: 100%;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: var(--aws-shadow-xl);
+  animation: modal-slide-up var(--aws-transition-slow);
+}
+
+.modal-close {
+  position: absolute;
+  top: var(--aws-space-md);
+  right: var(--aws-space-md);
+  width: 44px;
+  height: 44px;
+  background: var(--aws-white);
+  color: var(--aws-dark-grey);
+  border: 2px solid var(--aws-border-grey);
+  border-radius: 50%;
+  font-size: var(--aws-text-lg);
+  font-weight: var(--aws-font-semibold);
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--aws-transition-fast);
+  box-shadow: var(--aws-shadow-md);
+}
+
+.modal-close:hover {
+  background: var(--aws-orange);
+  color: var(--aws-white);
+  border-color: var(--aws-orange);
+  transform: scale(1.1);
+}
+
+.modal-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 600px;
+}
+
+/* Modal Image Section */
+.modal-image-section {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--aws-radius-xl) 0 0 var(--aws-radius-xl);
+}
+
+.modal-property-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  min-height: 400px;
+}
+
+.modal-image-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(35, 47, 62, 0.8));
+  padding: var(--aws-space-2xl);
+  color: var(--aws-white);
+}
+
+.modal-property-price {
+  font-size: var(--aws-text-3xl);
+  font-weight: var(--aws-font-bold);
+  color: var(--aws-orange);
+  margin-bottom: var(--aws-space-sm);
+  font-family: var(--aws-font-family);
+}
+
+.modal-property-status {
+  display: inline-block;
+  background: var(--aws-success);
+  color: var(--aws-white);
+  padding: var(--aws-space-xs) var(--aws-space-sm);
+  border-radius: var(--aws-radius-sm);
+  font-size: var(--aws-text-xs);
+  font-weight: var(--aws-font-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Modal Details Section */
+.modal-details-section {
+  padding: var(--aws-space-2xl);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-property-header {
+  margin-bottom: var(--aws-space-2xl);
+}
+
+.modal-property-title {
+  font-size: var(--aws-text-2xl);
+  font-weight: var(--aws-font-bold);
+  color: var(--aws-dark-grey);
+  margin-bottom: var(--aws-space-sm);
+  font-family: var(--aws-font-family);
+  line-height: var(--aws-leading-tight);
+}
+
+.modal-property-location {
+  color: var(--aws-text-grey);
+  font-size: var(--aws-text-base);
+  margin-bottom: var(--aws-space-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--aws-space-xs);
+}
+
+.modal-property-type {
+  display: inline-block;
+  background: rgba(255, 153, 0, 0.1);
+  color: var(--aws-orange);
+  padding: var(--aws-space-xs) var(--aws-space-sm);
+  border-radius: var(--aws-radius-sm);
+  font-size: var(--aws-text-sm);
+  font-weight: var(--aws-font-medium);
+}
+
+/* Property Features */
+.modal-property-features {
+  margin-bottom: var(--aws-space-2xl);
+}
+
+.modal-features-title {
+  font-size: var(--aws-text-lg);
+  font-weight: var(--aws-font-semibold);
+  color: var(--aws-dark-grey);
+  margin-bottom: var(--aws-space-md);
+  font-family: var(--aws-font-family);
+}
+
+.modal-features-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--aws-space-md);
+}
+
+.modal-feature-item {
+  display: flex;
+  align-items: center;
+  gap: var(--aws-space-sm);
+  padding: var(--aws-space-sm);
+  background: var(--aws-light-grey);
+  border-radius: var(--aws-radius-md);
+  border-left: 3px solid var(--aws-orange);
+}
+
+.modal-feature-icon {
+  color: var(--aws-orange);
+  font-size: var(--aws-text-base);
+}
+
+.modal-feature-text {
+  color: var(--aws-dark-grey);
+  font-size: var(--aws-text-sm);
+  font-weight: var(--aws-font-medium);
+}
+
+/* Property Description */
+.modal-property-description {
+  margin-bottom: var(--aws-space-2xl);
+}
+
+.modal-description-title {
+  font-size: var(--aws-text-lg);
+  font-weight: var(--aws-font-semibold);
+  color: var(--aws-dark-grey);
+  margin-bottom: var(--aws-space-md);
+  font-family: var(--aws-font-family);
+}
+
+.modal-description-text {
+  color: var(--aws-text-grey);
+  line-height: var(--aws-leading-relaxed);
+  font-size: var(--aws-text-base);
+}
+
+/* Modal Actions */
+.modal-actions {
+  margin-top: auto;
+  display: flex;
+  gap: var(--aws-space-md);
+  padding-top: var(--aws-space-lg);
+  border-top: 1px solid var(--aws-border-grey);
+}
+
+.modal-button {
+  flex: 1;
+  padding: var(--aws-space-md) var(--aws-space-lg);
+  border-radius: var(--aws-radius-md);
+  font-weight: var(--aws-font-medium);
+  cursor: pointer;
+  transition: all var(--aws-transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--aws-space-sm);
+  font-family: var(--aws-font-family);
+  font-size: var(--aws-text-base);
+}
+
+.modal-button-primary {
+  background: var(--aws-orange);
+  color: var(--aws-white);
+  border: 2px solid var(--aws-orange);
+}
+
+.modal-button-primary:hover {
+  background: var(--aws-orange-dark);
+  border-color: var(--aws-orange-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--aws-shadow-md);
+}
+
+.modal-button-secondary {
+  background: transparent;
+  color: var(--aws-blue);
+  border: 2px solid var(--aws-blue);
+}
+
+.modal-button-secondary:hover {
+  background: var(--aws-blue);
+  color: var(--aws-white);
+  transform: translateY(-1px);
+  box-shadow: var(--aws-shadow-md);
+}
+
+/* Property Amenities */
+.modal-property-amenities {
+  margin-bottom: var(--aws-space-2xl);
+}
+
+.modal-amenities-title {
+  font-size: var(--aws-text-lg);
+  font-weight: var(--aws-font-semibold);
+  color: var(--aws-dark-grey);
+  margin-bottom: var(--aws-space-md);
+  font-family: var(--aws-font-family);
+}
+
+.modal-amenities-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--aws-space-sm);
+}
+
+.modal-amenity-tag {
+  background: rgba(0, 115, 187, 0.1);
+  color: var(--aws-link);
+  padding: var(--aws-space-xs) var(--aws-space-sm);
+  border-radius: var(--aws-radius-sm);
+  font-size: var(--aws-text-sm);
+  font-weight: var(--aws-font-medium);
+}
+
+/* Animations */
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(50px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .modal-container {
+    max-width: 95vw;
+    max-height: 95vh;
+    border-radius: var(--aws-radius-lg);
+  }
+  
+  .modal-content {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+  
+  .modal-image-section {
+    border-radius: var(--aws-radius-lg) var(--aws-radius-lg) 0 0;
+  }
+  
+  .modal-property-image {
+    min-height: 250px;
+  }
+  
+  .modal-details-section {
+    padding: var(--aws-space-lg);
+  }
+  
+  .modal-features-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+  }
+  
+  .modal-button {
+    width: 100%;
+  }
+  
+  .modal-property-title {
+    font-size: var(--aws-text-xl);
+  }
+  
+  .modal-property-price {
+    font-size: var(--aws-text-2xl);
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-overlay {
+    padding: var(--aws-space-sm);
+  }
+  
+  .modal-details-section {
+    padding: var(--aws-space-md);
+  }
+  
+  .modal-image-overlay {
+    padding: var(--aws-space-lg);
+  }
+}

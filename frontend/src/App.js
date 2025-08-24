@@ -10,6 +10,7 @@ import ResearchDashboard from "./pages/ResearchDashboard";
 import ProfileButton from "./components/ProfileButton";
 import AuthModal from "./components/AuthModal";
 import "./App.css";
+import "./styles/aws-global.css";
 
 function Sidebar({ isOpen, toggleSidebar }) {
   const location = useLocation();

@@ -1,5 +1,6 @@
 import React from 'react';
-import './PropertyModal.css';
+import './PropertyModalAWS.css';
+import './AWSComponents.css';
 
 const PropertyModal = ({ property, onClose }) => {
   if (!property) return null;

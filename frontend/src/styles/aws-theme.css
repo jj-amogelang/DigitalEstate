@@ -1,0 +1,106 @@
+/* AWS-Inspired Theme Variables */
+:root {
+  /* AWS Primary Colors */
+  --aws-orange: #FF9900;           /* AWS Orange */
+  --aws-orange-light: #FFB84D;     /* Light orange accent */
+  --aws-orange-dark: #E8890A;      /* Dark orange for depth */
+  --aws-blue: #232F3E;             /* AWS Dark Blue */
+  --aws-blue-light: #2E3B4E;       /* Light blue variant */
+  --aws-navy: #161E2D;             /* Darker navy blue */
+  --aws-squid: #232F3E;            /* AWS Squid Ink */
+  --aws-smile: #FF9900;            /* AWS Smile orange */
+  
+  /* Neutral Colors */
+  --aws-white: #FFFFFF;
+  --aws-light-grey: #FAFAFA;       /* Background grey */
+  --aws-border-grey: #EAEDED;      /* Border color */
+  --aws-text-grey: #687078;        /* Secondary text */
+  --aws-dark-grey: #16191F;        /* Dark text */
+  --aws-medium-grey: #E9ECEF;      /* Medium backgrounds */
+  
+  /* Status Colors */
+  --aws-success: #037F01;          /* Success green */
+  --aws-warning: #FF9500;          /* Warning orange */
+  --aws-error: #D13212;            /* Error red */
+  --aws-info: #0073BB;             /* Info blue */
+  
+  /* Interactive Colors */
+  --aws-link: #0073BB;             /* Link blue */
+  --aws-link-hover: #005A9B;       /* Hover state */
+  --aws-focus: #0073BB;            /* Focus outline */
+  
+  /* Gradients */
+  --aws-gradient-primary: linear-gradient(135deg, var(--aws-orange) 0%, var(--aws-orange-dark) 100%);
+  --aws-gradient-dark: linear-gradient(135deg, var(--aws-blue) 0%, var(--aws-navy) 100%);
+  --aws-gradient-light: linear-gradient(135deg, var(--aws-white) 0%, var(--aws-light-grey) 100%);
+  
+  /* Shadows - AWS style subtle shadows */
+  --aws-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
+  --aws-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06);
+  --aws-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.10), 0 4px 6px rgba(0, 0, 0, 0.05);
+  --aws-shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.10), 0 10px 10px rgba(0, 0, 0, 0.04);
+  
+  /* Border Radius - AWS rounded corners */
+  --aws-radius-sm: 4px;
+  --aws-radius-md: 8px;
+  --aws-radius-lg: 12px;
+  --aws-radius-xl: 16px;
+  
+  /* Spacing - AWS consistent spacing scale */
+  --aws-space-xs: 4px;
+  --aws-space-sm: 8px;
+  --aws-space-md: 16px;
+  --aws-space-lg: 24px;
+  --aws-space-xl: 32px;
+  --aws-space-2xl: 48px;
+  --aws-space-3xl: 64px;
+  
+  /* Typography - AWS font system */
+  --aws-font-family: "Amazon Ember", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+  --aws-font-mono: "Amazon Ember Mono", "Courier New", monospace;
+  
+  /* Font weights */
+  --aws-font-light: 300;
+  --aws-font-regular: 400;
+  --aws-font-medium: 500;
+  --aws-font-semibold: 600;
+  --aws-font-bold: 700;
+  
+  /* Font sizes - AWS typography scale */
+  --aws-text-xs: 12px;
+  --aws-text-sm: 14px;
+  --aws-text-base: 16px;
+  --aws-text-lg: 18px;
+  --aws-text-xl: 20px;
+  --aws-text-2xl: 24px;
+  --aws-text-3xl: 30px;
+  --aws-text-4xl: 36px;
+  --aws-text-5xl: 48px;
+  
+  /* Line heights */
+  --aws-leading-tight: 1.25;
+  --aws-leading-normal: 1.5;
+  --aws-leading-relaxed: 1.625;
+  
+  /* Transitions - AWS smooth animations */
+  --aws-transition-fast: 150ms ease-out;
+  --aws-transition-normal: 250ms ease-out;
+  --aws-transition-slow: 350ms ease-out;
+  
+  /* Z-index scale */
+  --aws-z-dropdown: 1000;
+  --aws-z-sticky: 1020;
+  --aws-z-fixed: 1030;
+  --aws-z-modal-backdrop: 1040;
+  --aws-z-modal: 1050;
+  --aws-z-popover: 1060;
+  --aws-z-tooltip: 1070;
+  
+  /* Component specific colors */
+  --aws-sidebar-bg: var(--aws-blue);
+  --aws-sidebar-active: var(--aws-orange);
+  --aws-header-bg: var(--aws-white);
+  --aws-card-bg: var(--aws-white);
+  --aws-button-primary: var(--aws-orange);
+  --aws-button-secondary: var(--aws-blue);
+}
