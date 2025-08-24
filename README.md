@@ -1,6 +1,6 @@
 # 🏘️ Digital Estate Dashboard
 
-A modern, professional property management dashboard built with React and Flask, featuring a Zara-inspired minimalist design.
+A modern, professional property management dashboard built with React and Flask, featuring a minimalist design.
 
 ## 🌟 Live Demo
 
