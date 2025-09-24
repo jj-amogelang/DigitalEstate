@@ -17,6 +17,29 @@ function Sidebar({ isOpen, toggleSidebar }) {
 
   return (
     <aside className={`sidebar ${isOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+      {/* Sidebar Toggle Arrow */}
+      <button 
+        className="sidebar-arrow-toggle"
+        onClick={toggleSidebar}
+        title={isOpen ? "Collapse sidebar" : "Expand sidebar"}
+      >
+        <svg 
+          width="12" 
+          height="12" 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          xmlns="http://www.w3.org/2000/svg"
+          className={`arrow-icon ${isOpen ? 'arrow-open' : 'arrow-closed'}`}
+        >
+          <path 
+            d="M9 18L15 12L9 6" 
+            stroke="currentColor" 
+            strokeWidth="2.5" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
       {/* Sidebar Header */}
       <div className="sidebar-header">
         <div className="logo-container">
@@ -70,14 +93,14 @@ function Sidebar({ isOpen, toggleSidebar }) {
         <Link 
           to="/properties" 
           className={`nav-link ${location.pathname === '/properties' ? 'active' : ''}`}
-          title="Properties"
+          title="Explore Areas"
         >
           <svg className="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M3 21h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
             <path d="M5 21V7l7-4 7 4v14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             <path d="M9 21v-6h6v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          {isOpen && <span className="nav-text">Properties</span>}
+          {isOpen && <span className="nav-text">Explore Areas</span>}
         </Link>
 
         <Link 

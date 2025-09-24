@@ -21,6 +21,11 @@ export default function PropertyListPage() {
   const [showLocationFilters, setShowLocationFilters] = useState(false);
   const [isRestoringFilters, setIsRestoringFilters] = useState(false);
 
+  // Set page title
+  useEffect(() => {
+    document.title = 'Explore Areas - Digital Estate';
+  }, []);
+
   // Simplified filter state management
   const [selected, setSelected] = useState({
     country: "", 
@@ -335,23 +340,6 @@ export default function PropertyListPage() {
             <h1 className="hero-title-premium">
               Find Your Perfect <span className="hero-accent">Investment</span>
             </h1>
-            <p className="hero-subtitle-premium">
-              Discover exceptional properties across South Africa's most prestigious locations
-            </p>
-          </div>
-          <div className="hero-stats-premium">
-            <div className="stat-card-premium">
-              <div className="stat-number-premium">{propertyList.length || 0}+</div>
-              <div className="stat-label-premium">PROPERTIES</div>
-            </div>
-            <div className="stat-card-premium">
-              <div className="stat-number-premium">25+</div>
-              <div className="stat-label-premium">LOCATIONS</div>
-            </div>
-            <div className="stat-card-premium">
-              <div className="stat-number-premium">R2.5M</div>
-              <div className="stat-label-premium">AVG. VALUE</div>
-            </div>
           </div>
         </div>
       </div>
@@ -359,9 +347,9 @@ export default function PropertyListPage() {
       {/* Header Section */}
       <div className="properties-header-modern">
         <div className="header-content-modern">
-          <h2 className="page-title-modern">Property Search</h2>
+          <h2 className="page-title-modern">Discover Market Intelligence</h2>
           <p className="page-subtitle-modern">
-            Use our advanced filters to find your perfect property investment
+            Explore neighborhoods, analyze market data, and uncover investment opportunities across South Africa
           </p>
         </div>
       </div>
@@ -369,7 +357,7 @@ export default function PropertyListPage() {
       {/* Filters Section */}
       <div className="filters-section-modern">
         <div className="filters-container-modern">
-          <h2 className="filters-title-modern">Find Your Perfect Property</h2>
+          <h2 className="filters-title-modern">Explore Markets by Location</h2>
           
           <div className="location-selectors-modern">
             <div className="selector-item-modern">
@@ -437,6 +425,119 @@ export default function PropertyListPage() {
           </div>
         </div>
       </div>
+
+      {/* Area Insights Section */}
+      {selected.area && selected.areaName && (
+        <div className="area-insights-section">
+          <div className="area-header">
+            <div className="area-title-container">
+              <h2 className="area-title">
+                Exploring: <span className="area-name">{selected.areaName}</span>
+              </h2>
+              <button 
+                className="market-insights-link"
+                onClick={() => navigate('/research', { 
+                  state: { 
+                    area: selected.areaName,
+                    province: selected.province,
+                    city: selected.city
+                  }
+                })}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 3v18h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M7 12l3-3 2 2 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <circle cx="18" cy="6" r="2" fill="currentColor"/>
+                </svg>
+                Market Insights
+              </button>
+            </div>
+          </div>
+
+          {/* Area Data Display */}
+          <div className="area-data-grid">
+            <div className="area-data-card">
+              <div className="data-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div className="data-content">
+                <div className="data-label">Average Property Price</div>
+                <div className="data-value">R2.3M</div>
+                <div className="data-trend positive">+12.5% YoY</div>
+              </div>
+            </div>
+
+            <div className="area-data-card">
+              <div className="data-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" stroke="currentColor" strokeWidth="1.5"/>
+                </svg>
+              </div>
+              <div className="data-content">
+                <div className="data-label">Average Rental Yield</div>
+                <div className="data-value">8.2%</div>
+                <div className="data-trend positive">+0.3% YoY</div>
+              </div>
+            </div>
+
+            <div className="area-data-card">
+              <div className="data-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <polyline points="9,22 9,12 15,12 15,22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div className="data-content">
+                <div className="data-label">Vacancy Rate</div>
+                <div className="data-value">4.1%</div>
+                <div className="data-trend negative">+1.2% YoY</div>
+              </div>
+            </div>
+
+            <div className="area-data-card">
+              <div className="data-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div className="data-content">
+                <div className="data-label">Crime Index Score</div>
+                <div className="data-value">32/100</div>
+                <div className="data-trend positive">-5.2% YoY</div>
+              </div>
+            </div>
+
+            <div className="area-data-card">
+              <div className="data-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M13 7a4 4 0 11-8 0 4 4 0 018 0z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div className="data-content">
+                <div className="data-label">Population Growth Rate</div>
+                <div className="data-value">2.8%</div>
+                <div className="data-trend positive">+0.4% YoY</div>
+              </div>
+            </div>
+
+            <div className="area-data-card">
+              <div className="data-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div className="data-content">
+                <div className="data-label">Planned Development Count</div>
+                <div className="data-value">12</div>
+                <div className="data-trend positive">+3 projects</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Property Type Filter */}
       {selected.area && (

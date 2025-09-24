@@ -112,6 +112,52 @@
   box-shadow: var(--aws-shadow-md);
 }
 
+/* AWS-style Sidebar Toggle Arrow */
+.sidebar-arrow-toggle {
+  position: absolute;
+  top: var(--aws-space-lg);
+  right: -12px;
+  width: 24px;
+  height: 24px;
+  background: var(--aws-orange);
+  border: 1px solid var(--aws-orange-dark);
+  border-radius: var(--aws-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--aws-transition-fast);
+  z-index: var(--aws-z-fixed);
+  box-shadow: var(--aws-shadow-sm);
+  color: var(--aws-white);
+  padding: 0;
+}
+
+.sidebar-arrow-toggle:hover {
+  background: var(--aws-orange-dark);
+  transform: scale(1.05);
+  box-shadow: var(--aws-shadow-md);
+}
+
+.arrow-icon {
+  width: 12px;
+  height: 12px;
+  transition: transform var(--aws-transition-fast);
+}
+
+.arrow-icon.arrow-open {
+  transform: rotate(180deg);
+}
+
+.arrow-icon.arrow-closed {
+  transform: rotate(0deg);
+}
+
+/* Ensure arrow is visible on collapsed sidebar */
+.sidebar-closed .sidebar-arrow-toggle {
+  right: -12px;
+}
+
 /* AWS-style Navigation */
 .sidebar-nav {
   flex: 1;
@@ -1420,6 +1466,17 @@
 
   .nav-icon {
     font-size: 1.5rem;
+  }
+  
+  /* Mobile sidebar arrow toggle */
+  .sidebar-arrow-toggle {
+    right: -10px;
+    width: 20px;
+    height: 20px;
+  }
+  
+  .sidebar-closed .sidebar-arrow-toggle {
+    right: -10px;
   }
 }
 
