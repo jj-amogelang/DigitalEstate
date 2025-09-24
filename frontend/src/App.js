@@ -134,7 +134,7 @@ function Sidebar({ isOpen, toggleSidebar }) {
 }
 
 function App() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
 
@@ -158,6 +158,16 @@ function App() {
         <Router>
           <div className="app-layout">
             <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+            
+            {/* Mobile overlay to close sidebar when clicked outside */}
+            {sidebarOpen && (
+              <div 
+                className="sidebar-mobile-overlay" 
+                onClick={toggleSidebar}
+                aria-label="Close sidebar"
+              />
+            )}
+            
             <main className={`main-content ${sidebarOpen ? 'main-content-expanded' : 'main-content-collapsed'}`}>
               {/* Top Navigation Bar with Profile Button */}
               <div className="top-nav">

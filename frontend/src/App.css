@@ -353,6 +353,25 @@
   }
 }
 
+/* Mobile Sidebar Overlay */
+.sidebar-mobile-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(35, 47, 62, 0.7);
+  z-index: 1500;
+  backdrop-filter: blur(4px);
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .sidebar-mobile-overlay {
+    display: block;
+  }
+}
+
 /* Mobile Devices */
 @media (max-width: 768px) {
   .sidebar-toggle {
