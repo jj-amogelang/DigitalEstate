@@ -1,10 +1,66 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import "./styles/dashboard-page.css";
+import areaDataService from "../services/areaDataService";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const [sandtonMetrics, setSandtonMetrics] = useState(null);
+  const [loadingMetrics, setLoadingMetrics] = useState(false);
+  const [metricsError, setMetricsError] = useState(null);
+
+  useEffect(() => {
+    // Fetch Sandton area id, then latest metrics for target codes
+    const fetchMetrics = async () => {
+      try {
+        setLoadingMetrics(true);
+        setMetricsError(null);
+        const areas = await areaDataService.searchAreas("Sandton");
+        const sandton = areas.find(a => a.name?.toLowerCase() === "sandton");
+        if (!sandton) {
+          setMetricsError("Sandton area not found");
+          setLoadingMetrics(false);
+          return;
+        }
+        // Call backend directly for latest metrics
+        const resp = await areaDataService.api.get(`/api/areas/${sandton.id}/metrics/latest`, {
+          params: { metrics: "avg_price,rental_yield,vacancy_rate,crime_index,population_growth,planned_dev_count" }
+        });
+        const metricsArr = resp.metrics || [];
+        const map = Object.fromEntries(metricsArr.map(m => [m.code, m]));
+        setSandtonMetrics({ areaId: sandton.id, areaName: sandton.name, map });
+      } catch (err) {
+        setMetricsError(err?.message || "Failed to load metrics");
+      } finally {
+        setLoadingMetrics(false);
+      }
+    };
+    fetchMetrics();
+  }, []);
+
+  const sandtonDisplay = useMemo(() => {
+    if (!sandtonMetrics) return null;
+    const m = sandtonMetrics.map;
+    const fmtPrice = (v) => {
+      if (v == null) return "—";
+      const n = Number(v);
+      if (n >= 1_000_000) return `R${(n/1_000_000).toFixed(1)}M`;
+      if (n >= 1_000) return `R${(n/1_000).toFixed(0)}K`;
+      return `R${n.toLocaleString()}`;
+    };
+    const fmtPct = (v) => (v == null ? "—" : `${Number(v).toFixed(1)}%`);
+    const fmtNum = (v) => (v == null ? "—" : Number(v).toLocaleString());
+    return [
+      { key: "avg_price", label: "Avg Price", value: fmtPrice(m.avg_price?.value_numeric) },
+      { key: "rental_yield", label: "Rental Yield", value: fmtPct(m.rental_yield?.value_numeric) },
+      { key: "vacancy_rate", label: "Vacancy", value: fmtPct(m.vacancy_rate?.value_numeric) },
+      { key: "crime_index", label: "Crime Index", value: fmtNum(m.crime_index?.value_numeric) },
+      { key: "population_growth", label: "Population Growth", value: fmtPct(m.population_growth?.value_numeric) },
+      { key: "planned_dev_count", label: "Planned Dev.", value: fmtNum(m.planned_dev_count?.value_numeric) },
+    ];
+  }, [sandtonMetrics]);
 
   return (
     <div className="dashboard">
@@ -35,37 +91,60 @@ export default function DashboardPage() {
               Designed to give you insights into all property in South Africa. 
               A centralized, user-friendly platform to explore property listings, view real-time data, and access detailed insights — all in one place.
             </p>
-            <div className="hero-actions">
+            <div className="hero-cta">
               <button 
-                onClick={() => navigate('/properties')} 
-                className="btn btn-primary hero-cta"
+                onClick={() => navigate('/explore')} 
+                className="btn btn-primary"
               >
-                <span>Explore Properties</span>
+                <span>Explore Areas</span>
                 <svg className="cta-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none">
                   <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
               <button 
-                onClick={() => navigate('/properties')} 
-                className="btn btn-secondary hero-cta-secondary"
+                onClick={() => navigate('/explore')} 
+                className="btn btn-secondary"
               >
                 View Live Data
               </button>
             </div>
             <div className="hero-metrics">
               <div className="metric">
-                <div className="metric-number">Live</div>
-                <div className="metric-label">Property Data</div>
+                <div className="metric-icon" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="12" r="6"/>
+                  </svg>
+                </div>
+                <div className="metric-text">
+                  <div className="metric-number">Live</div>
+                  <div className="metric-label">Property Data</div>
+                </div>
               </div>
-              <div className="metric-divider"></div>
+              <div className="metric-divider" />
               <div className="metric">
-                <div className="metric-number">All</div>
-                <div className="metric-label">South Africa</div>
+                <div className="metric-icon" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                    <circle cx="12" cy="12" r="9"/>
+                    <path d="M2.5 12h19"/>
+                    <path d="M12 2.5v19"/>
+                  </svg>
+                </div>
+                <div className="metric-text">
+                  <div className="metric-number">All</div>
+                  <div className="metric-label">South Africa</div>
+                </div>
               </div>
-              <div className="metric-divider"></div>
+              <div className="metric-divider" />
               <div className="metric">
-                <div className="metric-number">Smart</div>
-                <div className="metric-label">Insights</div>
+                <div className="metric-icon" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                    <path d="M12 2a7 7 0 0 0-7 7c0 2.89 1.64 5.38 4 6.58V20a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-4.42c2.36-1.2 4-3.69 4-6.58a7 7 0 0 0-7-7Z"/>
+                  </svg>
+                </div>
+                <div className="metric-text">
+                  <div className="metric-number">Smart</div>
+                  <div className="metric-label">Insights</div>
+                </div>
               </div>
             </div>
           </div>
@@ -77,6 +156,28 @@ export default function DashboardPage() {
       </div>
       
       <div className="dashboard-content">
+        {/* Sandton Key Metrics (Live) */}
+        <div className="container-professional" style={{marginTop: '24px'}}>
+          <div className="sandton-strip">
+            <div className="sandton-strip-header">
+              <div className="sandton-chip">Live</div>
+              <h3>Sandton Key Metrics</h3>
+              {loadingMetrics && <span className="sandton-loading">Loading…</span>}
+              {metricsError && <span className="sandton-error">{metricsError}</span>}
+            </div>
+            {sandtonDisplay && (
+              <div className="sandton-metrics-grid">
+                {sandtonDisplay.map(item => (
+                  <div className="sandton-metric" key={item.key}>
+                    <div className="sandton-metric-label">{item.label}</div>
+                    <div className="sandton-metric-value">{item.value}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Professional Platform Overview */}
         <div className="platform-overview-section">
           <div className="container-professional">

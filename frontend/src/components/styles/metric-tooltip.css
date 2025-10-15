@@ -1,0 +1,91 @@
+.metric-tooltip-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.metric-label {
+  cursor: help;
+  color: var(--dark-text);
+  border-bottom: 1px dashed rgba(201, 169, 110, 0.5); /* subtle gold */
+  transition: var(--transition-fast);
+}
+
+.metric-label:hover {
+  color: var(--accent-gold);
+  border-bottom-color: var(--accent-gold);
+}
+
+/* Optional tiny info dot for affordance */
+.metric-label::after {
+  content: "i";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 6px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--accent-gold);
+  border: 1px solid rgba(201,169,110,0.6);
+  border-radius: 50%;
+}
+
+.metric-tooltip-card {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  z-index: 50;
+  transform: translate(-50%, 12px);
+  min-width: 280px;
+  max-width: 420px;
+  background: var(--pure-white);
+  color: var(--dark-text);
+  border: 1px solid var(--border-grey);
+  border-radius: 12px;
+  box-shadow: var(--shadow-elevated);
+  padding: 14px 16px 16px;
+}
+
+/* Accent edge */
+.metric-tooltip-card::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--accent-gold) 50%, transparent 100%);
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+
+/* Caret */
+.metric-tooltip-card::after {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 10px;
+  background: var(--pure-white);
+  border-left: 1px solid var(--border-grey);
+  border-top: 1px solid var(--border-grey);
+  transform-origin: center;
+  rotate: 45deg;
+}
+
+.metric-tooltip-title {
+  font-weight: var(--font-weight-medium);
+  color: var(--charcoal-black);
+  margin-bottom: 6px;
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+.metric-tooltip-body {
+  font-size: 0.94rem;
+  line-height: 1.55;
+  color: #444;
+}

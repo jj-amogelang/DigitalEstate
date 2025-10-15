@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import './styles/settings.css';
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('Account');

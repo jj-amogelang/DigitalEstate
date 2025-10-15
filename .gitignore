@@ -1,3 +1,42 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+build/
+frontend/build/
+dist/
+
+# Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+coverage/
+
+# Environments
+.env
+backend/.env
+.venv/
+venv/
+
+# Databases (local/dev)
+instance/*.db
+backend/instance/*.db
+*.sqlite
+*.sqlite3
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Platform
+.vercel/
+.render/
 # Dependencies
 node_modules/
 */node_modules/

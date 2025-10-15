@@ -14,7 +14,7 @@ import {
 } from 'chart.js';
 import { Bar, Line, Doughnut } from 'react-chartjs-2';
 import { API_ENDPOINTS } from '../config/api';
-import './ResearchDashboard.css';
+import './styles/research-dashboard.css';
 
 // Register Chart.js components
 ChartJS.register(
