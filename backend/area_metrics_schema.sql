@@ -168,6 +168,15 @@ SELECT * FROM (VALUES
  ('education_score', 'Education Score', 'Access & quality of education score', 'score', 'quality'),
  ('transport_score', 'Transport Accessibility Score', 'Public transport & road access score', 'score', 'quality'),
  ('amenities_score', 'Amenities Score', 'Access to key amenities score', 'score', 'quality'),
+ -- Property-type specific metrics (counts for distribution; avg prices per type for series)
+ ('count_residential', 'Residential Stock Count', 'Number of residential properties in area (latest snapshot preferred)', 'count', 'inventory'),
+ ('count_commercial', 'Commercial Stock Count', 'Number of commercial properties in area (latest snapshot preferred)', 'count', 'inventory'),
+ ('count_industrial', 'Industrial Stock Count', 'Number of industrial properties in area (latest snapshot preferred)', 'count', 'inventory'),
+ ('count_retail', 'Retail Stock Count', 'Number of retail properties in area (latest snapshot preferred)', 'count', 'inventory'),
+ ('avg_price_residential', 'Average Residential Price', 'Average residential sale price for the period', 'ZAR', 'pricing'),
+ ('avg_price_commercial', 'Average Commercial Price', 'Average commercial sale price for the period', 'ZAR', 'pricing'),
+ ('avg_price_industrial', 'Average Industrial Price', 'Average industrial sale price for the period', 'ZAR', 'pricing'),
+ ('avg_price_retail', 'Average Retail Price', 'Average retail sale price for the period', 'ZAR', 'pricing'),
  ('population_growth', 'Population Growth Rate', 'Year-over-year population growth rate', '%', 'demographic'),
  ('planned_dev_count', 'Planned Development Count', 'Count of planned developments in pipeline', 'count', 'development')
 ) AS s(code,name,description,unit,category)

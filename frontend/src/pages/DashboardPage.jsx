@@ -332,10 +332,10 @@ export default function DashboardPage() {
               </div>
               <div className="excellence-cta">
                 <button 
-                  onClick={() => navigate('/research')} 
+                  onClick={() => navigate('/insights')} 
                   className="btn-professional btn-primary-professional"
                 >
-                  <span>Explore Market Research</span>
+                  <span>Explore Property Insights</span>
                   <svg className="cta-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none">
                     <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>

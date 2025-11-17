@@ -342,6 +342,16 @@ def api_provinces(country_ref):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# List all provinces (no filter)
+@app.route('/api/provinces', methods=['GET'])
+def api_provinces_all():
+    try:
+        with db.engine.connect() as conn:
+            rows = conn.execute(text("SELECT id, name, country_id FROM provinces ORDER BY name")).mappings().all()
+        return jsonify({'success': True, 'provinces': [ {'id': r['id'], 'name': r['name'], 'country_id': r['country_id']} for r in rows ]})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/cities/<province_ref>', methods=['GET'])
 def api_cities(province_ref):
     try:
@@ -350,6 +360,16 @@ def api_cities(province_ref):
             return jsonify({'success': False, 'error': 'Province not found'}), 404
         with db.engine.connect() as conn:
             rows = conn.execute(text("SELECT id, name, province_id FROM cities WHERE province_id = :pid ORDER BY name"), {'pid': province_id}).mappings().all()
+        return jsonify({'success': True, 'cities': [ {'id': r['id'], 'name': r['name'], 'province_id': r['province_id']} for r in rows ]})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# List all cities (no filter)
+@app.route('/api/cities', methods=['GET'])
+def api_cities_all():
+    try:
+        with db.engine.connect() as conn:
+            rows = conn.execute(text("SELECT id, name, province_id FROM cities ORDER BY name")).mappings().all()
         return jsonify({'success': True, 'cities': [ {'id': r['id'], 'name': r['name'], 'province_id': r['province_id']} for r in rows ]})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -366,6 +386,16 @@ def api_areas(city_ref):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# List all areas (plain list). Note: /api/areas is reserved for metrics listing.
+@app.route('/api/areas/list', methods=['GET'])
+def api_areas_list_plain():
+    try:
+        with db.engine.connect() as conn:
+            rows = conn.execute(text("SELECT id, name, city_id FROM areas ORDER BY name")).mappings().all()
+        return jsonify({'success': True, 'areas': [ {'id': r['id'], 'name': r['name'], 'city_id': r['city_id']} for r in rows ]})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/area/<area_ref>', methods=['GET'])
 def api_area_detail(area_ref):
     """Area detail with latest key metrics (avg_price, rental_yield, vacancy_rate).
@@ -376,8 +406,23 @@ def api_area_detail(area_ref):
         resolved_id = _resolve_area_id_flex(area_ref)
         if not resolved_id:
             return jsonify({'success': False, 'error': 'Area not found'}), 404
+        # Detect available coordinate columns
+        has_lat = False; has_lng = False; has_coord = False
+        try:
+            insp = inspect(db.engine)
+            cols = [c['name'] for c in insp.get_columns('areas')]
+            has_lat = 'latitude' in cols
+            has_lng = 'longitude' in cols
+            has_coord = 'coordinates' in cols
+        except Exception:
+            has_lat = has_lng = has_coord = False
         with db.engine.connect() as conn:
-            area = conn.execute(text("SELECT id, name, city_id FROM areas WHERE id = :id"), {'id': resolved_id}).mappings().first()
+            if has_lat or has_lng:
+                area = conn.execute(text("SELECT id, name, city_id, latitude, longitude FROM areas WHERE id = :id"), {'id': resolved_id}).mappings().first()
+            elif has_coord:
+                area = conn.execute(text("SELECT id, name, city_id, coordinates FROM areas WHERE id = :id"), {'id': resolved_id}).mappings().first()
+            else:
+                area = conn.execute(text("SELECT id, name, city_id FROM areas WHERE id = :id"), {'id': resolved_id}).mappings().first()
             if not area:
                 return jsonify({'success': False, 'error': 'Area not found'}), 404
             city = None
@@ -434,6 +479,25 @@ def api_area_detail(area_ref):
                 metrics_map[m['code']] = m['value_numeric']
             avg_price_val = metrics_map.get('avg_price')
 
+        # Parse coordinates to lat/lng if available
+        lat = None
+        lng = None
+        try:
+            if 'latitude' in (area.keys() if isinstance(area, dict) else []):
+                lat = float(area['latitude']) if area['latitude'] is not None else None
+            if 'longitude' in (area.keys() if isinstance(area, dict) else []):
+                lng = float(area['longitude']) if area['longitude'] is not None else None
+            if (lat is None or lng is None) and 'coordinates' in (area.keys() if isinstance(area, dict) else []):
+                coord = area.get('coordinates')
+                if coord:
+                    parts = [p.strip() for p in str(coord).split(',')]
+                    if len(parts) == 2:
+                        lat = float(parts[0]) if parts[0] else lat
+                        lng = float(parts[1]) if parts[1] else lng
+        except Exception:
+            lat = lat if isinstance(lat, (int, float)) else None
+            lng = lng if isinstance(lng, (int, float)) else None
+
         return jsonify({'success': True, 'area': {
             'id': area['id'],
             'name': area['name'],
@@ -441,6 +505,8 @@ def api_area_detail(area_ref):
             'province': province['name'] if province else None,
             'country': country['name'] if country else None,
             'primary_image_url': primary_image_url,
+            'lat': lat,
+            'lng': lng,
             'description': f"{area['name']} located in {city['name'] if city else ''} {province['name'] if province else ''}".strip(),
             'development_score': 78,
             'safety_rating': 7,
@@ -1298,3 +1364,87 @@ if __name__ == '__main__':
     # Prefer FLASK_ENV for debug decision, default debug True if not production
     debug_mode = os.getenv('FLASK_ENV') != 'production'
     app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000)), debug=debug_mode)
+
+# ================= PROPERTY INSIGHTS (TYPE DISTRIBUTION & SERIES) ==================
+
+@app.route('/api/area/<area_ref>/types/distribution', methods=['GET'])
+def api_area_types_distribution(area_ref):
+    """Return property-type distribution counts for an area.
+
+    Reads metrics: count_residential, count_commercial, count_industrial, count_retail
+    Uses the latest snapshot per metric.
+    """
+    try:
+        if not _area_metrics_supported():
+            return jsonify({'success': False, 'error': 'Metrics schema not initialized'}), 400
+        resolved_id = _resolve_area_id_flex(area_ref)
+        if not resolved_id:
+            return jsonify({'success': False, 'error': 'Area not found'}), 404
+        latest = _fetch_latest_metrics_for_area(resolved_id, 'count_residential,count_commercial,count_industrial,count_retail')
+        dist = []
+        code_map = {
+            'count_residential': 'residential',
+            'count_commercial': 'commercial',
+            'count_industrial': 'industrial',
+            'count_retail': 'retail'
+        }
+        for m in latest.get('metrics', []):
+            typ = code_map.get(m['code'])
+            if not typ:
+                continue
+            val = m.get('value_numeric')
+            if val is None:
+                continue
+            dist.append({'type': typ, 'count': int(val)})
+        return jsonify({'success': True, 'distribution': dist})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/area/<area_ref>/price-series', methods=['GET'])
+def api_area_price_series(area_ref):
+    """Return average price series per property type for the past N years.
+
+    Query: years=10 (default 10)
+    Metrics used: avg_price_residential, avg_price_commercial, avg_price_industrial, avg_price_retail
+    """
+    try:
+        if not _area_metrics_supported():
+            return jsonify({'success': False, 'error': 'Metrics schema not initialized'}), 400
+        resolved_id = _resolve_area_id_flex(area_ref)
+        if not resolved_id:
+            return jsonify({'success': False, 'error': 'Area not found'}), 404
+        years = max(int(request.args.get('years', 10)), 1)
+        # Build date range: last N years from Jan 1 of (current_year - years + 1)
+        start_year = date.today().year - years + 1
+        start_date = date(start_year, 1, 1)
+        codes = {
+            'residential': 'avg_price_residential',
+            'commercial': 'avg_price_commercial',
+            'industrial': 'avg_price_industrial',
+            'retail': 'avg_price_retail'
+        }
+        series = { k: [] for k in codes.keys() }
+        # Single SQL to fetch all 4 codes within range
+        sql = text("""
+            SELECT m.code, v.period_start, v.value_numeric
+            FROM area_metric_values v
+            JOIN metrics m ON m.id = v.metric_id
+            WHERE v.area_id = :area_id
+              AND m.code = ANY(:codes)
+              AND v.period_start >= :start_date
+            ORDER BY m.code, v.period_start
+        """)
+        with db.engine.connect() as conn:
+            rows = conn.execute(sql, {'area_id': resolved_id, 'codes': list(codes.values()), 'start_date': start_date}).mappings().all()
+        for r in rows:
+            code = r['code']
+            val = float(r['value_numeric']) if r['value_numeric'] is not None else None
+            if val is None:
+                continue
+            key = next((k for k,v in codes.items() if v == code), None)
+            if not key:
+                continue
+            series[key].append({'date': r['period_start'].isoformat(), 'value': val})
+        return jsonify({'success': True, 'series': series})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500

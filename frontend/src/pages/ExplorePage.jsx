@@ -18,6 +18,10 @@ export default function ExplorePage() {
   const [provinces, setProvinces] = useState([]);
   const [cities, setCities] = useState([]);
   const [areas, setAreas] = useState([]);
+  // Master lists for showing all options when parent is not selected
+  const [allProvinces, setAllProvinces] = useState([]);
+  const [allCities, setAllCities] = useState([]);
+  const [allAreas, setAllAreas] = useState([]);
   const [propertyList, setPropertyList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isRestoringFilters, setIsRestoringFilters] = useState(false);
@@ -149,11 +153,14 @@ export default function ExplorePage() {
     // Test with a simple area API endpoint instead of properties
     areaDataService.getCountries()
       .then(countries => {
-        console.log('✅ Area API Connection test successful');
-        console.log('✅ Countries data:', countries);
+        if (Array.isArray(countries) && countries.length > 0) {
+          console.log('✅ Area API connection OK — countries loaded:', countries.length);
+        } else {
+          console.warn('⚠️ Area API reachable but returned no countries');
+        }
       })
       .catch(err => {
-        console.error('❌ Area API Connection test failed:', err);
+        console.error('❌ Area API connection test failed:', err?.message || err);
       });
   }, []);
 
@@ -161,6 +168,30 @@ export default function ExplorePage() {
   useEffect(() => {
     console.log('🌍 Loading countries from area API...');
     loadCountriesFromAPI();
+  }, []);
+
+  // Load all provinces, cities, and areas for unrestricted dropdowns
+  useEffect(() => {
+    const loadAll = async () => {
+      try {
+        const [plist, clist, alist] = await Promise.all([
+          areaDataService.listAllProvinces().catch(() => []),
+          areaDataService.listAllCities().catch(() => []),
+          areaDataService.listAllAreas().catch(() => [])
+        ]);
+        setAllProvinces(plist || []);
+        setAllCities(clist || []);
+        setAllAreas(alist || []);
+        console.log('📚 Loaded full location lists:', {
+          provinces: (plist || []).length,
+          cities: (clist || []).length,
+          areas: (alist || []).length
+        });
+      } catch (e) {
+        console.warn('Failed to load full lists; dropdowns will filter by parent only.', e?.message || e);
+      }
+    };
+    loadAll();
   }, []);
 
   // Admin: trigger MV refresh
@@ -393,10 +424,11 @@ export default function ExplorePage() {
   useEffect(() => {
     if (!selected.area) return;
     const areaStr = String(selected.area);
+    const pool = [...areas, ...allAreas];
     // Case 1: if selected.area is a name string, map it to ID when list is ready
-    if (!/^\d+$/.test(areaStr) && Array.isArray(areas) && areas.length > 0) {
+    if (!/^\d+$/.test(areaStr) && pool.length > 0) {
       const needle = areaStr.trim().toLowerCase();
-      const match = areas.find(a => String(a.name || '').trim().toLowerCase() === needle);
+      const match = pool.find(a => String(a.name || '').trim().toLowerCase() === needle);
       if (match) {
         console.log('🔁 Normalizing area value to ID:', selected.area, '=>', match.id);
         setSelected(prev => ({ ...prev, area: String(match.id), areaName: match.name }));
@@ -404,14 +436,14 @@ export default function ExplorePage() {
       }
     }
     // Case 2: if selected.area looks like an ID (numeric or UUID), derive name from list when available
-    if (Array.isArray(areas) && areas.length > 0) {
-      const fromList = areas.find(a => String(a.id) === areaStr);
+    if (pool.length > 0) {
+      const fromList = pool.find(a => String(a.id) === areaStr);
       if (fromList && fromList.name && selected.areaName !== fromList.name) {
         console.log('📝 Deriving areaName from list:', fromList.name);
         setSelected(prev => ({ ...prev, areaName: fromList.name }));
       }
     }
-  }, [selected.area, areas, setSelected]);
+  }, [selected.area, areas, allAreas, setSelected]);
 
   // Load area data from API when area is selected (supports both ID and name input)
   const loadAreaData = async (areaIdentifier) => {
@@ -594,7 +626,7 @@ export default function ExplorePage() {
                   disabled={!selected.country}
                 >
                   <option value="">Select Province</option>
-                  {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  {(selected.country ? provinces : allProvinces).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
             </div>
@@ -609,7 +641,7 @@ export default function ExplorePage() {
                   disabled={!selected.province}
                 >
                   <option value="">Select City</option>
-                  {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {(selected.province ? cities : allCities).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
             </div>
@@ -630,7 +662,7 @@ export default function ExplorePage() {
                   disabled={!selected.city}
                 >
                   <option value="">Select Area</option>
-                  {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  {(selected.city ? areas : allAreas).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </div>
             </div>
@@ -648,7 +680,7 @@ export default function ExplorePage() {
               </h2>
               <button 
                 className="market-insights-link"
-                onClick={() => navigate('/research', { 
+                onClick={() => navigate('/insights', { 
                   state: { 
                     area: selected.areaName,
                     province: selected.province,
@@ -661,7 +693,7 @@ export default function ExplorePage() {
                   <path d="M7 12l3-3 2 2 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   <circle cx="18" cy="6" r="2" fill="currentColor"/>
                 </svg>
-                Market Insights
+                Property Insights
               </button>
             </div>
           </div>
@@ -683,7 +715,7 @@ export default function ExplorePage() {
                   (() => {
                     const heroUrl = (areaImages && areaImages.length > 0 && areaImages[0]?.image_url)
                       || (selectedAreaDetails && selectedAreaDetails.primary_image_url)
-                      || `/api/placeholder/800/400?text=${encodeURIComponent(selected.areaName || 'Select Area')}`;
+                      || areaDataService.getPlaceholderUrl(800, 400, selected.areaName || 'Select Area');
                     return (
                       <img
                         src={heroUrl}
@@ -754,13 +786,13 @@ export default function ExplorePage() {
                     </div>
                     <div className="data-value">
                       {areaDataService.formatPrice(
-                        areaStatistics.average_price ||
-                        areaStatistics.metrics?.average_price?.value ||
+                        areaStatistics?.average_price ||
+                        areaStatistics?.metrics?.average_price?.value ||
                         areaLatestMetrics?.avg_price?.value_numeric
                       )}
                     </div>
-                    <div className={`data-trend ${areaDataService.getTrendClass(areaStatistics.price_trend ?? areaStatistics.metrics?.average_price?.pct_change)}`}>
-                      {areaDataService.formatPercentage(areaStatistics.price_trend ?? areaStatistics.metrics?.average_price?.pct_change)} YoY
+                    <div className={`data-trend ${areaDataService.getTrendClass(areaStatistics?.price_trend ?? areaStatistics?.metrics?.average_price?.pct_change)}`}>
+                      {areaDataService.formatPercentage(areaStatistics?.price_trend ?? areaStatistics?.metrics?.average_price?.pct_change)} YoY
                     </div>
                   </div>
                 </div>
@@ -778,12 +810,12 @@ export default function ExplorePage() {
                       </MetricTooltip>
                     </div>
                     <div className="data-value">
-                      {(areaStatistics.rental_yield ?? areaStatistics.metrics?.rental_yield?.value ?? areaLatestMetrics?.rental_yield?.value_numeric)
-                        ? `${Number(areaStatistics.rental_yield ?? areaStatistics.metrics?.rental_yield?.value).toFixed(1)}%` 
+                      {(areaStatistics?.rental_yield ?? areaStatistics?.metrics?.rental_yield?.value ?? areaLatestMetrics?.rental_yield?.value_numeric)
+                        ? `${Number(areaStatistics?.rental_yield ?? areaStatistics?.metrics?.rental_yield?.value ?? areaLatestMetrics?.rental_yield?.value_numeric).toFixed(1)}%` 
                         : 'N/A'}
                     </div>
-                    <div className={`data-trend ${areaDataService.getTrendClass(areaStatistics.rental_trend ?? areaStatistics.metrics?.rental_yield?.pct_change)}`}>
-                      {areaDataService.formatPercentage(areaStatistics.rental_trend ?? areaStatistics.metrics?.rental_yield?.pct_change)} YoY
+                    <div className={`data-trend ${areaDataService.getTrendClass(areaStatistics?.rental_trend ?? areaStatistics?.metrics?.rental_yield?.pct_change)}`}>
+                      {areaDataService.formatPercentage(areaStatistics?.rental_trend ?? areaStatistics?.metrics?.rental_yield?.pct_change)} YoY
                     </div>
                   </div>
                 </div>
@@ -802,12 +834,12 @@ export default function ExplorePage() {
                       </MetricTooltip>
                     </div>
                     <div className="data-value">
-                      {(areaStatistics.vacancy_rate ?? areaStatistics.metrics?.vacancy_rate?.value ?? areaLatestMetrics?.vacancy_rate?.value_numeric)
-                        ? `${Number(areaStatistics.vacancy_rate ?? areaStatistics.metrics?.vacancy_rate?.value).toFixed(1)}%` 
+                      {(areaStatistics?.vacancy_rate ?? areaStatistics?.metrics?.vacancy_rate?.value ?? areaLatestMetrics?.vacancy_rate?.value_numeric)
+                        ? `${Number(areaStatistics?.vacancy_rate ?? areaStatistics?.metrics?.vacancy_rate?.value ?? areaLatestMetrics?.vacancy_rate?.value_numeric).toFixed(1)}%` 
                         : 'N/A'}
                     </div>
-                    <div className={`data-trend ${areaDataService.getTrendClass(-( (areaStatistics.vacancy_trend ?? areaStatistics.metrics?.vacancy_rate?.pct_change) || 0))}`}>
-                      {areaDataService.formatPercentage((areaStatistics.vacancy_trend ?? areaStatistics.metrics?.vacancy_rate?.pct_change))} YoY
+                    <div className={`data-trend ${areaDataService.getTrendClass(-((areaStatistics?.vacancy_trend ?? areaStatistics?.metrics?.vacancy_rate?.pct_change ?? 0)))}`}>
+                      {areaDataService.formatPercentage((areaStatistics?.vacancy_trend ?? areaStatistics?.metrics?.vacancy_rate?.pct_change))} YoY
                     </div>
                   </div>
                 </div>
@@ -848,8 +880,8 @@ export default function ExplorePage() {
                       </MetricTooltip>
                     </div>
                     <div className="data-value">
-                      {areaStatistics.population_density ?? areaStatistics.metrics?.population_density?.value
-                        ? `${Number(areaStatistics.population_density ?? areaStatistics.metrics?.population_density?.value).toLocaleString()}/km²` 
+                      {areaStatistics?.population_density ?? areaStatistics?.metrics?.population_density?.value
+                        ? `${Number(areaStatistics?.population_density ?? areaStatistics?.metrics?.population_density?.value).toLocaleString()}/km²` 
                         : 'N/A'}
                     </div>
                     <div className="data-trend neutral">Premium Data</div>

@@ -94,12 +94,12 @@ function Sidebar({ isOpen, toggleSidebar }) {
         </Link>
 
         <Link 
-          to="/research" 
-          className={`nav-link ${location.pathname === '/research' ? 'active' : ''}`}
-          title="Market Research"
+          to="/insights" 
+          className={`nav-link ${location.pathname === '/insights' ? 'active' : ''}`}
+          title="Property Insights"
         >
           <HomeIcon className="nav-icon" size={20} />
-          {isOpen && <span className="nav-text">Market Research</span>}
+          {isOpen && <span className="nav-text">Property Insights</span>}
         </Link>
 
         <Link 
@@ -190,7 +190,7 @@ function App() {
                   <Route path="/properties" element={<ExplorePage />} />
                   <Route path="/explore" element={<ExplorePage />} />
                   <Route path="/property/:id" element={<PropertyDetailsPage />} />
-                  <Route path="/research" element={<ResearchDashboard />} />
+                  <Route path="/insights" element={<ResearchDashboard />} />
                   <Route path="/analytics" element={<div className="coming-soon">Analytics - Coming Soon...</div>} />
                   <Route path="/settings" element={<Settings />} />
                 </Routes>

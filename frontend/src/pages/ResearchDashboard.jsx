@@ -1,463 +1,498 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import areaDataService from '../services/areaDataService';
+import '../components/styles/DropdownFix.css';
+import '../components/styles/PropertiesAWS.css';
+import '../components/styles/AWSComponents.css';
+import './styles/explore-page.css';
+import './styles/insights-charts.css';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
-  LineElement,
-  PointElement,
-  Title,
-  Tooltip,
-  Legend,
   ArcElement,
+  Tooltip as ChartTooltip,
+  Legend
 } from 'chart.js';
-import { Bar, Line, Doughnut } from 'react-chartjs-2';
-import { API_ENDPOINTS } from '../config/api';
-import './styles/research-dashboard.css';
+import { Bar, Doughnut } from 'react-chartjs-2';
+import AreaHeatmap from '../components/AreaHeatmap';
 
-// Register Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement
-);
+ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, ChartTooltip, Legend);
 
-const ResearchDashboard = () => {
-  const [marketTrends, setMarketTrends] = useState([]);
-  const [properties, setProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [uploadStatus, setUploadStatus] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
-  const [filterType, setFilterType] = useState('all');
+// Property Insights page rebuilt to follow the global theme and reuse the Explore dropdown feature
+export default function ResearchDashboard() {
+  const [countries, setCountries] = useState([]);
+  const [provinces, setProvinces] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [areas, setAreas] = useState([]);
+  const [allProvinces, setAllProvinces] = useState([]);
+  const [allCities, setAllCities] = useState([]);
+  const [allAreas, setAllAreas] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [chartsLoading, setChartsLoading] = useState(false);
+  const [typeDistribution, setTypeDistribution] = useState([]);
+  const [priceSeries, setPriceSeries] = useState({});
 
-  // Fetch data on component mount
+  // Theme helpers: read CSS variables defined by the dashboard theme
+  const getCssVar = (name, fallback) => {
+    if (typeof window === 'undefined') return fallback;
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name);
+    return (v && v.trim()) || fallback;
+  };
+
+  const hexToRgba = (hex, alpha = 1) => {
+    if (!hex) return `rgba(0,0,0,${alpha})`;
+    const h = hex.replace('#', '');
+    const bigint = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
+  const theme = useMemo(() => ({
+    orange: getCssVar('--aws-orange', '#ff9900'),
+    blue: getCssVar('--aws-blue', '#0073bb'),
+    navy: getCssVar('--aws-navy', '#0b1f3b'),
+    white: getCssVar('--aws-white', '#ffffff'),
+    darkGrey: getCssVar('--aws-dark-grey', '#111827'),
+    textGrey: getCssVar('--aws-text-grey', '#6b7280'),
+    borderGrey: getCssVar('--aws-border-grey', 'rgba(0,0,0,0.08)')
+  }), []);
+
+  // (Matrix heatmap helpers removed after switching to Leaflet-based map)
+
+  // Memoized chart data to avoid undefined structures during renders
+  const pieData = useMemo(() => {
+    const labels = Array.isArray(typeDistribution)
+      ? typeDistribution.map(d => (d?.type ? String(d.type).toUpperCase() : 'Unknown'))
+      : [];
+    const data = Array.isArray(typeDistribution)
+      ? typeDistribution.map(d => Number(d?.count ?? d?.value ?? 0))
+      : [];
+    // Ensure Chart.js always gets minimally valid arrays
+    return {
+      labels: labels.length ? labels : ['N/A'],
+      datasets: [{
+        label: 'Count',
+        data: data.length ? data : [0],
+        backgroundColor: [
+          theme.orange,
+          theme.blue,
+          hexToRgba(theme.navy, 0.8),
+          hexToRgba(theme.darkGrey, 0.5)
+        ],
+        borderColor: theme.white,
+        borderWidth: 1
+      }]
+    };
+  }, [typeDistribution, theme]);
+
+  const barData = useMemo(() => {
+    const types = ['residential', 'commercial', 'industrial', 'retail'];
+    const yearSet = new Set();
+    types.forEach(t => {
+      const arr = Array.isArray(priceSeries?.[t]) ? priceSeries[t] : [];
+      arr.forEach(pt => {
+        const y = (pt?.date || '').slice(0, 4);
+        if (y) yearSet.add(y);
+      });
+    });
+    const labels = Array.from(yearSet).sort();
+    const palette = {
+      residential: 'rgba(17,17,17,0.85)',
+      commercial: 'rgba(0,0,0,0.65)',
+      industrial: 'rgba(0,0,0,0.45)',
+      retail: 'rgba(0,0,0,0.25)'
+    };
+    const datasets = types.map(t => {
+      const arr = Array.isArray(priceSeries?.[t]) ? priceSeries[t] : [];
+      return {
+        label: t.toUpperCase(),
+        backgroundColor: palette[t],
+        borderRadius: 6,
+        data: (labels.length ? labels : ['']).map(y => {
+          const item = arr.find(pt => (pt?.date || '').startsWith(y));
+          return item ? Number(item.value || 0) : 0;
+        })
+      };
+    });
+    // Ensure minimally valid structure
+    return {
+      labels: labels.length ? labels : [''],
+      datasets
+    };
+  }, [priceSeries]);
+
+  // Common year labels for per-type charts
+  const yearsLabels = useMemo(() => {
+    const types = ['residential', 'commercial', 'industrial', 'retail'];
+    const yearSet = new Set();
+    types.forEach(t => {
+      const arr = Array.isArray(priceSeries?.[t]) ? priceSeries[t] : [];
+      arr.forEach(pt => {
+        const y = (pt?.date || '').slice(0, 4);
+        if (y) yearSet.add(y);
+      });
+    });
+    const labels = Array.from(yearSet).sort();
+    return labels.length ? labels : [''];
+  }, [priceSeries]);
+
+  const buildTypeBarData = (type) => {
+    const palette = {
+      residential: 'rgba(17,17,17,0.85)',
+      commercial: 'rgba(0,0,0,0.65)',
+      industrial: 'rgba(0,0,0,0.45)',
+      retail: 'rgba(0,0,0,0.25)'
+    };
+    const arr = Array.isArray(priceSeries?.[type]) ? priceSeries[type] : [];
+    const data = yearsLabels.map(y => {
+      const item = arr.find(pt => (pt?.date || '').startsWith(y));
+      return item ? Number(item.value || 0) : 0;
+    });
+    return {
+      labels: yearsLabels,
+      datasets: [{
+        label: type.toUpperCase(),
+        backgroundColor: palette[type],
+        borderColor: 'transparent',
+        borderWidth: 0,
+        borderRadius: 6,
+        data
+      }]
+    };
+  };
+
+  // (Matrix heatmap dataset removed)
+
+  // Stacked bar data (years on X, stacked types per year)
+  const stackedBarData = useMemo(() => {
+    const order = ['residential', 'commercial', 'retail', 'industrial'];
+    const palette = {
+      residential: theme.orange,
+      commercial: theme.blue,
+      retail: hexToRgba(theme.navy, 0.8),
+      industrial: hexToRgba(theme.darkGrey, 0.45)
+    };
+    const datasets = order.map(t => {
+      const arr = Array.isArray(priceSeries?.[t]) ? priceSeries[t] : [];
+      const data = yearsLabels.map(y => {
+        const item = arr.find(pt => (pt?.date || '').startsWith(y));
+        return item ? Number(item.value || 0) : 0;
+      });
+      return {
+        label: t.charAt(0).toUpperCase() + t.slice(1),
+        backgroundColor: palette[t],
+        borderColor: 'transparent',
+        borderWidth: 0,
+        borderRadius: 6,
+        borderSkipped: false,
+        data
+      };
+    });
+    return { labels: yearsLabels, datasets };
+  }, [priceSeries, yearsLabels, theme]);
+
+  const prevCountryRef = useRef('');
+  const prevProvinceRef = useRef('');
+  const prevCityRef = useRef('');
+
+  const [selected, setSelected] = useState({
+    country: '',
+    province: '',
+    city: '',
+    area: '',
+    areaName: ''
+  });
+
   useEffect(() => {
-    fetchData();
+    document.title = 'Property Insights - Digital Estate';
   }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [trendsResponse, propertiesResponse] = await Promise.all([
-        axios.get(API_ENDPOINTS.MARKET_TRENDS),
-        axios.get(API_ENDPOINTS.RESEARCH_PROPERTIES)
-      ]);
-      
-      setMarketTrends(trendsResponse.data);
-      setProperties(propertiesResponse.data);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    }
-    setLoading(false);
-  };
+  // Initial loads
+  useEffect(() => {
+    const init = async () => {
+      try {
+        setLoading(true);
+        const [countriesData, plist, clist, alist] = await Promise.all([
+          areaDataService.getCountries().catch(() => []),
+          areaDataService.listAllProvinces().catch(() => []),
+          areaDataService.listAllCities().catch(() => []),
+          areaDataService.listAllAreas().catch(() => [])
+        ]);
+        setCountries(countriesData || []);
+        setAllProvinces(plist || []);
+        setAllCities(clist || []);
+        setAllAreas(alist || []);
+      } finally {
+        setLoading(false);
+      }
+    };
+    init();
+  }, []);
 
-  // Handle file upload
-  const handleFileUpload = async (event) => {
-    event.preventDefault();
-    if (!selectedFile) {
-      setUploadStatus('Please select a file first');
-      return;
-    }
+  // Country -> Provinces
+  useEffect(() => {
+    if (!selected.country) return;
+    const load = async () => {
+      try {
+        const provincesData = await areaDataService.getProvinces(selected.country);
+        setProvinces(provincesData || []);
+      } catch (e) {
+        setProvinces([]);
+      }
+      if (prevCountryRef.current && prevCountryRef.current !== selected.country) {
+        setSelected((p) => ({ ...p, province: '', city: '', area: '', areaName: '' }));
+        setCities([]);
+        setAreas([]);
+      }
+      prevCountryRef.current = selected.country;
+    };
+    load();
+  }, [selected.country]);
 
-    const formData = new FormData();
-    formData.append('file', selectedFile);
+  // Province -> Cities
+  useEffect(() => {
+    if (!selected.province) return;
+    const load = async () => {
+      try {
+        const citiesData = await areaDataService.getCities(selected.province);
+        setCities(citiesData || []);
+      } catch (e) {
+        setCities([]);
+      }
+      if (prevProvinceRef.current && prevProvinceRef.current !== selected.province) {
+        setSelected((p) => ({ ...p, city: '', area: '', areaName: '' }));
+        setAreas([]);
+      }
+      prevProvinceRef.current = selected.province;
+    };
+    load();
+  }, [selected.province]);
 
-    try {
-      setUploadStatus('Uploading...');
-      await axios.post(API_ENDPOINTS.UPLOAD_EXCEL, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      setUploadStatus('Upload successful! Data refreshed.');
-      setSelectedFile(null);
-      // Refresh data after successful upload
-      fetchData();
-    } catch (error) {
-      setUploadStatus('Upload failed: ' + (error.response?.data?.detail || error.message));
-    }
-  };
+  // City -> Areas
+  useEffect(() => {
+    if (!selected.city) return;
+    const load = async () => {
+      try {
+        const areasData = await areaDataService.getAreas(selected.city);
+        setAreas(areasData || []);
+      } catch (e) {
+        setAreas([]);
+      }
+      if (prevCityRef.current && prevCityRef.current !== selected.city) {
+        setSelected((p) => ({ ...p, area: '', areaName: '' }));
+      }
+      prevCityRef.current = selected.city;
+    };
+    load();
+  }, [selected.city]);
 
-  // Sorting logic
-  const handleSort = (key) => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ key, direction });
-  };
-
-  // Filter and sort properties
-  const filteredAndSortedProperties = React.useMemo(() => {
-    let filtered = properties.filter(property => {
-      const matchesSearch = property.area.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           property.property_type.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesType = filterType === 'all' || property.property_type.toLowerCase() === filterType.toLowerCase();
-      return matchesSearch && matchesType;
-    });
-
-    if (sortConfig.key) {
-      filtered.sort((a, b) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (a[sortConfig.key] > b[sortConfig.key]) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-
-    return filtered;
-  }, [properties, searchTerm, filterType, sortConfig]);
-
-  // Chart data preparation
-  const avgPriceChartData = {
-    labels: marketTrends.map(trend => trend.area),
-    datasets: [
-      {
-        label: 'Average Price (R)',
-        data: marketTrends.map(trend => trend.avg_price),
-        backgroundColor: 'rgba(255, 215, 0, 0.8)',
-        borderColor: 'rgba(255, 215, 0, 1)',
-        borderWidth: 2,
-        borderRadius: 8,
-      },
-    ],
-  };
-
-  const rentalYieldChartData = {
-    labels: marketTrends.map(trend => trend.area),
-    datasets: [
-      {
-        label: 'Rental Yield (%)',
-        data: marketTrends.map(trend => trend.rental_yield),
-        backgroundColor: 'rgba(76, 175, 80, 0.8)',
-        borderColor: 'rgba(76, 175, 80, 1)',
-        borderWidth: 3,
-        fill: true,
-        tension: 0.4,
-      },
-    ],
-  };
-
-  const growthRateChartData = {
-    labels: marketTrends.map(trend => trend.area),
-    datasets: [
-      {
-        label: 'Growth Rate (%)',
-        data: marketTrends.map(trend => trend.growth_rate),
-        backgroundColor: [
-          'rgba(255, 99, 132, 0.8)',
-          'rgba(54, 162, 235, 0.8)',
-          'rgba(255, 205, 86, 0.8)',
-        ],
-        borderColor: [
-          'rgba(255, 99, 132, 1)',
-          'rgba(54, 162, 235, 1)',
-          'rgba(255, 205, 86, 1)',
-        ],
-        borderWidth: 2,
-      },
-    ],
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'top',
-        labels: {
-          color: '#ffffff',
-          font: {
-            size: 12,
-          },
-        },
-      },
-      title: {
-        display: true,
-        color: '#ffffff',
-        font: {
-          size: 16,
-          weight: 'bold',
-        },
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        ticks: {
-          color: '#ffffff',
-        },
-        grid: {
-          color: 'rgba(255, 255, 255, 0.1)',
-        },
-      },
-      x: {
-        ticks: {
-          color: '#ffffff',
-        },
-        grid: {
-          color: 'rgba(255, 255, 255, 0.1)',
-        },
-      },
-    },
-  };
-
-  const lineChartOptions = {
-    ...chartOptions,
-    elements: {
-      point: {
-        radius: 6,
-        hoverRadius: 8,
-      },
-    },
-  };
-
-  const doughnutOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'bottom',
-        labels: {
-          color: '#ffffff',
-          padding: 20,
-        },
-      },
-      title: {
-        display: true,
-        text: 'Growth Rate Distribution',
-        color: '#ffffff',
-        font: {
-          size: 16,
-          weight: 'bold',
-        },
-      },
-    },
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-ZA', {
-      style: 'currency',
-      currency: 'ZAR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const formatPercentage = (value) => {
-    return `${value.toFixed(2)}%`;
-  };
-
-  const getSortIcon = (columnName) => {
-    if (sortConfig.key !== columnName) {
-      return '⇅';
-    }
-    return sortConfig.direction === 'asc' ? '↑' : '↓';
-  };
-
-  if (loading) {
-    return (
-      <div className="research-loading">
-        <div className="loading-spinner"></div>
-        <p>Loading market research data...</p>
-      </div>
-    );
-  }
+  // Load charts data when area selected
+  useEffect(() => {
+    if (!selected.area) return;
+    const load = async () => {
+      try {
+        setChartsLoading(true);
+        const [dist, series] = await Promise.all([
+          areaDataService.getAreaTypeDistribution(selected.area),
+          areaDataService.getAreaTypePriceSeries(selected.area, 10)
+        ]);
+        setTypeDistribution(dist || []);
+        setPriceSeries(series || {});
+      } finally {
+        setChartsLoading(false);
+      }
+    };
+    load();
+  }, [selected.area]);
 
   return (
-    <div className="research-dashboard">
-      <div className="research-header">
-        <h1>Property Market Research Dashboard</h1>
-        <p>Comprehensive insights into Sandton, Centurion, and Rosebank property markets</p>
+    <div className="properties-page-modern">
+      <div className="properties-header-modern">
+        <div className="header-content-modern">
+          <h2 className="page-title-modern">Property Insights</h2>
+          <p className="page-subtitle-modern">
+            Choose a location to explore insights. Start with country, then province, city, and area.
+          </p>
+        </div>
       </div>
 
-      {/* Key Metrics Cards */}
-      <div className="metrics-grid">
-        <div className="metric-card">
-          <div className="metric-icon">📈</div>
-          <div className="metric-content">
-            <h3>Total Properties</h3>
-            <div className="metric-value">{properties.length}</div>
-          </div>
-        </div>
-        <div className="metric-card">
-          <div className="metric-icon">🏢</div>
-          <div className="metric-content">
-            <h3>Average Price</h3>
-            <div className="metric-value">
-              {marketTrends.length > 0 && formatCurrency(
-                marketTrends.reduce((sum, trend) => sum + trend.avg_price, 0) / marketTrends.length
-              )}
+      <div className="filters-section-modern">
+        <div className="filters-container-modern">
+          <h2 className="filters-title-modern">Select Location</h2>
+
+          <div className="location-selectors-modern">
+            <div className="selector-item-modern">
+              <label className="selector-label-modern">Country</label>
+              <div className="selector-wrapper-modern">
+                <select
+                  className="selector-input-modern"
+                  value={selected.country}
+                  onChange={(e) => setSelected((p) => ({ ...p, country: e.target.value }))}
+                >
+                  <option value="">Select Country</option>
+                  {countries.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
-        </div>
-        <div className="metric-card">
-          <div className="metric-icon">💰</div>
-          <div className="metric-content">
-            <h3>Average Yield</h3>
-            <div className="metric-value">
-              {marketTrends.length > 0 && formatPercentage(
-                marketTrends.reduce((sum, trend) => sum + trend.rental_yield, 0) / marketTrends.length
-              )}
+
+            <div className="selector-item-modern">
+              <label className="selector-label-modern">Province</label>
+              <div className="selector-wrapper-modern">
+                <select
+                  className="selector-input-modern"
+                  value={selected.province}
+                  onChange={(e) => setSelected((p) => ({ ...p, province: e.target.value }))}
+                  disabled={!selected.country}
+                >
+                  <option value="">Select Province</option>
+                  {(selected.country ? provinces : allProvinces).map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
-        </div>
-        <div className="metric-card">
-          <div className="metric-icon">📊</div>
-          <div className="metric-content">
-            <h3>Areas Analyzed</h3>
-            <div className="metric-value">{marketTrends.length}</div>
+
+            <div className="selector-item-modern">
+              <label className="selector-label-modern">City</label>
+              <div className="selector-wrapper-modern">
+                <select
+                  className="selector-input-modern"
+                  value={selected.city}
+                  onChange={(e) => setSelected((p) => ({ ...p, city: e.target.value }))}
+                  disabled={!selected.province}
+                >
+                  <option value="">Select City</option>
+                  {(selected.province ? cities : allCities).map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="selector-item-modern">
+              <label className="selector-label-modern">Area</label>
+              <div className="selector-wrapper-modern">
+                <select
+                  className="selector-input-modern"
+                  value={selected.area}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const areaObj = areas.find((a) => String(a.id) === String(val))
+                      || allAreas.find((a) => String(a.id) === String(val));
+                    setSelected((p) => ({ ...p, area: val, areaName: areaObj?.name || '' }));
+                  }}
+                  disabled={!selected.city}
+                >
+                  <option value="">Select Area</option>
+                  {(selected.city ? areas : allAreas).map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Charts Section */}
-      <div className="charts-section">
-        <div className="chart-container">
-          <h3>Average Property Prices by Area</h3>
-          <div className="chart-wrapper">
-            <Bar data={avgPriceChartData} options={{...chartOptions, plugins: {...chartOptions.plugins, title: {...chartOptions.plugins.title, text: 'Average Property Prices by Area'}}}} />
-          </div>
-        </div>
-
-        <div className="chart-container">
-          <h3>Rental Yield Trends</h3>
-          <div className="chart-wrapper">
-            <Line data={rentalYieldChartData} options={{...lineChartOptions, plugins: {...lineChartOptions.plugins, title: {...lineChartOptions.plugins.title, text: 'Rental Yield by Area'}}}} />
-          </div>
-        </div>
-
-        <div className="chart-container">
-          <h3>Growth Rate Distribution</h3>
-          <div className="chart-wrapper">
-            <Doughnut data={growthRateChartData} options={doughnutOptions} />
-          </div>
-        </div>
-      </div>
-
-      {/* File Upload Section */}
-      <div className="upload-section">
-        <h3>Update Market Data</h3>
-        <form onSubmit={handleFileUpload} className="upload-form">
-          <div className="file-input-wrapper">
-            <input
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              onChange={(e) => setSelectedFile(e.target.files[0])}
-              className="file-input"
-              id="file-upload"
-            />
-            <label htmlFor="file-upload" className="file-label">
-              {selectedFile ? selectedFile.name : 'Choose Excel file'}
-            </label>
-          </div>
-          <button type="submit" className="upload-btn" disabled={!selectedFile}>
-            Upload Data
-          </button>
-        </form>
-        {uploadStatus && (
-          <div className={`upload-status ${uploadStatus.includes('successful') ? 'success' : 'error'}`}>
-            {uploadStatus}
-          </div>
-        )}
-      </div>
-
-      {/* Properties Table */}
-      <div className="properties-table-section">
-        <div className="table-header">
-          <h3>Property Research Data</h3>
-          <div className="table-controls">
-            <div className="search-wrapper">
-              <input
-                type="text"
-                placeholder="Search by area or property type..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="search-input"
-              />
+      {selected.area && (
+  <div className="insights-charts-section aws-themed-charts">
+          {/* Top row: Pie + Heatmap */}
+          <div className="insights-row two-cols">
+            <div className="insights-card">
+              <h3 className="chart-title">Property Types in Area</h3>
+              <p className="chart-subtitle">Share of property categories within the selected area</p>
+            {chartsLoading ? (
+              <div className="insights-loading"><div className="loading-spinner-modern"></div></div>
+            ) : (
+              <div className="chart-canvas-wrap chart-tall">
+                <Doughnut 
+                  data={pieData}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 10, boxHeight: 10, padding: 10, color: theme.darkGrey, font: { size: 11, family: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial' } }
+                      }
+                    }
+                  }}
+                />
+              </div>
+            )}
             </div>
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="filter-select"
-            >
-              <option value="all">All Property Types</option>
-              <option value="residential">Residential</option>
-              <option value="commercial">Commercial</option>
-              <option value="industrial">Industrial</option>
-            </select>
+
+            <div className="insights-card">
+              <h3 className="chart-title">Area Heatmap</h3>
+              <p className="chart-subtitle">Hotspots by intensity (mocked points until property coords available)</p>
+              <div className="chart-canvas-wrap heatmap" style={{ overflow: 'hidden' }}>
+                <AreaHeatmap areaId={selected.area} />
+              </div>
+            </div>
+          </div>
+
+          {/* Stacked bar chart across property types per year */}
+          <div className="insights-card">
+            <h3 className="chart-title">Average Prices by Type</h3>
+            <p className="chart-subtitle">Stacked by property type across the last 10 years</p>
+            {chartsLoading ? (
+              <div className="insights-loading"><div className="loading-spinner-modern"></div></div>
+            ) : (
+              <div className="chart-canvas-wrap stacked-bar">
+                <Bar
+                  data={stackedBarData}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                      y: {
+                        stacked: true,
+                        grid: { color: theme.borderGrey, borderDash: [3, 3] },
+                        border: { display: false },
+                        ticks: { color: theme.darkGrey, callback: (v) => `R${Number(v).toLocaleString()}`, font: { size: 11 } }
+                      },
+                      x: {
+                        stacked: true,
+                        grid: { display: false },
+                        border: { display: false },
+                        ticks: { color: theme.textGrey, font: { size: 11 } }
+                      }
+                    },
+                    plugins: {
+                      legend: {
+                        position: 'top',
+                        labels: { color: theme.darkGrey, usePointStyle: true, pointStyle: 'rectRounded', boxWidth: 10, boxHeight: 10, padding: 12 }
+                      },
+                      tooltip: {
+                        backgroundColor: theme.darkGrey,
+                        titleColor: theme.white,
+                        bodyColor: theme.white,
+                        callbacks: {
+                          label: (ctx) => `${ctx.dataset.label}: R${Number(ctx.raw || 0).toLocaleString()}`
+                        }
+                      }
+                    }
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
+      )}
 
-        <div className="table-container">
-          <table className="properties-table">
-            <thead>
-              <tr>
-                <th onClick={() => handleSort('area')} className="sortable">
-                  Area {getSortIcon('area')}
-                </th>
-                <th onClick={() => handleSort('property_type')} className="sortable">
-                  Property Type {getSortIcon('property_type')}
-                </th>
-                <th onClick={() => handleSort('avg_price')} className="sortable">
-                  Avg Price {getSortIcon('avg_price')}
-                </th>
-                <th onClick={() => handleSort('rental_yield')} className="sortable">
-                  Rental Yield {getSortIcon('rental_yield')}
-                </th>
-                <th onClick={() => handleSort('vacancy_rate')} className="sortable">
-                  Vacancy Rate {getSortIcon('vacancy_rate')}
-                </th>
-                <th onClick={() => handleSort('growth_rate')} className="sortable">
-                  Growth Rate {getSortIcon('growth_rate')}
-                </th>
-                <th>Last Updated</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAndSortedProperties.map((property) => (
-                <tr key={property.id}>
-                  <td className="area-cell">{property.area}</td>
-                  <td className="type-cell">
-                    <span className={`type-badge ${property.property_type.toLowerCase()}`}>
-                      {property.property_type}
-                    </span>
-                  </td>
-                  <td className="price-cell">{formatCurrency(property.avg_price)}</td>
-                  <td className="yield-cell">{formatPercentage(property.rental_yield)}</td>
-                  <td className="vacancy-cell">{formatPercentage(property.vacancy_rate)}</td>
-                  <td className="growth-cell">
-                    <span className={`growth-indicator ${property.growth_rate >= 0 ? 'positive' : 'negative'}`}>
-                      {formatPercentage(property.growth_rate)}
-                    </span>
-                  </td>
-                  <td className="date-cell">{new Date(property.last_updated).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {loading && (
+        <div className="loading-indicator-modern">
+          <div className="loading-spinner-modern"></div>
+          <span>Loading…</span>
         </div>
-
-        {filteredAndSortedProperties.length === 0 && (
-          <div className="no-results">
-            <p>No properties found matching your criteria.</p>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
-};
-
-export default ResearchDashboard;
+}

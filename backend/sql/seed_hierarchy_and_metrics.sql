@@ -113,3 +113,20 @@ SELECT a_id, m_id, p_start, val, 'seed' FROM (
 ) seed
 WHERE a_id IS NOT NULL AND m_id IS NOT NULL
 ON CONFLICT (area_id, metric_id, period_start) DO NOTHING;
+
+-- Add coordinates for map centering (idempotent updates)
+-- Ensure columns exist (PostgreSQL)
+ALTER TABLE IF EXISTS areas ADD COLUMN IF NOT EXISTS latitude DECIMAL(9,6);
+ALTER TABLE IF EXISTS areas ADD COLUMN IF NOT EXISTS longitude DECIMAL(9,6);
+
+UPDATE areas SET latitude = -26.1076, longitude = 28.0567
+WHERE name='Sandton' AND (latitude IS NULL OR longitude IS NULL);
+
+UPDATE areas SET latitude = -26.1467, longitude = 28.0410
+WHERE name='Rosebank' AND (latitude IS NULL OR longitude IS NULL);
+
+UPDATE areas SET latitude = -33.9205, longitude = 18.3875
+WHERE name='Sea Point' AND (latitude IS NULL OR longitude IS NULL);
+
+UPDATE areas SET latitude = -33.9830, longitude = 18.4656
+WHERE name='Claremont' AND (latitude IS NULL OR longitude IS NULL);
