@@ -343,34 +343,98 @@ export default function DashboardPage() {
 
 function ExplorePropertiesMenu({ navigate }) {
   const [open, setOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const menuRef = React.useRef(null);
+  const toggleRef = React.useRef(null);
+
+  const items = [
+    { label: 'Residential', path: '/explore?category=residential' },
+    { label: 'Commercial', path: '/explore?category=commercial' },
+    { label: 'Retail', path: '/explore?category=retail' },
+    { label: 'Industrial', path: '/explore?category=industrial' },
+    { label: 'Explore All', path: '/explore' },
+  ];
 
   const go = (path) => {
     setOpen(false);
+    setFocusedIndex(-1);
     navigate(path);
   };
+
+  // Close on outside click
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (!open) return;
+      const t = e.target;
+      if (menuRef.current && !menuRef.current.contains(t) && toggleRef.current && !toggleRef.current.contains(t)) {
+        setOpen(false);
+        setFocusedIndex(-1);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open]);
+
+  // Keyboard navigation
+  const onKeyDown = (e) => {
+    if (!open) return;
+    if (e.key === 'Escape') {
+      setOpen(false);
+      setFocusedIndex(-1);
+      toggleRef.current?.focus();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocusedIndex((i) => (i + 1) % items.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocusedIndex((i) => (i - 1 + items.length) % items.length);
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      const target = items[focusedIndex];
+      if (target) go(target.path);
+    }
+  };
+
+  useEffect(() => {
+    if (open) setFocusedIndex(0);
+    else setFocusedIndex(-1);
+  }, [open]);
 
   return (
     <div className="explore-properties-wrapper">
       <button
+        ref={toggleRef}
         className="btn btn-primary explore-properties-toggle"
         aria-haspopup="true"
         aria-expanded={open ? 'true' : 'false'}
+        aria-controls="explore-properties-menu"
         onClick={() => setOpen(!open)}
       >
         <span>Explore Properties</span>
-        <svg className={`cta-arrow ${open ? 'open' : ''}`} width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <svg className={`cta-arrow ${open ? 'open' : ''}`} width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </button>
-      {open && (
-        <div className="explore-properties-menu" role="menu">
-          <button role="menuitem" className="menu-item" onClick={() => go('/explore?category=residential')}>Residential</button>
-          <button role="menuitem" className="menu-item" onClick={() => go('/explore?category=commercial')}>Commercial</button>
-          <button role="menuitem" className="menu-item" onClick={() => go('/explore?category=retail')}>Retail</button>
-          <button role="menuitem" className="menu-item" onClick={() => go('/explore?category=industrial')}>Industrial</button>
-          <button role="menuitem" className="menu-item" onClick={() => go('/explore')}>Explore All</button>
-        </div>
-      )}
+      <div
+        id="explore-properties-menu"
+        ref={menuRef}
+        className={`explore-properties-menu ${open ? 'open' : ''}`}
+        role="menu"
+        aria-label="Explore property categories"
+        onKeyDown={onKeyDown}
+      >
+        {items.map((item, idx) => (
+          <button
+            key={item.label}
+            role="menuitem"
+            className={`menu-item ${focusedIndex === idx ? 'focused' : ''}`}
+            tabIndex={open ? (idx === focusedIndex ? 0 : -1) : -1}
+            onClick={() => go(item.path)}
+          >
+            <span className="menu-item-label">{item.label}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

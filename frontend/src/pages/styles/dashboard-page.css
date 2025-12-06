@@ -227,6 +227,15 @@
   box-shadow: 0 8px 24px rgba(0,0,0,0.12);
   padding: 8px;
   z-index: 20;
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+.explore-properties-menu.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 .explore-properties-menu .menu-item {
   width: 100%;
@@ -241,6 +250,10 @@
 .explore-properties-menu .menu-item:hover {
   background: rgba(0,0,0,0.06);
 }
+.explore-properties-menu .menu-item.focused {
+  outline: 2px solid rgba(0,0,0,0.2);
+  background: rgba(0,0,0,0.06);
+}
 .theme-dark .explore-properties-menu {
   background: var(--black);
   color: var(--white);
@@ -250,6 +263,10 @@
   color: var(--white);
 }
 .theme-dark .explore-properties-menu .menu-item:hover {
+  background: rgba(255,255,255,0.08);
+}
+.theme-dark .explore-properties-menu .menu-item.focused {
+  outline: 2px solid rgba(255,255,255,0.25);
   background: rgba(255,255,255,0.08);
 }
   margin-bottom: 2px;
