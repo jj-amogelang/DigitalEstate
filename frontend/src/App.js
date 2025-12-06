@@ -11,7 +11,7 @@ import ProfileButton from "./components/ProfileButton";
 import AuthModal from "./components/AuthModal";
 import "./App.css";
 import "./styles/aws-global.css";
-import { LayoutGrid, MapPinned, LineChart, Settings as Cog, Home as HomeIcon } from "lucide-react";
+import { LayoutGrid, MapPinned, Settings as Cog, Home as HomeIcon } from "lucide-react";
 
 function Sidebar({ isOpen, toggleSidebar }) {
   const location = useLocation();
@@ -87,10 +87,10 @@ function Sidebar({ isOpen, toggleSidebar }) {
         <Link 
           to="/explore" 
           className={`nav-link ${location.pathname === '/explore' || location.pathname === '/properties' ? 'active' : ''}`}
-          title="Explore Areas"
+          title="Explore Properties"
         >
           <MapPinned className="nav-icon" size={20} />
-          {isOpen && <span className="nav-text">Explore Areas</span>}
+          {isOpen && <span className="nav-text">Explore Properties</span>}
         </Link>
 
         <Link 
@@ -102,14 +102,7 @@ function Sidebar({ isOpen, toggleSidebar }) {
           {isOpen && <span className="nav-text">Property Insights</span>}
         </Link>
 
-        <Link 
-          to="/analytics" 
-          className={`nav-link ${location.pathname === '/analytics' ? 'active' : ''}`}
-          title="Analytics"
-        >
-          <LineChart className="nav-icon" size={20} />
-          {isOpen && <span className="nav-text">Analytics</span>}
-        </Link>
+        {/* Analytics removed */}
 
         <Link 
           to="/settings" 
@@ -191,7 +184,7 @@ function App() {
                   <Route path="/explore" element={<ExplorePage />} />
                   <Route path="/property/:id" element={<PropertyDetailsPage />} />
                   <Route path="/insights" element={<ResearchDashboard />} />
-                  <Route path="/analytics" element={<div className="coming-soon">Analytics - Coming Soon...</div>} />
+                  {/* Analytics route removed */}
                   <Route path="/settings" element={<Settings />} />
                 </Routes>
               </div>
