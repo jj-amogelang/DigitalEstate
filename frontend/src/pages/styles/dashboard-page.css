@@ -271,6 +271,79 @@
   background: rgba(255,255,255,0.08);
 }
 
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .dashboard-hero {
+    min-height: 56vh;
+    align-items: flex-start;
+  }
+  .hero-overlay {
+    max-width: 720px;
+    padding: var(--spacing-lg) var(--spacing-md);
+  }
+  .dashboard-title {
+    font-size: clamp(1.9rem, 4.2vw, 2.6rem);
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-hero {
+    min-height: 52vh;
+    padding-top: var(--spacing-lg);
+  }
+  .hero-overlay {
+    max-width: 640px;
+    padding: var(--spacing-lg) var(--spacing-md);
+  }
+  .hero-cta {
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+  }
+  .explore-properties-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+  .explore-properties-toggle {
+    width: 94%;
+    max-width: 420px;
+  }
+  .explore-properties-menu {
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translate(-50%, 8px);
+    min-width: 94%;
+    max-width: 420px;
+  }
+  .explore-properties-menu.open {
+    transform: translate(-50%, 0);
+  }
+  .explore-properties-menu .menu-item {
+    padding: 12px 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-hero {
+    min-height: 48vh;
+    padding-top: var(--spacing-md);
+  }
+  .dashboard-title {
+    font-size: clamp(1.6rem, 6vw, 2.2rem);
+  }
+  .dashboard-subtitle {
+    font-size: 0.9rem;
+  }
+  .explore-properties-toggle {
+    width: 96%;
+    max-width: 380px;
+  }
+  .explore-properties-menu {
+    min-width: 96%;
+    max-width: 380px;
+  }
+}
+
 .metric-label {
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.95);
