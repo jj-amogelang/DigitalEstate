@@ -209,6 +209,49 @@
   letter-spacing: 0.5px;
   font-weight: var(--font-weight-bold);
   color: var(--gold-primary, #d4af37);
+.explore-properties-wrapper {
+  position: relative;
+  display: inline-block;
+}
+.explore-properties-toggle {
+  position: relative;
+}
+.explore-properties-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 220px;
+  background: var(--white);
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  padding: 8px;
+  z-index: 20;
+}
+.explore-properties-menu .menu-item {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--black);
+  cursor: pointer;
+}
+.explore-properties-menu .menu-item:hover {
+  background: rgba(0,0,0,0.06);
+}
+.theme-dark .explore-properties-menu {
+  background: var(--black);
+  color: var(--white);
+  border-color: rgba(255,255,255,0.18);
+}
+.theme-dark .explore-properties-menu .menu-item {
+  color: var(--white);
+}
+.theme-dark .explore-properties-menu .menu-item:hover {
+  background: rgba(255,255,255,0.08);
+}
   margin-bottom: 2px;
   text-transform: uppercase;
 }

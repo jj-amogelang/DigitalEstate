@@ -92,15 +92,7 @@ export default function DashboardPage() {
               A centralized, user-friendly platform to explore property listings, view real-time data, and access detailed insights — all in one place.
             </p>
             <div className="hero-cta">
-              <button 
-                onClick={() => navigate('/explore')} 
-                className="btn btn-primary"
-              >
-                <span>Explore Areas</span>
-                <svg className="cta-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
+              <ExplorePropertiesMenu navigate={navigate} />
               <button 
                 onClick={() => navigate('/explore')} 
                 className="btn btn-secondary"
@@ -345,6 +337,40 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ExplorePropertiesMenu({ navigate }) {
+  const [open, setOpen] = useState(false);
+
+  const go = (path) => {
+    setOpen(false);
+    navigate(path);
+  };
+
+  return (
+    <div className="explore-properties-wrapper">
+      <button
+        className="btn btn-primary explore-properties-toggle"
+        aria-haspopup="true"
+        aria-expanded={open ? 'true' : 'false'}
+        onClick={() => setOpen(!open)}
+      >
+        <span>Explore Properties</span>
+        <svg className={`cta-arrow ${open ? 'open' : ''}`} width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+      {open && (
+        <div className="explore-properties-menu" role="menu">
+          <button role="menuitem" className="menu-item" onClick={() => go('/explore?category=residential')}>Residential</button>
+          <button role="menuitem" className="menu-item" onClick={() => go('/explore?category=commercial')}>Commercial</button>
+          <button role="menuitem" className="menu-item" onClick={() => go('/explore?category=retail')}>Retail</button>
+          <button role="menuitem" className="menu-item" onClick={() => go('/explore?category=industrial')}>Industrial</button>
+          <button role="menuitem" className="menu-item" onClick={() => go('/explore')}>Explore All</button>
+        </div>
+      )}
     </div>
   );
 }
