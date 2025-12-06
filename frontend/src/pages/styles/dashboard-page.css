@@ -219,8 +219,8 @@
 }
 .explore-properties-menu {
   position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
+  top: 0;
+  left: calc(100% + 10px);
   min-width: 220px;
   background: var(--white);
   border: 1px solid rgba(0,0,0,0.12);
@@ -229,13 +229,13 @@
   padding: 8px;
   z-index: 20;
   opacity: 0;
-  transform: translateY(6px);
+  transform: translateX(8px);
   pointer-events: none;
   transition: opacity 160ms ease, transform 160ms ease;
 }
 .explore-properties-menu.open {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateX(0);
   pointer-events: auto;
 }
 .explore-properties-menu .menu-item {
