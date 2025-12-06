@@ -209,6 +209,7 @@
   letter-spacing: 0.5px;
   font-weight: var(--font-weight-bold);
   color: var(--gold-primary, #d4af37);
+}
 .explore-properties-wrapper {
   position: relative;
   display: inline-block;
@@ -268,9 +269,6 @@
 .theme-dark .explore-properties-menu .menu-item.focused {
   outline: 2px solid rgba(255,255,255,0.25);
   background: rgba(255,255,255,0.08);
-}
-  margin-bottom: 2px;
-  text-transform: uppercase;
 }
 
 .metric-label {
