@@ -81,8 +81,7 @@ export default function DashboardPage() {
       {/* Hero Section with Background Image */}
       <div className="dashboard-hero">
         <div className="hero-overlay">
-          <div className="hero-content">
-            <div className="hero-badge">About Digital Estate</div>
+            <div className="hero-content">
             <h1 className="dashboard-title">
               Smart, Data-Driven
               <span className="title-highlight"> Real Estate Dashboard</span>
