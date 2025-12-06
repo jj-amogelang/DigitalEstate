@@ -45,6 +45,27 @@ export default function ExplorePage() {
     document.title = 'Explore Areas - Digital Estate';
   }, []);
 
+  // Simple hero metrics derived from latest metrics when available
+  const heroMetrics = React.useMemo(() => {
+    if (!areaLatestMetrics || !Array.isArray(areaLatestMetrics)) return null;
+    const map = Object.fromEntries(areaLatestMetrics.map(m => [m.code, m]));
+    const fmtPrice = (v) => {
+      if (v == null) return '—';
+      const n = Number(v);
+      if (n >= 1_000_000) return `R${(n/1_000_000).toFixed(1)}M`;
+      if (n >= 1_000) return `R${(n/1_000).toFixed(0)}K`;
+      return `R${n.toLocaleString()}`;
+    };
+    const fmtPct = (v) => (v == null ? '—' : `${Number(v).toFixed(1)}%`);
+    const fmtNum = (v) => (v == null ? '—' : Number(v).toLocaleString());
+    return [
+      { key: 'avg_price', label: 'Avg Price', value: fmtPrice(map.avg_price?.value_numeric) },
+      { key: 'rental_yield', label: 'Yield', value: fmtPct(map.rental_yield?.value_numeric) },
+      { key: 'vacancy_rate', label: 'Vacancy', value: fmtPct(map.vacancy_rate?.value_numeric) },
+      { key: 'planned_dev_count', label: 'Planned Dev.', value: fmtNum(map.planned_dev_count?.value_numeric) },
+    ];
+  }, [areaLatestMetrics]);
+
   // Simplified filter state management
   const [selected, setSelected] = useState({
     country: "", 

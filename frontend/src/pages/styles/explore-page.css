@@ -1,3 +1,27 @@
+/* Explore Hero */
+.explore-hero {
+  position: relative;
+  padding: var(--spacing-xl) var(--spacing-lg) var(--spacing-md);
+  text-align: center;
+}
+.explore-hero-title {
+  font-size: clamp(1.6rem, 3.6vw, 2.4rem);
+  font-weight: var(--font-weight-light);
+  letter-spacing: -0.02em;
+  margin-bottom: var(--spacing-sm);
+}
+.explore-hero-subtitle {
+  font-size: 0.95rem;
+  color: var(--color-text-secondary, rgba(0,0,0,0.7));
+  margin-bottom: var(--spacing-md);
+}
+.hero-metrics--explore {
+  margin: 0 auto;
+  max-width: 760px;
+}
+@media (max-width: 1024px) {
+  .hero-metrics--explore { display: none; }
+}
 /* Zara-Inspired Sleek Minimalist Theme */
 
 :root {

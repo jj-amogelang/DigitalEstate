@@ -99,45 +99,7 @@ export default function DashboardPage() {
                 View Live Data
               </button>
             </div>
-            <div className="hero-metrics">
-              <div className="metric">
-                <div className="metric-icon" aria-hidden="true">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <circle cx="12" cy="12" r="6"/>
-                  </svg>
-                </div>
-                <div className="metric-text">
-                  <div className="metric-number">Live</div>
-                  <div className="metric-label">Property Data</div>
-                </div>
-              </div>
-              <div className="metric-divider" />
-              <div className="metric">
-                <div className="metric-icon" aria-hidden="true">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                    <circle cx="12" cy="12" r="9"/>
-                    <path d="M2.5 12h19"/>
-                    <path d="M12 2.5v19"/>
-                  </svg>
-                </div>
-                <div className="metric-text">
-                  <div className="metric-number">All</div>
-                  <div className="metric-label">South Africa</div>
-                </div>
-              </div>
-              <div className="metric-divider" />
-              <div className="metric">
-                <div className="metric-icon" aria-hidden="true">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                    <path d="M12 2a7 7 0 0 0-7 7c0 2.89 1.64 5.38 4 6.58V20a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-4.42c2.36-1.2 4-3.69 4-6.58a7 7 0 0 0-7-7Z"/>
-                  </svg>
-                </div>
-                <div className="metric-text">
-                  <div className="metric-number">Smart</div>
-                  <div className="metric-label">Insights</div>
-                </div>
-              </div>
-            </div>
+            {/* hero metrics moved to Explore page */}
           </div>
         </div>
         <div className="hero-scroll-indicator">
