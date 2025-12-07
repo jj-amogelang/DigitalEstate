@@ -13,6 +13,7 @@ const DEFAULTS = {
 // Build candidate list with sensible dev fallbacks (deduped, in order)
 DEFAULTS.candidates = Array.from(new Set([
   DEFAULTS.primary,
+  'http://localhost:5050',
   'http://localhost:5002',
   'http://localhost:5001',
   'http://localhost:5000'
@@ -48,6 +49,16 @@ async function probeBase(url) {
 
 async function detectApiBase() {
   if (resolvedBaseURL) return resolvedBaseURL;
+  // 0) Respect a user override saved in localStorage (applied from Settings page)
+  try {
+    const override = typeof window !== 'undefined' && window.localStorage
+      ? window.localStorage.getItem('digitalEstateApiBaseOverride')
+      : null;
+    if (override && override.trim().length > 0) {
+      resolvedBaseURL = override.trim().replace(/\/$/, '');
+      return resolvedBaseURL;
+    }
+  } catch {}
   // 1) Prefer a candidate that responds to health or countries
   for (const url of DEFAULTS.candidates) {
     try {

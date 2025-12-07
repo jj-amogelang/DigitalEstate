@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import "./styles/dashboard-page.css";
 import areaDataService from "../services/areaDataService";
+import PropertyTypeSelector from "../components/PropertyTypeSelector";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -10,6 +11,9 @@ export default function DashboardPage() {
   const [sandtonMetrics, setSandtonMetrics] = useState(null);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [metricsError, setMetricsError] = useState(null);
+  const [selectedPropertyType, setSelectedPropertyType] = useState(() => {
+    try { return window.localStorage.getItem('selectedPropertyType') || 'residential'; } catch { return 'residential'; }
+  });
 
   useEffect(() => {
     // Fetch Sandton area id, then latest metrics for target codes
@@ -289,6 +293,16 @@ export default function DashboardPage() {
                   className="btn-professional btn-primary-professional"
                 >
                   <span>Explore Property Insights</span>
+                  <div style={{marginLeft:'auto'}}>
+                    <PropertyTypeSelector
+                      value={selectedPropertyType}
+                      onChange={(val)=>{
+                        try{window.localStorage.setItem('selectedPropertyType',val);}catch{}
+                        setSelectedPropertyType(val);
+                      }}
+                      size="sm"
+                    />
+                  </div>
                   <svg className="cta-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none">
                     <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import PropertyTypeSelector from '../components/PropertyTypeSelector';
 import areaDataService from '../services/areaDataService';
 import '../components/styles/DropdownFix.css';
 import '../components/styles/PropertiesAWS.css';
@@ -312,7 +313,16 @@ export default function ResearchDashboard() {
     <div className="properties-page-modern">
       <div className="properties-header-modern">
         <div className="header-content-modern">
-          <h2 className="page-title-modern">Property Insights</h2>
+          <div className="page-title-row" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem'}}>
+            <h2 className="page-title-modern" style={{margin:0}}>Property Insights</h2>
+            {/* Global property-type selector */}
+            <PropertyTypeSelector
+              value={selected.propertyType}
+              onChange={(val)=>setSelected(p=>({...p,propertyType:val}))}
+              className="page-type-selector"
+              size="md"
+            />
+          </div>
           <p className="page-subtitle-modern">
             Choose a location to explore insights. Start with country, then province, city, and area.
           </p>
@@ -321,7 +331,27 @@ export default function ResearchDashboard() {
 
       <div className="filters-section-modern">
         <div className="filters-container-modern">
-          <h2 className="filters-title-modern">Select Location</h2>
+          <div className="filters-toolbar" style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <h2 className="filters-title-modern" style={{margin:0}}>Select Location</h2>
+            <div className="toolbar-actions" style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>
+              {/* Moved Refresh Metrics here visually aligned */}
+              <button className="toolbar-refresh" onClick={async()=>{
+                try {
+                  setChartsLoading(true);
+                  const res = await areaDataService.refreshMaterializedViews();
+                  // Optional lightweight notification through console or inline toast
+                  console.log('Materialized views refreshed:', res);
+                } catch (e) {
+                  console.error('Refresh failed', e);
+                } finally {
+                  setChartsLoading(false);
+                }
+              }} title="Refresh metrics">
+                <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v-3l4 4-4 4V8a5 5 0 105 5h2a7 7 0 11-7-7z" fill="currentColor"/></svg>
+                <span style={{marginLeft:6}}>{chartsLoading ? 'Refreshing…' : 'Refresh Metrics'}</span>
+              </button>
+            </div>
+          </div>
 
           <div className="location-selectors-modern">
             <div className="selector-item-modern">

@@ -3,6 +3,7 @@ import axios from "axios";
 import { useNavigate, useLocation } from "react-router-dom";
 import { API_ENDPOINTS } from "../config/api";
 import areaDataService from "../services/areaDataService";
+import PropertyTypeSelector from "../components/PropertyTypeSelector";
 import AWSAlert from "../components/AWSAlert";
 import "../components/styles/DropdownFix.css";
 import "../components/styles/PropertiesAWS.css";
@@ -601,22 +602,25 @@ export default function ExplorePage() {
           <p className="page-subtitle-modern">
             Explore neighborhoods, analyze market data, and uncover investment opportunities across South Africa
           </p>
-          {/* Admin control: refresh metrics */}
-          <div style={{ display: 'flex', gap: 12, marginTop: 12, alignItems: 'center' }}>
-            <button className="aws-button" onClick={handleRefreshMetrics} disabled={isRefreshingMV}>
-              {isRefreshingMV ? 'Refreshing…' : 'Refresh Metrics'}
-            </button>
-            {alert && (
-              <AWSAlert type={alert.type} title={alert.title} message={alert.message} onClose={() => setAlert(null)} />
-            )}
-          </div>
+          {/* Admin control moved into Location selectors toolbar */}
         </div>
       </div>
 
       {/* Filters Section */}
       <div className="filters-section-modern">
         <div className="filters-container-modern">
-          <h2 className="filters-title-modern">Explore Markets by Location</h2>
+          <div className="filters-toolbar" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem'}}>
+            <h2 className="filters-title-modern" style={{margin:0}}>Explore Markets by Location</h2>
+            <div className="toolbar-actions" style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>
+              <button className="toolbar-refresh" onClick={handleRefreshMetrics} disabled={isRefreshingMV} title="Refresh metrics">
+                <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v-3l4 4-4 4V8a5 5 0 105 5h2a7 7 0 11-7-7z" fill="currentColor"/></svg>
+                <span style={{marginLeft:6}}>{isRefreshingMV ? 'Refreshing…' : 'Refresh Metrics'}</span>
+              </button>
+              {alert && (
+                <AWSAlert type={alert.type} title={alert.title} message={alert.message} onClose={() => setAlert(null)} />
+              )}
+            </div>
+          </div>
           
           <div className="location-selectors-modern">
             <div className="selector-item-modern">
@@ -699,7 +703,14 @@ export default function ExplorePage() {
               <h2 className="area-title">
                 Exploring: <span className="area-name">{selected.areaName}</span>
               </h2>
-              <button 
+              <div className="header-actions" style={{display:'flex',gap:'0.75rem',alignItems:'center'}}>
+                <PropertyTypeSelector
+                  value={selected.propertyType}
+                  onChange={(val)=>setSelected(p=>({...p,propertyType:val}))}
+                  className="header-type-selector"
+                  size="sm"
+                />
+                <button 
                 className="market-insights-link"
                 onClick={() => navigate('/insights', { 
                   state: { 
@@ -716,6 +727,7 @@ export default function ExplorePage() {
                 </svg>
                 Property Insights
               </button>
+              </div>
             </div>
           </div>
 

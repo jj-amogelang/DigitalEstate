@@ -12,7 +12,10 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.config.from_object(Config)
 db.init_app(app)
-CorsAllowedOrigins = ['*']
+# Restrict CORS in production to known frontend domain; allow all in dev
+FrontendOrigin = os.getenv('FRONTEND_ORIGIN', 'https://digital-estate.vercel.app')
+is_prod = os.getenv('FLASK_ENV') == 'production'
+CorsAllowedOrigins = ['*'] if not is_prod else [FrontendOrigin]
 CORS(app, origins=CorsAllowedOrigins, allow_headers=['Content-Type', 'Authorization'], methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 
 # ---- URL helpers ----
@@ -1363,7 +1366,10 @@ def api_metrics_materialized_refresh():
 if __name__ == '__main__':
     # Prefer FLASK_ENV for debug decision, default debug True if not production
     debug_mode = os.getenv('FLASK_ENV') != 'production'
-    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000)), debug=debug_mode)
+    # On Windows, binding to 0.0.0.0:5000 can be blocked or reserved.
+    # Use localhost and a non-default port; disable reloader to avoid double bind.
+    port = int(os.getenv('PORT', 5050))
+    app.run(host='127.0.0.1', port=port, debug=debug_mode, use_reloader=False)
 
 # ================= PROPERTY INSIGHTS (TYPE DISTRIBUTION & SERIES) ==================
 
