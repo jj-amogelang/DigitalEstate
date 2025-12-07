@@ -1,0 +1,15 @@
+/* Mirror of src/styles/aws-theme.css for build path resolution */
+:root {
+  --aws-orange: #FF9900;
+  --aws-orange-light: #FFB84D;
+  --aws-orange-dark: #E8890A;
+  --aws-blue: #232F3E;
+  --aws-blue-light: #2E3B4E;
+  --aws-navy: #161E2D;
+  --aws-squid: #232F3E;
+  --aws-smile: #FF9900;
+  --aws-white: #FFFFFF;
+  --aws-light-grey: #FAFAFA;
+  --aws-border-grey: #EAEDED;
+  --aws-text-grey: #687078;
+}
