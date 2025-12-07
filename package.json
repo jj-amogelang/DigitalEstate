@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "@tailwindcss/postcss": "^4.1.11"
+    "@tailwindcss/postcss": "^4.1.11",
+    "chartjs-chart-matrix": "^3.0.0"
   }
 }

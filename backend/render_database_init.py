@@ -7,7 +7,8 @@ import sys
 import os
 import pandas as pd
 from main import app, db
-from database_models import EnhancedProperty
+# Legacy import retained only for reference
+from database_models import EnhancedProperty  # noqa: F401
 
 def populate_render_database():
     """Initialize the Render database with property data"""

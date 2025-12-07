@@ -55,6 +55,62 @@ Once deployed, test these URLs in your browser:
 Once the API is responding:
 
 ```bash
+## 🚨 Render Deployment Troubleshooting
+Your dashboard is deployed but not responding correctly. Here's how to diagnose and fix the issue:
+
+### 🔍 Step 1: Check Render Service Status
+
+1. **Go to your Render Dashboard**: https://dashboard.render.com
+2. **Find your backend service**: `digital-estate-backend`
+3. **Check the deployment status**:
+   - ✅ **Deployed**: Service should show green "Live" status
+   - 🔄 **Building**: Wait for build to complete (can take 5-10 minutes)
+   - ❌ **Failed**: Check the build logs for errors
+
+### 📋 Step 2: Review Build Logs
+
+If deployment failed or is stuck:
+
+1. **Click on your backend service**
+2. **Go to "Logs" tab**
+3. **Look for error messages** in the build process
+4. **Common issues**:
+   - Missing dependencies in requirements.txt
+   - Import errors from renamed files
+   - Database connection errors
+
+### 🔧 Step 3: Verify Render Service Configuration
+
+**Build Command**: Should be `pip install -r requirements.txt`
+**Start Command**: Should be `gunicorn main:app` or `python -m gunicorn main:app`
+
+### 🗄️ Step 4: Database Configuration
+
+1. **Check your PostgreSQL database**:
+   - Go to Render Dashboard → Databases
+   - Verify `digital-estate-db` is running
+   - Copy the **Internal Database URL**
+
+2. **Verify Environment Variables**:
+   - In your backend service settings
+   - `DATABASE_URL` should be set to your PostgreSQL Internal URL
+   - `FLASK_ENV` should be `production`
+
+### 🌐 Step 5: Test the API Manually
+
+Once deployed, test these URLs in your browser:
+
+1. **Health Check**: https://digital-estate-backend.onrender.com/
+   - Should return: `"Digital Estate API is running!"`
+
+2. **Properties API**: https://digital-estate-backend.onrender.com/api/properties
+   - Should return JSON array (might be empty initially)
+
+### 📊 Step 6: Populate Database
+
+Once the API is responding:
+
+```bash
 # If you have access to Render's console, run:
 python production_database_setup.py
 ```

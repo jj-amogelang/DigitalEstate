@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Area API Debug - Step by Step Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .step {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .step h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+        }
+        .test-btn {
+            background: #007cba;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .test-btn:hover {
+            background: #005a9e;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .loading {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        .select-dropdown {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏘️ Area API Debug - Step by Step Test</h1>
+    <p>This page tests each step of the location hierarchy to identify where the issue is.</p>
+
+    <div class="step">
+        <h3>Step 1: Get Countries</h3>
+        <button class="test-btn" onclick="testCountries()">Test /api/countries</button>
+        <div id="countriesResult"></div>
+        <select id="countrySelect" class="select-dropdown" style="display:none;" onchange="countrySelected()">
+            <option value="">Select Country</option>
+        </select>
+    </div>
+
+    <div class="step">
+        <h3>Step 2: Get Provinces</h3>
+        <button class="test-btn" onclick="testProvinces()" id="provincesBtn" disabled>Test /api/provinces/{id}</button>
+        <div id="provincesResult"></div>
+        <select id="provinceSelect" class="select-dropdown" style="display:none;" onchange="provinceSelected()">
+            <option value="">Select Province</option>
+        </select>
+    </div>
+
+    <div class="step">
+        <h3>Step 3: Get Cities</h3>
+        <button class="test-btn" onclick="testCities()" id="citiesBtn" disabled>Test /api/cities/{id}</button>
+        <div id="citiesResult"></div>
+        <select id="citySelect" class="select-dropdown" style="display:none;" onchange="citySelected()">
+            <option value="">Select City</option>
+        </select>
+    </div>
+
+    <div class="step">
+        <h3>Step 4: Get Areas</h3>
+        <button class="test-btn" onclick="testAreas()" id="areasBtn" disabled>Test /api/areas/{id}</button>
+        <div id="areasResult"></div>
+        <select id="areaSelect" class="select-dropdown" style="display:none;" onchange="areaSelected()">
+            <option value="">Select Area</option>
+        </select>
+    </div>
+
+    <div class="step">
+        <h3>Step 5: Get Area Details</h3>
+        <button class="test-btn" onclick="testAreaDetails()" id="areaDetailsBtn" disabled>Test /api/area/{id}</button>
+        <div id="areaDetailsResult"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000';
+        let selectedCountry = null;
+        let selectedProvince = null;
+        let selectedCity = null;
+        let selectedArea = null;
+
+        function showResult(elementId, success, data) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="result ${success ? 'success' : 'error'}">${data}</div>`;
+        }
+
+        function showLoading(elementId) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="result loading">Loading...</div>`;
+        }
+
+        async function testCountries() {
+            showLoading('countriesResult');
+            try {
+                const response = await fetch(`${API_BASE}/api/countries`);
+                const data = await response.json();
+                
+                if (response.ok && data.countries) {
+                    showResult('countriesResult', true, `✅ Success! Found ${data.countries.length} countries:\n${JSON.stringify(data.countries, null, 2)}`);
+                    
+                    // Populate dropdown
+                    const select = document.getElementById('countrySelect');
+                    select.innerHTML = '<option value="">Select Country</option>';
+                    data.countries.forEach(country => {
+                        const option = document.createElement('option');
+                        option.value = country.id;
+                        option.textContent = country.name;
+                        select.appendChild(option);
+                    });
+                    select.style.display = 'inline-block';
+                } else {
+                    showResult('countriesResult', false, `❌ Error: ${JSON.stringify(data, null, 2)}`);
+                }
+            } catch (error) {
+                showResult('countriesResult', false, `❌ Network Error: ${error.message}`);
+            }
+        }
+
+        function countrySelected() {
+            const select = document.getElementById('countrySelect');
+            selectedCountry = select.value;
+            if (selectedCountry) {
+                document.getElementById('provincesBtn').disabled = false;
+                testProvinces(); // Auto-test next step
+            }
+        }
+
+        async function testProvinces() {
+            if (!selectedCountry) {
+                showResult('provincesResult', false, '❌ No country selected');
+                return;
+            }
+            
+            showLoading('provincesResult');
+            try {
+                const response = await fetch(`${API_BASE}/api/provinces/${selectedCountry}`);
+                const data = await response.json();
+                
+                if (response.ok && data.provinces) {
+                    showResult('provincesResult', true, `✅ Success! Found ${data.provinces.length} provinces:\n${JSON.stringify(data.provinces, null, 2)}`);
+                    
+                    // Populate dropdown
+                    const select = document.getElementById('provinceSelect');
+                    select.innerHTML = '<option value="">Select Province</option>';
+                    data.provinces.forEach(province => {
+                        const option = document.createElement('option');
+                        option.value = province.id;
+                        option.textContent = province.name;
+                        select.appendChild(option);
+                    });
+                    select.style.display = 'inline-block';
+                } else {
+                    showResult('provincesResult', false, `❌ Error: ${JSON.stringify(data, null, 2)}`);
+                }
+            } catch (error) {
+                showResult('provincesResult', false, `❌ Network Error: ${error.message}`);
+            }
+        }
+
+        function provinceSelected() {
+            const select = document.getElementById('provinceSelect');
+            selectedProvince = select.value;
+            if (selectedProvince) {
+                document.getElementById('citiesBtn').disabled = false;
+                testCities(); // Auto-test next step
+            }
+        }
+
+        async function testCities() {
+            if (!selectedProvince) {
+                showResult('citiesResult', false, '❌ No province selected');
+                return;
+            }
+            
+            showLoading('citiesResult');
+            try {
+                const response = await fetch(`${API_BASE}/api/cities/${selectedProvince}`);
+                const data = await response.json();
+                
+                if (response.ok && data.cities) {
+                    showResult('citiesResult', true, `✅ Success! Found ${data.cities.length} cities:\n${JSON.stringify(data.cities, null, 2)}`);
+                    
+                    // Populate dropdown
+                    const select = document.getElementById('citySelect');
+                    select.innerHTML = '<option value="">Select City</option>';
+                    data.cities.forEach(city => {
+                        const option = document.createElement('option');
+                        option.value = city.id;
+                        option.textContent = city.name;
+                        select.appendChild(option);
+                    });
+                    select.style.display = 'inline-block';
+                } else {
+                    showResult('citiesResult', false, `❌ Error: ${JSON.stringify(data, null, 2)}`);
+                }
+            } catch (error) {
+                showResult('citiesResult', false, `❌ Network Error: ${error.message}`);
+            }
+        }
+
+        function citySelected() {
+            const select = document.getElementById('citySelect');
+            selectedCity = select.value;
+            if (selectedCity) {
+                document.getElementById('areasBtn').disabled = false;
+                testAreas(); // Auto-test next step
+            }
+        }
+
+        async function testAreas() {
+            if (!selectedCity) {
+                showResult('areasResult', false, '❌ No city selected');
+                return;
+            }
+            
+            showLoading('areasResult');
+            try {
+                const response = await fetch(`${API_BASE}/api/areas/${selectedCity}`);
+                const data = await response.json();
+                
+                if (response.ok && data.areas) {
+                    showResult('areasResult', true, `✅ Success! Found ${data.areas.length} areas:\n${JSON.stringify(data.areas, null, 2)}`);
+                    
+                    // Populate dropdown
+                    const select = document.getElementById('areaSelect');
+                    select.innerHTML = '<option value="">Select Area</option>';
+                    data.areas.forEach(area => {
+                        const option = document.createElement('option');
+                        option.value = area.id;
+                        option.textContent = area.name;
+                        select.appendChild(option);
+                    });
+                    select.style.display = 'inline-block';
+                } else {
+                    showResult('areasResult', false, `❌ Error: ${JSON.stringify(data, null, 2)}`);
+                }
+            } catch (error) {
+                showResult('areasResult', false, `❌ Network Error: ${error.message}`);
+            }
+        }
+
+        function areaSelected() {
+            const select = document.getElementById('areaSelect');
+            selectedArea = select.value;
+            if (selectedArea) {
+                document.getElementById('areaDetailsBtn').disabled = false;
+            }
+        }
+
+        async function testAreaDetails() {
+            if (!selectedArea) {
+                showResult('areaDetailsResult', false, '❌ No area selected');
+                return;
+            }
+            
+            showLoading('areaDetailsResult');
+            try {
+                const response = await fetch(`${API_BASE}/api/area/${selectedArea}`);
+                const data = await response.json();
+                
+                if (response.ok && data.area) {
+                    showResult('areaDetailsResult', true, `✅ Success! Area details:\n${JSON.stringify(data.area, null, 2)}`);
+                } else {
+                    showResult('areaDetailsResult', false, `❌ Error: ${JSON.stringify(data, null, 2)}`);
+                }
+            } catch (error) {
+                showResult('areaDetailsResult', false, `❌ Network Error: ${error.message}`);
+            }
+        }
+
+        // Auto-start testing
+        window.onload = function() {
+            console.log('🚀 Starting step-by-step API test...');
+            testCountries();
+        };
+    </script>
+</body>
+</html>

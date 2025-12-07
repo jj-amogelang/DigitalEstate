@@ -1,467 +1,214 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import './styles/settings.css';
+import { useSettings } from '../context/SettingsContext';
+// Subtle status pill
+function StatusPill({ type, message }) {
+  if (!type || !message) return null;
+  return <span className={`status-pill ${type}`}>{message}</span>;
+}
 
-const Settings = () => {
-  const [activeTab, setActiveTab] = useState('Account');
-  const [selectedPlan, setSelectedPlan] = useState('Growth Plan');
-  const [billingCycle, setBillingCycle] = useState('Monthly');
+export default function Settings() {
+  const { settings, updateSettings, resetSettings } = useSettings();
 
-  const tabs = [
-    'Account',
-    'Team Management', 
-    'Preferences',
-    'Integration',
-    'Billing & Subscription',
-    'Security',
-    'Report & Analytics'
-  ];
+  // Core preferences
+  const [theme, setTheme] = useState(settings.theme || 'light');
+  const [currency, setCurrency] = useState(settings.currency || 'ZAR');
+  const [compactMode, setCompactMode] = useState(Boolean(settings.compactMode));
+  const [defaultLanding, setDefaultLanding] = useState(settings.defaultLanding || '/');
 
-  const plans = [
-    {
-      name: 'Starter Plan',
-      price: 10.00,
-      badge: 'FREE',
-      badgeColor: 'orange',
-      features: [
-        'Manage up to 1,000 contacts',
-        'Basic customer management tools',
-        'Task and workflow automation',
-        'Integration with third-party apps (limited)',
-        'Customizable dashboards'
-      ],
-      isCurrent: false
-    },
-    {
-      name: 'Growth Plan',
-      price: 79.00,
-      badge: 'PRO',
-      badgeColor: 'orange',
-      features: [
-        'Manage up to 10,000 contacts',
-        'Advanced customer management',
-        'Full automation capabilities',
-        'Real time reporting and analytics',
-        'Collaborative team features'
-      ],
-      isCurrent: true,
-      isHighlighted: true
-    },
-    {
-      name: 'Enterprise Plan',
-      price: 'Custom',
-      badge: 'ADVANCE',
-      badgeColor: 'green',
-      features: [
-        'Unlimited contacts and data storage',
-        'Custom workflow and automation setups',
-        'Dedicated account manager',
-        'Advanced analytics and reporting',
-        'Full API access and custom integrations'
-      ],
-      isCurrent: false,
-      isCustom: true
+  // Profile
+  const [displayName, setDisplayName] = useState(settings.displayName || '');
+  const [emailVisibility, setEmailVisibility] = useState(settings.emailVisibility || 'private');
+
+  // Notifications (granular toggles)
+  const [notifyMarketing, setNotifyMarketing] = useState(settings.notifications?.marketing || false);
+  const [notifyProduct, setNotifyProduct] = useState(settings.notifications?.product !== false); // default true
+  const [notifyMarketAlerts, setNotifyMarketAlerts] = useState(settings.notifications?.marketAlerts !== false); // default true
+
+  // Privacy
+  const [showLocation, setShowLocation] = useState(settings.privacy?.showLocation || false);
+  const [shareAnalytics, setShareAnalytics] = useState(settings.privacy?.shareAnalytics || false);
+
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState({ type: null, message: '' });
+
+  // Theme application
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') root.classList.add('theme-dark'); else root.classList.remove('theme-dark');
+  }, [theme]);
+
+  const pricePreview = useMemo(() => {
+    const sample = 3250000;
+    if (currency === 'ZAR') {
+      return compactMode ? `R${(sample / 1_000_000).toFixed(1)}M` : new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', maximumFractionDigits: 0 }).format(sample);
     }
-  ];
+    try { return new Intl.NumberFormat('en', { style: 'currency', currency }).format(sample); } catch { return `${currency} ${sample.toLocaleString()}`; }
+  }, [currency, compactMode]);
 
-  const billingHistory = [
-    {
-      planName: 'Starter Plan - Jun 2024',
-      amount: 10.00,
-      purchaseDate: '2024-06-01',
-      endDate: '2024-06-31',
-      status: 'Processing'
-    },
-    {
-      planName: 'Growth Plan - May 2024',
-      amount: 79.00,
-      purchaseDate: '2024-05-01',
-      endDate: '2024-05-31',
-      status: 'Success'
-    },
-    {
-      planName: 'Starter Plan - Apr 2024',
-      amount: 10.00,
-      purchaseDate: '2024-04-01',
-      endDate: '2024-04-30',
-      status: 'Success'
-    },
-    {
-      planName: 'Starter Plan - Mar 2024',
-      amount: 10.00,
-      purchaseDate: '2024-03-01',
-      endDate: '2024-03-31',
-      status: 'Success'
-    }
-  ];
+  const savePreferences = () => {
+    setSaving(true);
+    updateSettings({
+      theme,
+      currency,
+      compactMode,
+      defaultLanding,
+      displayName,
+      emailVisibility,
+      notifications: {
+        marketing: notifyMarketing,
+        product: notifyProduct,
+        marketAlerts: notifyMarketAlerts
+      },
+      privacy: {
+        showLocation,
+        shareAnalytics
+      }
+    });
+    setTimeout(() => {
+      setSaving(false);
+      setStatus({ type: 'success', message: 'Preferences saved' });
+      setTimeout(() => setStatus({ type: null, message: '' }), 1600);
+    }, 300);
+  };
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'Account':
-        return (
-          <div className="settings-tab-content">
-            <h2>Account Settings</h2>
-            <div className="settings-form">
-              <div className="form-group">
-                <label>Full Name</label>
-                <input type="text" className="form-input" defaultValue="John Doe" />
-              </div>
-              <div className="form-group">
-                <label>Email Address</label>
-                <input type="email" className="form-input" defaultValue="john@example.com" />
-              </div>
-              <div className="form-group">
-                <label>Phone Number</label>
-                <input type="tel" className="form-input" defaultValue="+1 (555) 123-4567" />
-              </div>
-              <div className="form-group">
-                <label>Company</label>
-                <input type="text" className="form-input" defaultValue="Digital Estate Co." />
-              </div>
-              <div className="form-actions">
-                <button className="btn btn-primary">Save Changes</button>
-                <button className="btn btn-outline">Cancel</button>
-              </div>
-            </div>
-          </div>
-        );
+  const resetAll = () => {
+    resetSettings();
+    setTheme('light'); setCurrency('ZAR'); setCompactMode(false); setDefaultLanding('/');
+    setDisplayName(''); setEmailVisibility('private');
+    setNotifyMarketing(false); setNotifyProduct(true); setNotifyMarketAlerts(true);
+    setShowLocation(false); setShareAnalytics(false);
+    setStatus({ type: 'neutral', message: 'Defaults restored' });
+    setTimeout(() => setStatus({ type: null, message: '' }), 1400);
+  };
 
-      case 'Team Management':
-        return (
-          <div className="settings-tab-content">
-            <h2>Team Management</h2>
-            <div className="team-section">
-              <div className="team-header">
-                <h3>Team Members</h3>
-                <button className="btn btn-primary">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="12" y1="5" x2="12" y2="19"/>
-                    <line x1="5" y1="12" x2="19" y2="12"/>
-                  </svg>
-                  Add Member
-                </button>
-              </div>
-              <div className="team-list">
-                {['John Doe (Admin)', 'Jane Smith (Editor)', 'Mike Johnson (Viewer)'].map((member, index) => (
-                  <div key={index} className="team-member">
-                    <div className="member-info">
-                      <div className="member-avatar">{member.charAt(0)}</div>
-                      <span>{member}</span>
-                    </div>
-                    <button className="btn-icon">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="1"/>
-                        <circle cx="19" cy="12" r="1"/>
-                        <circle cx="5" cy="12" r="1"/>
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'Preferences':
-        return (
-          <div className="settings-tab-content">
-            <h2>Preferences</h2>
-            <div className="preferences-section">
-              <div className="preference-group">
-                <h3>Theme</h3>
-                <div className="theme-options">
-                  {['Light', 'Dark', 'Auto'].map(theme => (
-                    <button key={theme} className={`theme-btn ${theme === 'Dark' ? 'active' : ''}`}>
-                      {theme}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="preference-group">
-                <h3>Language</h3>
-                <select className="form-select">
-                  <option>English</option>
-                  <option>Spanish</option>
-                  <option>French</option>
-                </select>
-              </div>
-              <div className="preference-group">
-                <h3>Notifications</h3>
-                <div className="toggle-group">
-                  <div className="toggle-item">
-                    <label>Email Notifications</label>
-                    <div className="toggle-switch active">
-                      <span className="toggle-slider"></span>
-                    </div>
-                  </div>
-                  <div className="toggle-item">
-                    <label>Push Notifications</label>
-                    <div className="toggle-switch">
-                      <span className="toggle-slider"></span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'Integration':
-        return (
-          <div className="settings-tab-content">
-            <h2>Integration</h2>
-            <div className="integration-section">
-              <div className="integration-list">
-                {['Slack', 'Zapier', 'Google Workspace', 'Microsoft 365'].map((integration, index) => (
-                  <div key={index} className="integration-item">
-                    <div className="integration-info">
-                      <div className="integration-icon">{integration.charAt(0)}</div>
-                      <div>
-                        <h4>{integration}</h4>
-                        <p>Connect your {integration} account</p>
-                      </div>
-                    </div>
-                    <button className="btn btn-outline">Connect</button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'Billing & Subscription':
-        return (
-          <div className="settings-tab-content">
-            <div className="billing-header">
-              <h2>Billing & Subscription</h2>
-              <p className="billing-subtitle">Keep track of your subscription details, update your billing information, and control your account's payment</p>
-              <div className="billing-cycle-toggle">
-                <button 
-                  className={`cycle-btn ${billingCycle === 'Monthly' ? 'active' : ''}`}
-                  onClick={() => setBillingCycle('Monthly')}
-                >
-                  Monthly
-                </button>
-                <button 
-                  className={`cycle-btn ${billingCycle === 'Yearly' ? 'active' : ''}`}
-                  onClick={() => setBillingCycle('Yearly')}
-                >
-                  Yearly
-                </button>
-              </div>
-            </div>
-            
-            <div className="subscription-plans">
-              {plans.map((plan, index) => (
-                <div key={index} className={`plan-card ${plan.isHighlighted ? 'highlighted' : ''} ${plan.isCurrent ? 'current' : ''}`}>
-                  <div className="plan-header">
-                    <div className="plan-title">
-                      <h3>{plan.name}</h3>
-                      <span className={`plan-badge ${plan.badgeColor}`}>{plan.badge}</span>
-                    </div>
-                    <div className="plan-price">
-                      {plan.isCustom ? (
-                        <span className="custom-price">Custom</span>
-                      ) : (
-                        <>
-                          <span className="price">${plan.price}</span>
-                          <span className="period">/{billingCycle.toLowerCase().slice(0, -2)}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="plan-features">
-                    {plan.features.map((feature, fIndex) => (
-                      <div key={fIndex} className="feature-item">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points="20,6 9,17 4,12"/>
-                        </svg>
-                        {feature}
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div className="plan-action">
-                    {plan.isCurrent ? (
-                      <button className="btn btn-current">Current Plan</button>
-                    ) : plan.isCustom ? (
-                      <button className="btn btn-contact">Contact Us</button>
-                    ) : (
-                      <button className="btn btn-upgrade">Upgrade Plan</button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="billing-history">
-              <div className="history-header">
-                <h3>Billing History</h3>
-                <div className="history-actions">
-                  <input type="text" placeholder="Search..." className="search-input" />
-                  <button className="btn-icon" title="Filter">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46"/>
-                    </svg>
-                  </button>
-                  <button className="btn-icon" title="Export">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                      <polyline points="7,10 12,15 17,10"/>
-                      <line x1="12" y1="15" x2="12" y2="3"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-              
-              <div className="history-table">
-                <div className="table-header">
-                  <div>Plan Name</div>
-                  <div>Amounts</div>
-                  <div>Purchase Date</div>
-                  <div>End Date</div>
-                  <div>Status</div>
-                  <div>Action</div>
-                </div>
-                {billingHistory.map((record, index) => (
-                  <div key={index} className="table-row">
-                    <div>{record.planName}</div>
-                    <div>${record.amount.toFixed(2)}</div>
-                    <div>{record.purchaseDate}</div>
-                    <div>{record.endDate}</div>
-                    <div>
-                      <span className={`status ${record.status.toLowerCase()}`}>
-                        {record.status}
-                      </span>
-                    </div>
-                    <div className="row-actions">
-                      <button className="btn-icon" title="Download">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                          <polyline points="7,10 12,15 17,10"/>
-                          <line x1="12" y1="15" x2="12" y2="3"/>
-                        </svg>
-                      </button>
-                      <button className="btn-icon" title="View">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                          <circle cx="12" cy="12" r="3"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'Security':
-        return (
-          <div className="settings-tab-content">
-            <h2>Security Settings</h2>
-            <div className="security-section">
-              <div className="security-group">
-                <h3>Password</h3>
-                <p>Ensure your account is using a strong password</p>
-                <button className="btn btn-outline">Change Password</button>
-              </div>
-              <div className="security-group">
-                <h3>Two-Factor Authentication</h3>
-                <p>Add an extra layer of security to your account</p>
-                <div className="toggle-item">
-                  <label>Enable 2FA</label>
-                  <div className="toggle-switch">
-                    <span className="toggle-slider"></span>
-                  </div>
-                </div>
-              </div>
-              <div className="security-group">
-                <h3>Login History</h3>
-                <p>Review recent login activity</p>
-                <div className="login-history">
-                  {['Chrome on Windows - 2 hours ago', 'Safari on iPhone - 1 day ago', 'Firefox on macOS - 3 days ago'].map((login, index) => (
-                    <div key={index} className="login-item">
-                      <span>{login}</span>
-                      <button className="btn-text">Revoke</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'Report & Analytics':
-        return (
-          <div className="settings-tab-content">
-            <h2>Report & Analytics</h2>
-            <div className="analytics-section">
-              <div className="analytics-group">
-                <h3>Data Export</h3>
-                <p>Export your data in various formats</p>
-                <div className="export-options">
-                  <button className="btn btn-outline">Export CSV</button>
-                  <button className="btn btn-outline">Export PDF</button>
-                  <button className="btn btn-outline">Export Excel</button>
-                </div>
-              </div>
-              <div className="analytics-group">
-                <h3>Report Frequency</h3>
-                <p>Choose how often you receive reports</p>
-                <select className="form-select">
-                  <option>Daily</option>
-                  <option>Weekly</option>
-                  <option>Monthly</option>
-                </select>
-              </div>
-              <div className="analytics-group">
-                <h3>Data Retention</h3>
-                <p>Control how long your data is stored</p>
-                <select className="form-select">
-                  <option>6 months</option>
-                  <option>1 year</option>
-                  <option>2 years</option>
-                  <option>Forever</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        );
-
-      default:
-        return <div>Select a tab</div>;
-    }
+  const clearLocalPrefs = () => {
+    ['digitalEstateSettings','exploreFilters','selectedArea','selectedCity','selectedProvince','selectedCountry']
+      .forEach(k => localStorage.removeItem(k));
+    setStatus({ type: 'success', message: 'Local data cleared' });
+    setTimeout(() => setStatus({ type: null, message: '' }), 1400);
   };
 
   return (
-    <div className="settings-page">
-      <div className="settings-header-section">
-        <div className="header-content">
-          <h1>Settings</h1>
-          <div className="header-actions">
-            <button className="btn btn-outline">Cancel</button>
-            <button className="btn btn-primary">Save Changes</button>
-          </div>
+    <div className="settings-wrapper">
+      <header className="settings-page-header">
+        <div className="head-block">
+          <h1 className="page-title">Your Settings</h1>
+          <p className="page-subtitle">Control how DigitalEstate looks and communicates with you. All preferences are stored locally.</p>
         </div>
-      </div>
+        <div className="status-line"><StatusPill type={status.type} message={status.message} /></div>
+      </header>
 
-      <div className="settings-tabs">
-        {tabs.map((tab, index) => (
-          <button
-            key={index}
-            className={`tab-button ${activeTab === tab ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+      <div className="settings-layout">
+        <main className="settings-panels" aria-label="User settings panels">
+          {/* Profile */}
+          <section className="settings-panel" aria-labelledby="panel-profile">
+            <h2 id="panel-profile">Profile</h2>
+            <div className="form-row stack">
+              <label htmlFor="display-name">Display name</label>
+              <input id="display-name" type="text" placeholder="Your name" value={displayName} onChange={e => setDisplayName(e.target.value)} />
+              <div className="hint">Used in personalized greetings and saved preferences.</div>
+            </div>
+            <div className="form-row">
+              <label htmlFor="email-visibility">Email visibility</label>
+              <select id="email-visibility" value={emailVisibility} onChange={e => setEmailVisibility(e.target.value)}>
+                <option value="private">Private</option>
+                <option value="team">Team</option>
+                <option value="public">Public</option>
+              </select>
+            </div>
+          </section>
 
-      <div className="settings-content">
-        {renderTabContent()}
+          {/* Appearance & Display */}
+          <section className="settings-panel" aria-labelledby="panel-appearance">
+            <h2 id="panel-appearance">Appearance & Display</h2>
+            <div className="form-row">
+              <label htmlFor="theme-select">Theme</label>
+              <select id="theme-select" value={theme} onChange={e => setTheme(e.target.value)}>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="system">System</option>
+              </select>
+            </div>
+            <div className="form-row">
+              <label htmlFor="currency-select">Currency</label>
+              <select id="currency-select" value={currency} onChange={e => setCurrency(e.target.value)}>
+                <option value="ZAR">ZAR (R)</option>
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+              </select>
+              <div className="hint">Preview: {pricePreview}</div>
+            </div>
+            <div className="form-row">
+              <label htmlFor="landing-select">Default landing</label>
+              <select id="landing-select" value={defaultLanding} onChange={e => setDefaultLanding(e.target.value)}>
+                <option value="/">Dashboard</option>
+                <option value="/explore">Explore</option>
+                <option value="/insights">Insights</option>
+              </select>
+            </div>
+            <div className="form-row inline-toggle">
+              <label htmlFor="compact-toggle">Compact number format</label>
+              <input id="compact-toggle" type="checkbox" checked={compactMode} onChange={e => setCompactMode(e.target.checked)} />
+            </div>
+          </section>
+
+          {/* Notifications */}
+          <section className="settings-panel" aria-labelledby="panel-notifications">
+            <h2 id="panel-notifications">Notifications</h2>
+            <div className="form-row inline-toggle">
+              <label htmlFor="notify-product">Product updates</label>
+              <input id="notify-product" type="checkbox" checked={notifyProduct} onChange={e => setNotifyProduct(e.target.checked)} />
+            </div>
+            <div className="form-row inline-toggle">
+              <label htmlFor="notify-market-alerts">Market alerts</label>
+              <input id="notify-market-alerts" type="checkbox" checked={notifyMarketAlerts} onChange={e => setNotifyMarketAlerts(e.target.checked)} />
+            </div>
+            <div className="form-row inline-toggle">
+              <label htmlFor="notify-marketing">Marketing emails</label>
+              <input id="notify-marketing" type="checkbox" checked={notifyMarketing} onChange={e => setNotifyMarketing(e.target.checked)} />
+            </div>
+            <div className="hint" style={{ paddingTop: 4 }}>You can opt out of marketing any time. Market alerts highlight significant area trends.</div>
+          </section>
+
+          {/* Privacy */}
+          <section className="settings-panel" aria-labelledby="panel-privacy">
+            <h2 id="panel-privacy">Privacy & Data</h2>
+            <div className="form-row inline-toggle">
+              <label htmlFor="show-location">Show approximate location</label>
+              <input id="show-location" type="checkbox" checked={showLocation} onChange={e => setShowLocation(e.target.checked)} />
+            </div>
+            <div className="form-row inline-toggle">
+              <label htmlFor="share-analytics">Share anonymous usage analytics</label>
+              <input id="share-analytics" type="checkbox" checked={shareAnalytics} onChange={e => setShareAnalytics(e.target.checked)} />
+            </div>
+            <div className="form-row buttons-row">
+              <button type="button" className="btn-outline" onClick={clearLocalPrefs}>Clear local data</button>
+              <button type="button" className="btn-outline" onClick={resetAll}>Restore defaults</button>
+            </div>
+          </section>
+
+          {/* Actions */}
+          <div className="settings-actions-bar">
+            <button type="button" className="btn-outline" onClick={resetAll}>Reset</button>
+            <button type="button" className="btn-primary" disabled={saving} onClick={savePreferences}>{saving ? 'Saving…' : 'Save changes'}</button>
+          </div>
+        </main>
+
+        <aside className="settings-aside" aria-label="Reference info">
+          <div className="info-card">
+            <h3>Summary</h3>
+            <dl>
+              <div className="meta-line"><dt>Name</dt><dd>{displayName || '—'}</dd></div>
+              <div className="meta-line"><dt>Theme</dt><dd>{theme}</dd></div>
+              <div className="meta-line"><dt>Landing</dt><dd>{defaultLanding.replace('/', '') || 'dashboard'}</dd></div>
+              <div className="meta-line"><dt>Currency</dt><dd>{currency}</dd></div>
+              <div className="meta-line"><dt>Compact</dt><dd>{compactMode ? 'Yes' : 'No'}</dd></div>
+            </dl>
+            <div className="hint" style={{ paddingTop: 6 }}>Preferences stay on this device.</div>
+          </div>
+        </aside>
       </div>
     </div>
   );
-};
-
-export default Settings;
+}

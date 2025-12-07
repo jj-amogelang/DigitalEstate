@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Digital Estate Database Schema – PostgreSQL</title>
+  <style>
+    :root {
+      --text:#111; --muted:#555; --border:#e5e7eb; --bg:#fff;
+      --h:#0b1f3b; --accent:#ff9900; --light:#f8fafc;
+    }
+    html, body { background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    .page { max-width: 1000px; margin: 24px auto; padding: 0 20px; }
+    h1 { font-size: 26px; margin: 0 0 6px; color: var(--h); }
+    h2 { font-size: 20px; margin: 28px 0 8px; color: var(--h); }
+    h3 { font-size: 16px; margin: 18px 0 6px; color: var(--h); }
+    p, li { color: var(--text); }
+    .meta { color: var(--muted); margin-bottom: 16px; }
+    .card { border:1px solid var(--border); border-radius:8px; padding:16px; background:#fff; }
+    .grid { display:grid; grid-template-columns: 1fr; gap:16px; }
+    @media (min-width: 900px) { .grid.two { grid-template-columns: 1.1fr 0.9fr; } }
+    table { width:100%; border-collapse: collapse; margin: 10px 0 18px; }
+    th, td { text-align:left; border-bottom:1px solid var(--border); padding:8px 6px; vertical-align: top; }
+    th { background: var(--light); font-weight: 600; }
+    code, .code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 12px; }
+    .pill { display:inline-block; border:1px solid var(--border); padding:2px 8px; border-radius: 999px; background: #fff; }
+    .notice { padding:10px 12px; background:#fff7ed; border:1px solid #fed7aa; color:#92400e; border-radius:8px; }
+    .footer { margin-top: 20px; color: var(--muted); font-size: 12px; }
+    @media print { .page { max-width: none; margin: 0; padding: 0 10mm; } a[href]:after{ content:"" } }
+  </style>
+  <!-- Mermaid for ERD rendering (loads from CDN when opened in a browser) -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</head>
+<body>
+  <div class="page">
+    <h1>Digital Estate Database Schema (PostgreSQL)</h1>
+    <div class="meta">Version: 1.0 • Generated: 2025-10-20 • Scope: Areas, Metrics, Property Insights</div>
+    <div class="grid two">
+      <div class="card">
+        <h2>Entity Relationship Diagram</h2>
+        <div class="mermaid">
+erDiagram
+  COUNTRIES ||--o{ PROVINCES : has
+  PROVINCES ||--o{ CITIES : has
+  CITIES ||--o{ AREAS : has
+  AREAS ||--o{ AREA_IMAGES : has
+  AREAS ||--o{ AREA_AMENITIES : has
+  METRICS ||--o{ AREA_METRIC_VALUES : has
+
+  COUNTRIES {
+    int id PK
+    varchar(100) name UNIQUE
+    varchar(3) code
+    timestamp created_at
+    timestamp updated_at
+  }
+  PROVINCES {
+    int id PK
+    int country_id FK
+    varchar(100) name
+    timestamp created_at
+    timestamp updated_at
+    UNIQUE(country_id,name)
+  }
+  CITIES {
+    int id PK
+    int province_id FK
+    varchar(100) name
+    timestamp created_at
+    timestamp updated_at
+    UNIQUE(province_id,name)
+  }
+  AREAS {
+    int id PK
+    int city_id FK
+    varchar(150) name
+    varchar(180) slug
+    text description
+    decimal(9,6) latitude
+    decimal(9,6) longitude
+    timestamp created_at
+    timestamp updated_at
+    UNIQUE(city_id,name)
+  }
+  AREA_IMAGES {
+    int id PK
+    int area_id FK
+    text image_url
+    varchar(200) title
+    text caption
+    boolean is_primary
+    int sort_order
+    timestamp created_at
+  }
+  AREA_AMENITIES {
+    int id PK
+    int area_id FK
+    varchar(50) amenity_type
+    varchar(200) name
+    decimal(5,2) distance_km
+    decimal(3,2) rating
+    jsonb metadata
+    timestamp created_at
+  }
+  METRICS {
+    int id PK
+    varchar(60) code UNIQUE
+    varchar(120) name
+    text description
+    varchar(40) unit
+    varchar(60) category
+    varchar(20) data_type
+    boolean is_active
+    timestamp created_at
+    timestamp updated_at
+  }
+  AREA_METRIC_VALUES {
+    bigserial id PK
+    int area_id FK
+    int metric_id FK
+    date period_start
+    date period_end
+    decimal(18,4) value_numeric
+    text value_text
+    jsonb value_json
+    varchar(120) source
+    text source_reference
+    smallint quality_score
+    text notes
+    timestamp created_at
+    UNIQUE(area_id, metric_id, period_start)
+  }
+        </div>
+        <p class="notice">Tip: Use your browser’s Print dialog to “Save as PDF”. This page is styled for A4/Letter printing.</p>
+      </div>
+      <div class="card">
+        <h2>Highlights</h2>
+        <ul>
+          <li>Hierarchy: countries → provinces → cities → areas</li>
+          <li>Extensible metrics catalog with typed time series in <span class="code">area_metric_values</span></li>
+          <li>Property insights: counts per type and 10-year average price series</li>
+          <li>Optional materialized views for fast latest reads</li>
+        </ul>
+        <h3>Materialized Views (optional)</h3>
+        <ul>
+          <li><span class="code">area_metric_latest_mv</span> — latest per (area, metric); unique index for concurrent refresh</li>
+          <li><span class="code">area_latest_key_metrics_mv</span> — pivot of headline metrics per area</li>
+        </ul>
+        <h3>Key Indexes</h3>
+        <ul>
+          <li><span class="code">area_metric_values(area_id, metric_id)</span></li>
+          <li><span class="code">area_metric_values(metric_id, period_start desc)</span></li>
+          <li><span class="code">area_metric_values(area_id, period_start desc)</span></li>
+          <li><span class="code">area_images(area_id)</span>, <span class="code">area_images(area_id,is_primary)</span></li>
+          <li><span class="code">area_amenities(area_id)</span>, <span class="code">area_amenities(amenity_type)</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <h2>Tables</h2>
+    <div class="card">
+      <h3>countries</h3>
+      <table>
+        <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>id</td><td>serial pk</td><td>Primary key</td></tr>
+          <tr><td>name</td><td>varchar(100)</td><td>Unique</td></tr>
+          <tr><td>code</td><td>varchar(3)</td><td>ISO-like code</td></tr>
+          <tr><td>created_at</td><td>timestamp</td><td>Default now()</td></tr>
+          <tr><td>updated_at</td><td>timestamp</td><td>Updated via trigger</td></tr>
+        </tbody>
+      </table>
+
+      <h3>provinces</h3>
+      <table>
+        <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>id</td><td>serial pk</td><td>Primary key</td></tr>
+          <tr><td>country_id</td><td>int fk</td><td>→ countries.id, cascade delete</td></tr>
+          <tr><td>name</td><td>varchar(100)</td><td>Unique per country</td></tr>
+          <tr><td>created_at</td><td>timestamp</td><td>Default now()</td></tr>
+          <tr><td>updated_at</td><td>timestamp</td><td>Updated via trigger</td></tr>
+        </tbody>
+      </table>
+
+      <h3>cities</h3>
+      <table>
+        <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>id</td><td>serial pk</td><td>Primary key</td></tr>
+          <tr><td>province_id</td><td>int fk</td><td>→ provinces.id, cascade delete</td></tr>
+          <tr><td>name</td><td>varchar(100)</td><td>Unique per province</td></tr>
+          <tr><td>created_at</td><td>timestamp</td><td>Default now()</td></tr>
+          <tr><td>updated_at</td><td>timestamp</td><td>Updated via trigger</td></tr>
+        </tbody>
+      </table>
+
+      <h3>areas</h3>
+      <table>
+        <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>id</td><td>serial pk</td><td>Primary key</td></tr>
+          <tr><td>city_id</td><td>int fk</td><td>→ cities.id, cascade delete</td></tr>
+          <tr><td>name</td><td>varchar(150)</td><td>Unique per city</td></tr>
+          <tr><td>slug</td><td>varchar(180)</td><td>Optional</td></tr>
+          <tr><td>description</td><td>text</td><td>Optional</td></tr>
+          <tr><td>latitude</td><td>decimal(9,6)</td><td>Optional</td></tr>
+          <tr><td>longitude</td><td>decimal(9,6)</td><td>Optional</td></tr>
+          <tr><td>created_at</td><td>timestamp</td><td>Default now()</td></tr>
+          <tr><td>updated_at</td><td>timestamp</td><td>Updated via trigger</td></tr>
+        </tbody>
+      </table>
+
+      <h3>metrics</h3>
+      <table>
+        <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>id</td><td>serial pk</td><td>Primary key</td></tr>
+          <tr><td>code</td><td>varchar(60)</td><td>Unique metric identifier</td></tr>
+          <tr><td>name</td><td>varchar(120)</td><td>Label</td></tr>
+          <tr><td>description</td><td>text</td><td>Optional</td></tr>
+          <tr><td>unit</td><td>varchar(40)</td><td>ZAR, %, days, score, count</td></tr>
+          <tr><td>category</td><td>varchar(60)</td><td>pricing, rental, quality, inventory…</td></tr>
+          <tr><td>data_type</td><td>varchar(20)</td><td>numeric/text/json</td></tr>
+          <tr><td>is_active</td><td>boolean</td><td>Default true</td></tr>
+          <tr><td>created_at</td><td>timestamp</td><td>Default now()</td></tr>
+          <tr><td>updated_at</td><td>timestamp</td><td>Updated via trigger</td></tr>
+        </tbody>
+      </table>
+
+      <h3>area_metric_values</h3>
+      <table>
+        <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>id</td><td>bigserial pk</td><td>Primary key</td></tr>
+          <tr><td>area_id</td><td>int fk</td><td>→ areas.id</td></tr>
+          <tr><td>metric_id</td><td>int fk</td><td>→ metrics.id</td></tr>
+          <tr><td>period_start</td><td>date</td><td>Point-in-time or start of period</td></tr>
+          <tr><td>period_end</td><td>date</td><td>Optional</td></tr>
+          <tr><td>value_numeric</td><td>decimal(18,4)</td><td>Main value</td></tr>
+          <tr><td>value_text</td><td>text</td><td>Alt value</td></tr>
+          <tr><td>value_json</td><td>jsonb</td><td>Structured</td></tr>
+          <tr><td>source</td><td>varchar(120)</td><td>Ingestion source</td></tr>
+          <tr><td>source_reference</td><td>text</td><td>URL or doc id</td></tr>
+          <tr><td>quality_score</td><td>smallint</td><td>0-100 confidence</td></tr>
+          <tr><td>notes</td><td>text</td><td>Optional</td></tr>
+          <tr><td>created_at</td><td>timestamp</td><td>Default now()</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Admin & Maintenance</h2>
+    <div class="card">
+      <ul>
+        <li>Schema DDL: <span class="code">backend/area_metrics_schema.sql</span></li>
+        <li>Seeds: <span class="code">backend/sql/seed_hierarchy_and_metrics.sql</span>, <span class="code">backend/sql/seed_property_insights.sql</span></li>
+        <li>One-shot setup: <span class="code">backend/sql/setup_postgres.sql</span></li>
+        <li>Materialized views (optional): <span class="code">backend/area_metrics_materialized.sql</span></li>
+        <li>API surface: <span class="code">backend/main.py</span> (<span class="pill">/api/…</span>)</li>
+      </ul>
+    </div>
+
+    <div class="footer">© 2025 Digital Estate — Schema generated for documentation/printing. Print to PDF from your browser to create a portable copy.</div>
+  </div>
+</body>
+</html>

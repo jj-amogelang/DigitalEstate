@@ -7,7 +7,8 @@ pip install -r requirements.txt
 # Set up the database with sample data and Excel import
 python -c "
 from main import app, db
-from database_models import EnhancedProperty, Owner, Valuation, Zoning
+# Legacy script (property system archived) - imports disabled
+# from database_models import EnhancedProperty, Owner, Valuation, Zoning
 from datetime import datetime, date
 
 with app.app_context():

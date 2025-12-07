@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import './ProfileButton.css';
+import './styles/ProfileButton.css';
 
 const ProfileButton = ({ onLoginClick, onRegisterClick }) => {
   const { user, logout, isAuthenticated } = useAuth();

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { API_ENDPOINTS } from '../config/api';
-import './property-details-page.css';
+import './styles/property-details.css';
 
 export default function PropertyDetailsPage() {
   const { id } = useParams();

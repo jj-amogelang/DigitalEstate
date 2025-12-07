@@ -3,7 +3,8 @@ services:
   - type: web
     name: digital-estate-backend
     env: python
-    buildCommand: ./build.sh
+  # Legacy build.sh removed; ensure dependencies installed and (optionally) initialize metrics schema
+  buildCommand: pip install -r requirements.txt && python initialize_area_metrics.py --fresh
     startCommand: gunicorn --bind 0.0.0.0:$PORT wsgi:app
     envVars:
       - key: PYTHON_VERSION
