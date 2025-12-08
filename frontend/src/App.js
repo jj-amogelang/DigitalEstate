@@ -19,31 +19,6 @@ function Sidebar({ isOpen, toggleSidebar }) {
 
   return (
     <aside className={`sidebar ${isOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
-      {/* Sidebar Toggle Arrow */}
-      <button 
-        className="sidebar-arrow-toggle"
-        onClick={toggleSidebar}
-        title={isOpen ? "Collapse sidebar" : "Expand sidebar"}
-      >
-        <svg 
-          width="12" 
-          height="12" 
-          viewBox="0 0 24 24" 
-          fill="none" 
-          xmlns="http://www.w3.org/2000/svg"
-          className={`arrow-icon ${isOpen ? 'arrow-open' : 'arrow-closed'}`}
-          aria-hidden="true"
-        >
-          <path 
-            d="M9 18L15 12L9 6" 
-            stroke="currentColor" 
-            strokeWidth="2.75" 
-            strokeLinecap="round" 
-            strokeLinejoin="round"
-            opacity="0.98"
-          />
-        </svg>
-      </button>
       {/* Sidebar Header */}
       <div className="sidebar-header">
         <div className="logo-container">
