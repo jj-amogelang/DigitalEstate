@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: digital-estate-backend
+    runtime: python
+    runtimeVersion: "3.11"
+    plan: free
+    buildCommand: "cd backend && pip install -r requirements.txt"
+    startCommand: "cd backend && gunicorn wsgi:app --bind 0.0.0.0:$PORT"
+    rootDir: ""
+    envVars:
+      - key: FLASK_ENV
+        value: "production"
+      - key: FRONTEND_ORIGIN
+        value: "https://digital-estate.vercel.app"
+      - key: DATABASE_URL
+        sync: false  # Set this in Render dashboard during deployment
+      - key: SECRET_KEY
+        generateValue: true
