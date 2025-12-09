@@ -16,6 +16,7 @@ import {
   Legend
 } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend as RechartsLegend, ResponsiveContainer } from 'recharts';
 import AreaHeatmap from '../components/AreaHeatmap';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, ChartTooltip, Legend);
@@ -167,6 +168,30 @@ export default function ResearchDashboard() {
 
   // (Matrix heatmap dataset removed)
 
+  // Line chart data for price trends over time
+  const lineChartData = useMemo(() => {
+    const types = ['residential', 'commercial', 'industrial', 'retail'];
+    const yearSet = new Set();
+    types.forEach(t => {
+      const arr = Array.isArray(priceSeries?.[t]) ? priceSeries[t] : [];
+      arr.forEach(pt => {
+        const y = (pt?.date || '').slice(0, 4);
+        if (y) yearSet.add(y);
+      });
+    });
+    const years = Array.from(yearSet).sort();
+    
+    return years.map(year => {
+      const dataPoint = { year };
+      types.forEach(type => {
+        const arr = Array.isArray(priceSeries?.[type]) ? priceSeries[type] : [];
+        const item = arr.find(pt => (pt?.date || '').startsWith(year));
+        dataPoint[type] = item ? Number(item.value || 0) : 0;
+      });
+      return dataPoint;
+    });
+  }, [priceSeries]);
+
   // Stacked bar data (years on X, stacked types per year)
   const stackedBarData = useMemo(() => {
     const order = ['residential', 'commercial', 'retail', 'industrial'];
@@ -206,6 +231,16 @@ export default function ResearchDashboard() {
     area: '',
     areaName: ''
   });
+
+  const handleFindCentreOfGravity = () => {
+    if (!selected.area || !selected.areaName) {
+      alert('Please select an area first');
+      return;
+    }
+    // TODO: Implement centre of gravity calculation
+    // This would typically calculate the geographic center weighted by property values/density
+    alert(`Finding centre of gravity for ${selected.areaName}...\n\nThis feature will calculate the optimal location based on property distribution and values.`);
+  };
 
   useEffect(() => {
     document.title = 'Property Insights - Digital Estate';
@@ -431,16 +466,35 @@ export default function ResearchDashboard() {
 
       {/* Charts Section */}
       {selected.area && (
-  <div className="insights-charts-section aws-themed-charts">
-          {/* Top row: Pie + Heatmap */}
-          <div className="insights-row two-cols">
-            <div className="insights-card">
-              <h3 className="chart-title">Property Types in Area</h3>
-              <p className="chart-subtitle">Share of property categories within the selected area</p>
+        <div className="insights-charts-section aws-themed-charts">
+          {/* Page Header with Centre of Gravity Button */}
+          <div className="insights-header-row">
+            <div className="insights-header-text">
+              <h2 className="insights-page-title">Property Insights for {selected.areaName}</h2>
+              <p className="insights-page-subtitle">Comprehensive analysis of property types, pricing, and trends</p>
+            </div>
+            <button 
+              className="btn-professional btn-primary-professional gravity-button"
+              onClick={handleFindCentreOfGravity}
+              title="Calculate the geographic center weighted by property distribution"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '8px' }}>
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                <path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+              Find Centre of Gravity
+            </button>
+          </div>
+
+          {/* Row 1: Pie Chart (Property Type Distribution) */}
+          <div className="insights-card">
+            <h3 className="chart-title">Property Type Distribution</h3>
+            <p className="chart-subtitle">Distribution of property types in {selected.areaName}</p>
             {chartsLoading ? (
               <div className="insights-loading"><div className="loading-spinner-modern"></div></div>
             ) : (
-              <div className="chart-canvas-wrap chart-tall">
+              <div className="chart-canvas-wrap chart-medium">
                 <Doughnut 
                   data={pieData}
                   options={{
@@ -448,48 +502,57 @@ export default function ResearchDashboard() {
                     maintainAspectRatio: false,
                     plugins: {
                       legend: {
-                        position: 'bottom',
-                        labels: { boxWidth: 10, boxHeight: 10, padding: 10, color: theme.darkGrey, font: { size: 11, family: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial' } }
+                        position: 'right',
+                        labels: { 
+                          boxWidth: 12, 
+                          boxHeight: 12, 
+                          padding: 15, 
+                          color: theme.darkGrey, 
+                          font: { size: 12, family: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial' },
+                          usePointStyle: true
+                        }
+                      },
+                      tooltip: {
+                        backgroundColor: theme.darkGrey,
+                        titleColor: theme.white,
+                        bodyColor: theme.white,
+                        callbacks: {
+                          label: (ctx) => `${ctx.label}: ${ctx.raw} properties`
+                        }
                       }
                     }
                   }}
                 />
               </div>
             )}
-            </div>
-
-            <div className="insights-card">
-              <h3 className="chart-title">Area Heatmap</h3>
-              <p className="chart-subtitle">Hotspots by intensity (mocked points until property coords available)</p>
-              <div className="chart-canvas-wrap heatmap" style={{ overflow: 'hidden' }}>
-                <AreaHeatmap areaId={selected.area} />
-              </div>
-            </div>
           </div>
 
-          {/* Stacked bar chart across property types per year */}
+          {/* Row 2: Bar Chart (Average Price by Property Type) */}
           <div className="insights-card">
-            <h3 className="chart-title">Average Prices by Type</h3>
-            <p className="chart-subtitle">Stacked by property type across the last 10 years</p>
+            <h3 className="chart-title">Average Property Price by Type</h3>
+            <p className="chart-subtitle">Compare average prices across different property categories</p>
             {chartsLoading ? (
               <div className="insights-loading"><div className="loading-spinner-modern"></div></div>
             ) : (
-              <div className="chart-canvas-wrap stacked-bar">
+              <div className="chart-canvas-wrap bar-chart">
                 <Bar
-                  data={stackedBarData}
+                  data={barData}
                   options={{
                     responsive: true,
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
                     scales: {
                       y: {
-                        stacked: true,
+                        beginAtZero: true,
                         grid: { color: theme.borderGrey, borderDash: [3, 3] },
                         border: { display: false },
-                        ticks: { color: theme.darkGrey, callback: (v) => `R${Number(v).toLocaleString()}`, font: { size: 11 } }
+                        ticks: { 
+                          color: theme.darkGrey, 
+                          callback: (v) => `R${Number(v).toLocaleString()}`, 
+                          font: { size: 11 } 
+                        }
                       },
                       x: {
-                        stacked: true,
                         grid: { display: false },
                         border: { display: false },
                         ticks: { color: theme.textGrey, font: { size: 11 } }
@@ -498,7 +561,14 @@ export default function ResearchDashboard() {
                     plugins: {
                       legend: {
                         position: 'top',
-                        labels: { color: theme.darkGrey, usePointStyle: true, pointStyle: 'rectRounded', boxWidth: 10, boxHeight: 10, padding: 12 }
+                        labels: { 
+                          color: theme.darkGrey, 
+                          usePointStyle: true, 
+                          pointStyle: 'rectRounded', 
+                          boxWidth: 10, 
+                          boxHeight: 10, 
+                          padding: 12 
+                        }
                       },
                       tooltip: {
                         backgroundColor: theme.darkGrey,
@@ -511,6 +581,78 @@ export default function ResearchDashboard() {
                     }
                   }}
                 />
+              </div>
+            )}
+          </div>
+
+          {/* Row 3: Line Chart (Price Trends Over 5-10 Years) */}
+          <div className="insights-card">
+            <h3 className="chart-title">Price Trends Over Time</h3>
+            <p className="chart-subtitle">Historical price trends across all property types (5-10 years)</p>
+            {chartsLoading ? (
+              <div className="insights-loading"><div className="loading-spinner-modern"></div></div>
+            ) : (
+              <div className="chart-canvas-wrap line-chart">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={lineChartData} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.borderGrey} />
+                    <XAxis 
+                      dataKey="year" 
+                      stroke={theme.textGrey}
+                      style={{ fontSize: '11px', fill: theme.textGrey }}
+                    />
+                    <YAxis 
+                      stroke={theme.darkGrey}
+                      style={{ fontSize: '11px', fill: theme.darkGrey }}
+                      tickFormatter={(value) => `R${(value / 1000).toFixed(0)}k`}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: theme.darkGrey, 
+                        border: 'none', 
+                        borderRadius: '6px',
+                        color: theme.white
+                      }}
+                      formatter={(value, name) => [`R${Number(value).toLocaleString()}`, name.toUpperCase()]}
+                    />
+                    <RechartsLegend 
+                      wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
+                      formatter={(value) => value.toUpperCase()}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="residential" 
+                      stroke="rgba(17,17,17,0.85)" 
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="commercial" 
+                      stroke="rgba(0,0,0,0.65)" 
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="industrial" 
+                      stroke="rgba(0,0,0,0.45)" 
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="retail" 
+                      stroke="rgba(0,0,0,0.25)" 
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
             )}
           </div>
