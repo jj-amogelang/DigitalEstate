@@ -18,22 +18,22 @@ WITH metric_ids AS (
 )
 -- Distribution counts (latest snapshot per area)
 INSERT INTO area_metric_values (area_id, metric_id, period_start, value_numeric, source)
-SELECT a.id, m.c_res, DATE (SELECT to_char(CURRENT_DATE, 'YYYY-01-01')), 800, 'seed'
+SELECT a.id, m.c_res, DATE_TRUNC('year', CURRENT_DATE)::date, 800, 'seed'
 FROM areas_sel a CROSS JOIN metric_ids m
 ON CONFLICT (area_id, metric_id, period_start) DO NOTHING;
 
 INSERT INTO area_metric_values (area_id, metric_id, period_start, value_numeric, source)
-SELECT a.id, m.c_com, DATE (SELECT to_char(CURRENT_DATE, 'YYYY-01-01')), 220, 'seed'
+SELECT a.id, m.c_com, DATE_TRUNC('year', CURRENT_DATE)::date, 220, 'seed'
 FROM areas_sel a CROSS JOIN metric_ids m
 ON CONFLICT (area_id, metric_id, period_start) DO NOTHING;
 
 INSERT INTO area_metric_values (area_id, metric_id, period_start, value_numeric, source)
-SELECT a.id, m.c_ind, DATE (SELECT to_char(CURRENT_DATE, 'YYYY-01-01')), 110, 'seed'
+SELECT a.id, m.c_ind, DATE_TRUNC('year', CURRENT_DATE)::date, 110, 'seed'
 FROM areas_sel a CROSS JOIN metric_ids m
 ON CONFLICT (area_id, metric_id, period_start) DO NOTHING;
 
 INSERT INTO area_metric_values (area_id, metric_id, period_start, value_numeric, source)
-SELECT a.id, m.c_ret, DATE (SELECT to_char(CURRENT_DATE, 'YYYY-01-01')), 140, 'seed'
+SELECT a.id, m.c_ret, DATE_TRUNC('year', CURRENT_DATE)::date, 140, 'seed'
 FROM areas_sel a CROSS JOIN metric_ids m
 ON CONFLICT (area_id, metric_id, period_start) DO NOTHING;
 
