@@ -18,6 +18,7 @@ import {
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend as RechartsLegend, ResponsiveContainer } from 'recharts';
 import AreaHeatmap from '../components/AreaHeatmap';
+import CentreOfGravity from '../components/CentreOfGravity';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, ChartTooltip, Legend);
 
@@ -34,6 +35,7 @@ export default function ResearchDashboard() {
   const [chartsLoading, setChartsLoading] = useState(false);
   const [typeDistribution, setTypeDistribution] = useState([]);
   const [priceSeries, setPriceSeries] = useState({});
+  const [cogModalOpen, setCogModalOpen] = useState(false);
 
   // Theme helpers: read CSS variables defined by the dashboard theme
   const getCssVar = (name, fallback) => {
@@ -237,9 +239,7 @@ export default function ResearchDashboard() {
       alert('Please select an area first');
       return;
     }
-    // TODO: Implement centre of gravity calculation
-    // This would typically calculate the geographic center weighted by property values/density
-    alert(`Finding centre of gravity for ${selected.areaName}...\n\nThis feature will calculate the optimal location based on property distribution and values.`);
+    setCogModalOpen(true);
   };
 
   useEffect(() => {
@@ -665,6 +665,14 @@ export default function ResearchDashboard() {
           <span>Loading…</span>
         </div>
       )}
+
+      {/* Centre of Gravity Modal */}
+      <CentreOfGravity
+        isOpen={cogModalOpen}
+        onClose={() => setCogModalOpen(false)}
+        areaId={selected.area}
+        areaName={selected.areaName}
+      />
     </div>
   );
 }
