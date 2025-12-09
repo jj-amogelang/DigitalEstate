@@ -53,10 +53,10 @@ function Sidebar({ isOpen, toggleSidebar }) {
         <Link 
           to="/" 
           className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}
-          title="Dashboard"
+          title="Home"
         >
           <LayoutGrid className="nav-icon" size={20} />
-          {isOpen && <span className="nav-text">Dashboard</span>}
+          {isOpen && <span className="nav-text">Home</span>}
         </Link>
 
         <Link 
