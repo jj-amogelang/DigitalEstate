@@ -246,22 +246,6 @@ export default function ResearchDashboard() {
     setCogModalOpen(true);
   };
 
-  // Load featured properties when area or property type changes
-  useEffect(() => {
-    (async () => {
-      if (!selected.area || !selectedPropertyType) {
-        setFeaturedProps([]);
-        return;
-      }
-      try {
-        const props = await areaDataService.getAreaProperties(selected.area, selectedPropertyType, true);
-        setFeaturedProps(props || []);
-      } catch (e) {
-        console.error('Error loading featured properties', e);
-        setFeaturedProps([]);
-      }
-    })();
-  }, [selected.area, selectedPropertyType]);
 
   useEffect(() => {
     document.title = 'Property Insights - Digital Estate';
