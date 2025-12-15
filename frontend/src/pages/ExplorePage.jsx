@@ -268,12 +268,21 @@ export default function ExplorePage() {
       console.log('✅ Countries loaded from API:', countriesData);
       setCountries(countriesData || []);
       
+      // Auto-select South Africa
+      const southAfrica = countriesData?.find(c => c.name === 'South Africa');
+      if (southAfrica && !selected.country) {
+        setSelected(prev => ({ ...prev, country: southAfrica.id }));
+      }
+      
       setLoading(false);
     } catch (err) {
       console.error('❌ Error loading countries from API:', err);
       setAlert({ type: 'error', title: 'Failed to load countries', message: err.message || 'Check backend API' });
       // Fallback to hardcoded South Africa if API fails
       setCountries([{ id: 1, name: "South Africa" }]);
+      if (!selected.country) {
+        setSelected(prev => ({ ...prev, country: 1 }));
+      }
       setLoading(false);
     }
   };
@@ -649,9 +658,10 @@ export default function ExplorePage() {
                 <select
                   className="selector-input-modern"
                   value={selected.country}
-                  onChange={e => setSelected(prev => ({ ...prev, country: e.target.value }))}
+                  disabled
+                  style={{ opacity: 0.6, cursor: 'not-allowed' }}
                 >
-                  <option value="">Select Country</option>
+                  <option value="">South Africa</option>
                   {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>

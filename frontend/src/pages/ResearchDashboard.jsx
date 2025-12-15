@@ -237,7 +237,6 @@ export default function ResearchDashboard() {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get('type') || '';
   });
-  const [featuredProps, setFeaturedProps] = useState([]);
 
   const handleFindCentreOfGravity = () => {
     if (!selected.area || !selected.areaName) {
@@ -283,6 +282,12 @@ export default function ResearchDashboard() {
         setAllProvinces(plist || []);
         setAllCities(clist || []);
         setAllAreas(alist || []);
+        
+        // Auto-select South Africa
+        const southAfrica = countriesData?.find(c => c.name === 'South Africa');
+        if (southAfrica && !selected.country) {
+          setSelected(prev => ({ ...prev, country: southAfrica.id }));
+        }
       } finally {
         setLoading(false);
       }
@@ -423,9 +428,10 @@ export default function ResearchDashboard() {
                 <select
                   className="selector-input-modern"
                   value={selected.country}
-                  onChange={(e) => setSelected((p) => ({ ...p, country: e.target.value }))}
+                  disabled
+                  style={{ opacity: 0.6, cursor: 'not-allowed' }}
                 >
-                  <option value="">Select Country</option>
+                  <option value="">South Africa</option>
                   {countries.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
@@ -720,40 +726,7 @@ export default function ResearchDashboard() {
         areaName={selected.areaName}
       />
 
-      {/* Featured Properties Section */}
-      {selected.area && selectedPropertyType && featuredProps.length > 0 && (
-        <div className="properties-featured-modern">
-          <div className="header-content-modern">
-            <h2 className="page-title-modern">Featured {selectedPropertyType === 'commercial' ? 'Commercial' : 'Residential'} Properties in {selected.areaName}</h2>
-            <p className="page-subtitle-modern">Selected listings by {selectedPropertyType === 'commercial' ? 'Eris Property Group' : 'Balwin Properties'}</p>
-          </div>
-          <div className="featured-grid-modern">
-            {featuredProps.map(p => (
-              <div className="featured-card" key={p.id}>
-                <div className="featured-image" style={{backgroundImage:`url(${p.image_url})`}} aria-label={p.name}></div>
-                <div className="featured-body">
-                  <div className="featured-header">
-                    <h3 className="featured-title">{p.name}</h3>
-                    <span className="featured-developer">{p.developer}</span>
-                  </div>
-                  <p className="featured-address">{p.address}</p>
-                  <div className="featured-meta">
-                    {p.property_type === 'residential' && (
-                      <span className="featured-beds">{p.bedrooms ?? '—'} bed</span>
-                    )}
-                    {p.price ? (
-                      <span className="featured-price">R{Number(p.price).toLocaleString()}</span>
-                    ) : (
-                      <span className="featured-price">POA</span>
-                    )}
-                  </div>
-                  {p.description && <p className="featured-desc">{p.description}</p>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }
