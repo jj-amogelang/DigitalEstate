@@ -1,1 +1,12 @@
 .vercel
+
+# Database files (using Neon PostgreSQL only)
+*.db
+*.sqlite
+*.sqlite3
+instance/
+
+# Legacy/obsolete files
+__pycache__/
+.pytest_cache/
+*.pyc
