@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import PropertyTypeSelector from '../components/PropertyTypeSelector';
 import areaDataService from '../services/areaDataService';
 import '../components/styles/DropdownFix.css';
 import '../components/styles/PropertiesAWS.css';
@@ -384,15 +383,8 @@ export default function ResearchDashboard() {
       {/* Header Section */}
       <div className="properties-header-modern">
         <div className="header-content-modern">
-          <div className="page-title-row" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem'}}>
+          <div className="page-title-row">
             <h2 className="page-title-modern" style={{margin:0}}>Analyze Market Trends</h2>
-            {/* Global property-type selector */}
-            <PropertyTypeSelector
-              value={selected.propertyType}
-              onChange={(val)=>setSelected(p=>({...p,propertyType:val}))}
-              className="page-type-selector"
-              size="md"
-            />
           </div>
           <p className="page-subtitle-modern">
             Deep dive into property distributions, pricing trends, and strategic location analysis

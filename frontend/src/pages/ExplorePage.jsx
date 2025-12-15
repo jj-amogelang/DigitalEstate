@@ -3,7 +3,6 @@ import axios from "axios";
 import { useNavigate, useLocation } from "react-router-dom";
 import { API_ENDPOINTS } from "../config/api";
 import areaDataService from "../services/areaDataService";
-import PropertyTypeSelector from "../components/PropertyTypeSelector";
 import AWSAlert from "../components/AWSAlert";
 import "../components/styles/DropdownFix.css";
 import "../components/styles/PropertiesAWS.css";
@@ -742,12 +741,6 @@ export default function ExplorePage() {
                 Exploring: <span className="area-name">{selected.areaName}</span>
               </h2>
               <div className="header-actions" style={{display:'flex',gap:'0.75rem',alignItems:'center'}}>
-                <PropertyTypeSelector
-                  value={selected.propertyType}
-                  onChange={(val)=>setSelected(p=>({...p,propertyType:val}))}
-                  className="header-type-selector"
-                  size="sm"
-                />
                 <button 
                 className="market-insights-link"
                 onClick={() => navigate('/insights', { 
