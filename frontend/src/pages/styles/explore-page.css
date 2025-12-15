@@ -107,6 +107,35 @@ body {
 .featured-beds { font-size: 0.85rem; color: var(--aws-text-grey); }
 .featured-desc { font-size: 0.9rem; color: var(--aws-text-grey); margin-top: 0.5rem; }
 
+/* Property Type Buttons - Horizontal Selector */
+.property-type-buttons {
+  display: flex;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  flex-wrap: wrap;
+}
+.property-type-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--aws-border-grey);
+  background: var(--pure-white);
+  color: var(--dark-text);
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: var(--font-weight-normal);
+  font-size: 0.95rem;
+  transition: var(--transition-smooth);
+}
+.property-type-btn:hover {
+  border-color: var(--dark-text);
+  box-shadow: var(--shadow-soft);
+}
+.property-type-btn.active {
+  background: var(--charcoal-black);
+  color: var(--pure-white);
+  border-color: var(--charcoal-black);
+  font-weight: var(--font-weight-semibold);
+}
+
 @media (max-width: 1024px) {
   .featured-grid-modern { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
