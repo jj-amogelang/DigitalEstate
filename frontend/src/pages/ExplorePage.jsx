@@ -75,24 +75,27 @@ export default function ExplorePage() {
     city: "", 
     area: "", 
     areaName: ""
-    const [selectedPropertyType, setSelectedPropertyType] = useState('');
-    // Load featured properties when area or property type changes
-    useEffect(() => {
-      (async () => {
-        if (!selected.area || !selectedPropertyType) {
-          setFeaturedProps([]);
-          return;
-        }
-        try {
-          const props = await areaDataService.getAreaProperties(selected.area, selectedPropertyType, true);
-          setFeaturedProps(props || []);
-        } catch (e) {
-          console.error('Error loading featured properties', e);
-          setFeaturedProps([]);
-        }
-      })();
-    }, [selected.area, selectedPropertyType]);
   });
+  const [selectedPropertyType, setSelectedPropertyType] = useState(() => {
+    const urlParams = new URLSearchParams(location.search);
+    return urlParams.get('type') || '';
+  });
+  // Load featured properties when area or property type changes
+  useEffect(() => {
+    (async () => {
+      if (!selected.area || !selectedPropertyType) {
+        setFeaturedProps([]);
+        return;
+      }
+      try {
+        const props = await areaDataService.getAreaProperties(selected.area, selectedPropertyType, true);
+        setFeaturedProps(props || []);
+      } catch (e) {
+        console.error('Error loading featured properties', e);
+        setFeaturedProps([]);
+      }
+    })();
+  }, [selected.area, selectedPropertyType]);
 
   // Restore filters from URL parameters, navigation state, or localStorage on component mount
   useEffect(() => {
@@ -711,17 +714,19 @@ export default function ExplorePage() {
             </div>
             <div className="selector-item-modern">
               <label className="selector-label-modern">Property Type</label>
-              <div className="selector-wrapper-modern">
-                <select
-                  className="selector-input-modern"
-                  value={selectedPropertyType}
-                  onChange={e => setSelectedPropertyType(e.target.value)}
-                  disabled={!selected.area}
+              <div className="property-type-buttons">
+                <button
+                  className={`property-type-btn ${selectedPropertyType === 'residential' ? 'active' : ''}`}
+                  onClick={() => setSelectedPropertyType('residential')}
                 >
-                  <option value="">Select Type</option>
-                  <option value="commercial">Commercial</option>
-                  <option value="residential">Residential</option>
-                </select>
+                  Residential
+                </button>
+                <button
+                  className={`property-type-btn ${selectedPropertyType === 'commercial' ? 'active' : ''}`}
+                  onClick={() => setSelectedPropertyType('commercial')}
+                >
+                  Commercial
+                </button>
               </div>
             </div>
           </div>

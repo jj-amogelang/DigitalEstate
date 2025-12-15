@@ -289,7 +289,7 @@ export default function DashboardPage() {
               </div>
               <div className="excellence-cta">
                 <button 
-                  onClick={() => navigate('/insights')} 
+                  onClick={() => navigate(`/insights?type=${selectedPropertyType}`)} 
                   className="btn-professional btn-primary-professional"
                 >
                   <span>Explore Property Insights</span>
@@ -323,11 +323,9 @@ function ExplorePropertiesMenu({ navigate }) {
   const toggleRef = React.useRef(null);
 
   const items = [
-    { label: 'Residential', path: '/explore?category=residential' },
-    { label: 'Commercial', path: '/explore?category=commercial' },
-    { label: 'Retail', path: '/explore?category=retail' },
-    { label: 'Industrial', path: '/explore?category=industrial' },
-    { label: 'Explore All', path: '/explore' },
+    { label: 'Residential', path: '/explore?type=residential' },
+    { label: 'Commercial', path: '/explore?type=commercial' },
+    { label: 'All Properties', path: '/explore' },
   ];
 
   const go = (path) => {

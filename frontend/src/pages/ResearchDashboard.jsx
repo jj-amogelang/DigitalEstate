@@ -233,6 +233,12 @@ export default function ResearchDashboard() {
     area: '',
     areaName: ''
   });
+  const [selectedPropertyType, setSelectedPropertyType] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('type') || '';
+  });
+  const [featuredProps, setFeaturedProps] = useState([]);
 
   const handleFindCentreOfGravity = () => {
     if (!selected.area || !selected.areaName) {
@@ -241,6 +247,23 @@ export default function ResearchDashboard() {
     }
     setCogModalOpen(true);
   };
+
+  // Load featured properties when area or property type changes
+  useEffect(() => {
+    (async () => {
+      if (!selected.area || !selectedPropertyType) {
+        setFeaturedProps([]);
+        return;
+      }
+      try {
+        const props = await areaDataService.getAreaProperties(selected.area, selectedPropertyType, true);
+        setFeaturedProps(props || []);
+      } catch (e) {
+        console.error('Error loading featured properties', e);
+        setFeaturedProps([]);
+      }
+    })();
+  }, [selected.area, selectedPropertyType]);
 
   useEffect(() => {
     document.title = 'Property Insights - Digital Estate';
@@ -473,6 +496,24 @@ export default function ResearchDashboard() {
                 </select>
               </div>
             </div>
+
+            <div className="selector-item-modern">
+              <label className="selector-label-modern">Property Type</label>
+              <div className="property-type-buttons">
+                <button
+                  className={`property-type-btn ${selectedPropertyType === 'residential' ? 'active' : ''}`}
+                  onClick={() => setSelectedPropertyType('residential')}
+                >
+                  Residential
+                </button>
+                <button
+                  className={`property-type-btn ${selectedPropertyType === 'commercial' ? 'active' : ''}`}
+                  onClick={() => setSelectedPropertyType('commercial')}
+                >
+                  Commercial
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -686,6 +727,41 @@ export default function ResearchDashboard() {
         areaId={selected.area}
         areaName={selected.areaName}
       />
+
+      {/* Featured Properties Section */}
+      {selected.area && selectedPropertyType && featuredProps.length > 0 && (
+        <div className="properties-featured-modern">
+          <div className="header-content-modern">
+            <h2 className="page-title-modern">Featured {selectedPropertyType === 'commercial' ? 'Commercial' : 'Residential'} Properties in {selected.areaName}</h2>
+            <p className="page-subtitle-modern">Selected listings by {selectedPropertyType === 'commercial' ? 'Eris Property Group' : 'Balwin Properties'}</p>
+          </div>
+          <div className="featured-grid-modern">
+            {featuredProps.map(p => (
+              <div className="featured-card" key={p.id}>
+                <div className="featured-image" style={{backgroundImage:`url(${p.image_url})`}} aria-label={p.name}></div>
+                <div className="featured-body">
+                  <div className="featured-header">
+                    <h3 className="featured-title">{p.name}</h3>
+                    <span className="featured-developer">{p.developer}</span>
+                  </div>
+                  <p className="featured-address">{p.address}</p>
+                  <div className="featured-meta">
+                    {p.property_type === 'residential' && (
+                      <span className="featured-beds">{p.bedrooms ?? '—'} bed</span>
+                    )}
+                    {p.price ? (
+                      <span className="featured-price">R{Number(p.price).toLocaleString()}</span>
+                    ) : (
+                      <span className="featured-price">POA</span>
+                    )}
+                  </div>
+                  {p.description && <p className="featured-desc">{p.description}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
