@@ -246,7 +246,8 @@ class AreaDataService {
 
   // Area detail methods
     async getAreaProperties(areaId, type, featured=true) {
-      const base = DEFAULTS.primary;
+      await this.ready;
+      const base = this.getApiBase();
       const url = `${base}/api/areas/${areaId}/properties`;
       const params = new URLSearchParams();
       if (type) params.append('type', type);
