@@ -1,42 +1,42 @@
-# 🏘️ Digital Estate Dashboard
+#  Digital Estate Dashboard
 
 A modern, professional property management dashboard built with React and Flask, featuring a minimalist design.
 
-## 🌟 Live Demo
+##  Live Demo
 
 - **Dashboard**: https://digital-estate-dashboard.onrender.com
 - **API**: https://digital-estate-backend.onrender.com
 
-## ✨ Features
+##  Features
 
-### 🏠 Property Management
+###  Property Management
 - Modern property listings with detailed information
 - Advanced search and filtering capabilities
 - Property type categorization (Residential, Commercial, Industrial)
 - Geographic organization (City, Province, Area)
 
-### 👤 Owner Management
+###  Owner Management
 - Complete owner profiles and contact information
 - Property ownership tracking
 - Owner-property relationship management
 
-### 💰 Valuations & Analytics
+###  Valuations & Analytics
 - Property valuation tracking and history
 - Market value assessments
 - Dashboard analytics with charts and statistics
 
-### 🗺️ Zoning Information
+###  Zoning Information
 - Detailed zoning codes and descriptions
 - Municipal regulations and restrictions
 - Permitted uses and building limitations
 
-### 🎨 Professional Design
+###  Professional Design
 - Zara-inspired minimalist aesthetic
 - Gold accent color scheme (#D4AF37)
 - Responsive design for all devices
 - Modern card-based layouts
 
-## 🛠️ Technology Stack
+##  Technology Stack
 
 ### Frontend
 - **React.js** - Modern JavaScript framework
@@ -54,7 +54,7 @@ A modern, professional property management dashboard built with React and Flask,
 - **GitHub** - Version control and CI/CD
 - **PostgreSQL** - Managed database service
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Prerequisites
 - Node.js 16+ and npm
@@ -87,7 +87,7 @@ A modern, professional property management dashboard built with React and Flask,
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:5000
 
-## 🌐 Deployment
+##  Deployment
 
 The application is configured for automatic deployment on Render. See [RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md) for detailed deployment instructions.
 
@@ -96,7 +96,7 @@ The application is configured for automatic deployment on Render. See [RENDER_DE
 - **Backend**: Auto-deploys Flask API with database initialization
 - **Frontend**: Auto-deploys React app with production configuration
 
-## 📊 API Endpoints
+##  API Endpoints
 
 ### Properties
 - `GET /api/properties` - List all properties with pagination
@@ -114,7 +114,7 @@ The application is configured for automatic deployment on Render. See [RENDER_DE
 ### Utilities
 - `POST /init-data` - Initialize database with sample data
 
-## 🗂️ Project Structure
+##  Project Structure
 
 ```
 Digital Estate/
@@ -137,7 +137,7 @@ Digital Estate/
 └── RENDER_DEPLOYMENT.md    # Deployment guide
 ```
 
-## 🎯 Key Features
+##  Key Features
 
 ### Dashboard Analytics
 - Total properties and owners count
@@ -173,7 +173,7 @@ FLASK_ENV=production
 REACT_APP_API_URL=https://digital-estate-backend.onrender.com
 ```
 
-## 🤝 Contributing
+##  Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -185,9 +185,6 @@ REACT_APP_API_URL=https://digital-estate-backend.onrender.com
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
-
-- Design inspiration from Zara's minimalist aesthetic
 - Built with modern web technologies
 - Deployed on Render's reliable platform
 
