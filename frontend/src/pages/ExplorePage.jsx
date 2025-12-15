@@ -24,6 +24,7 @@ export default function ExplorePage() {
   const [allCities, setAllCities] = useState([]);
   const [allAreas, setAllAreas] = useState([]);
   const [propertyList, setPropertyList] = useState([]);
+  const [featuredProps, setFeaturedProps] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isRestoringFilters, setIsRestoringFilters] = useState(false);
   // Track previous selections to avoid clearing on initial load or same-value assignments
@@ -74,6 +75,23 @@ export default function ExplorePage() {
     city: "", 
     area: "", 
     areaName: ""
+    const [selectedPropertyType, setSelectedPropertyType] = useState('');
+    // Load featured properties when area or property type changes
+    useEffect(() => {
+      (async () => {
+        if (!selected.area || !selectedPropertyType) {
+          setFeaturedProps([]);
+          return;
+        }
+        try {
+          const props = await areaDataService.getAreaProperties(selected.area, selectedPropertyType, true);
+          setFeaturedProps(props || []);
+        } catch (e) {
+          console.error('Error loading featured properties', e);
+          setFeaturedProps([]);
+        }
+      })();
+    }, [selected.area, selectedPropertyType]);
   });
 
   // Restore filters from URL parameters, navigation state, or localStorage on component mount
@@ -691,6 +709,21 @@ export default function ExplorePage() {
                 </select>
               </div>
             </div>
+            <div className="selector-item-modern">
+              <label className="selector-label-modern">Property Type</label>
+              <div className="selector-wrapper-modern">
+                <select
+                  className="selector-input-modern"
+                  value={selectedPropertyType}
+                  onChange={e => setSelectedPropertyType(e.target.value)}
+                  disabled={!selected.area}
+                >
+                  <option value="">Select Type</option>
+                  <option value="commercial">Commercial</option>
+                  <option value="residential">Residential</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1068,6 +1101,40 @@ export default function ExplorePage() {
                 <p>Choose a location above to view detailed market insights and area statistics.</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* Featured Properties Section */}
+      {selected.area && selectedPropertyType && featuredProps.length > 0 && (
+        <div className="properties-featured-modern">
+          <div className="header-content-modern">
+            <h2 className="page-title-modern">Featured {selectedPropertyType === 'commercial' ? 'Commercial' : 'Residential'} Properties in {selected.areaName}</h2>
+            <p className="page-subtitle-modern">Selected listings by {selectedPropertyType === 'commercial' ? 'Eris Property Group' : 'Balwin Properties'}</p>
+          </div>
+          <div className="featured-grid-modern">
+            {featuredProps.map(p => (
+              <div className="featured-card" key={p.id}>
+                <div className="featured-image" style={{backgroundImage:`url(${p.image_url})`}} aria-label={p.name}></div>
+                <div className="featured-body">
+                  <div className="featured-header">
+                    <h3 className="featured-title">{p.name}</h3>
+                    <span className="featured-developer">{p.developer}</span>
+                  </div>
+                  <p className="featured-address">{p.address}</p>
+                  <div className="featured-meta">
+                    {p.property_type === 'residential' && (
+                      <span className="featured-beds">{p.bedrooms ?? '—'} bed</span>
+                    )}
+                    {p.price ? (
+                      <span className="featured-price">R{Number(p.price).toLocaleString()}</span>
+                    ) : (
+                      <span className="featured-price">POA</span>
+                    )}
+                  </div>
+                  {p.description && <p className="featured-desc">{p.description}</p>}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

@@ -76,6 +76,44 @@ body {
   color: var(--dark-text);
 }
 
+.properties-featured-modern {
+  padding: var(--spacing-xl);
+}
+.featured-grid-modern {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+.featured-card {
+  border: 1px solid var(--aws-border-grey);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--aws-white);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+.featured-image {
+  width: 100%;
+  padding-top: 56.25%;
+  background-size: cover;
+  background-position: center;
+}
+.featured-body { padding: 0.75rem 0.9rem; }
+.featured-header { display:flex; justify-content: space-between; align-items: baseline; }
+.featured-title { font-size: 1rem; margin: 0; }
+.featured-developer { font-size: 0.85rem; color: var(--aws-text-grey); }
+.featured-address { font-size: 0.9rem; color: var(--aws-text-grey); margin: 0.25rem 0 0.5rem; }
+.featured-meta { display:flex; gap: 0.75rem; align-items:center; }
+.featured-price { font-weight: 600; color: var(--aws-navy); }
+.featured-beds { font-size: 0.85rem; color: var(--aws-text-grey); }
+.featured-desc { font-size: 0.9rem; color: var(--aws-text-grey); margin-top: 0.5rem; }
+
+@media (max-width: 1024px) {
+  .featured-grid-modern { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .featured-grid-modern { grid-template-columns: 1fr; }
+}
+
 /* Zara-Inspired Sleek Hero Section */
 .hero-section-premium {
   position: relative;

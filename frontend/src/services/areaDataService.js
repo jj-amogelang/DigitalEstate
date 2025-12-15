@@ -245,6 +245,15 @@ class AreaDataService {
   }
 
   // Area detail methods
+    async getAreaProperties(areaId, type, featured=true) {
+      const base = DEFAULTS.primary;
+      const url = `${base}/api/areas/${areaId}/properties`;
+      const params = new URLSearchParams();
+      if (type) params.append('type', type);
+      if (featured) params.append('featured', 'true');
+      const resp = await axios.get(`${url}?${params.toString()}`);
+      return resp?.data?.properties || [];
+    }
   async getAreaDetails(areaId) {
     await this.ready;
     try {
