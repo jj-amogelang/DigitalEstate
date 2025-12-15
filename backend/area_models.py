@@ -256,3 +256,36 @@ class MarketTrend(db.Model):
             'metric_date': self.metric_date.isoformat() if self.metric_date else None,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
+
+class Property(db.Model):
+    __tablename__ = 'properties'
+    id = db.Column(db.Integer, primary_key=True)
+    area_id = db.Column(db.Integer, db.ForeignKey('areas.id', ondelete='CASCADE'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    developer = db.Column(db.String(120))
+    property_type = db.Column(db.String(40), nullable=False)  # 'commercial' | 'residential'
+    address = db.Column(db.String(240))
+    price = db.Column(DecimalType(18, 2))
+    bedrooms = db.Column(db.Integer)  # residential only
+    image_url = db.Column(db.Text)
+    is_featured = db.Column(db.Boolean, default=False)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=func.current_timestamp())
+
+    area = db.relationship('Area')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'area_id': self.area_id,
+            'name': self.name,
+            'developer': self.developer,
+            'property_type': self.property_type,
+            'address': self.address,
+            'price': float(self.price) if self.price else None,
+            'bedrooms': self.bedrooms,
+            'image_url': self.image_url,
+            'is_featured': self.is_featured,
+            'description': self.description,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }

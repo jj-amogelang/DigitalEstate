@@ -8,5 +8,8 @@
 -- Seed property-type distribution counts and 10-year price series per type
 \ir 'seed_property_insights.sql'
 
+-- Seed featured properties
+\ir 'seed_featured_properties.sql'
+
 -- Optional: create materialized views / views (uncomment if desired)
 -- \ir '../area_metrics_materialized.sql'

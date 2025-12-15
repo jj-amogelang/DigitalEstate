@@ -2,7 +2,7 @@ from flask import Flask, jsonify, request, send_file, Response
 from flask_cors import CORS
 from app_config import Config
 from db_core import db
-from area_models import Country, Province, City, Area, AreaImage, AreaAmenity, MarketTrend as LegacyMarketTrend, AreaStatistics  # keep for potential reuse
+from area_models import Country, Province, City, Area, AreaImage, AreaAmenity, MarketTrend as LegacyMarketTrend, AreaStatistics, Property  # keep for potential reuse
 from sqlalchemy import func, desc, and_, or_, text, inspect
 from datetime import datetime, date
 import os
@@ -17,6 +17,21 @@ FrontendOrigin = os.getenv('FRONTEND_ORIGIN', 'https://digital-estate.vercel.app
 is_prod = os.getenv('FLASK_ENV') == 'production'
 CorsAllowedOrigins = ['*'] if not is_prod else [FrontendOrigin]
 CORS(app, origins=CorsAllowedOrigins, allow_headers=['Content-Type', 'Authorization'], methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
+@app.get('/api/areas/<int:area_id>/properties')
+def get_area_properties(area_id: int):
+    try:
+        q_type = request.args.get('type')
+        featured = request.args.get('featured')
+        qry = Property.query.filter(Property.area_id == area_id)
+        if q_type:
+            qry = qry.filter(Property.property_type.ilike(q_type))
+        if featured is not None:
+            val = featured.lower() in ('1','true','yes')
+            qry = qry.filter(Property.is_featured == val)
+        items = [p.to_dict() for p in qry.order_by(Property.created_at.desc()).limit(24).all()]
+        return jsonify({'success': True, 'properties': items})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # ---- URL helpers ----
 def _absolute_url(path: str) -> str:

@@ -74,6 +74,25 @@ CREATE TABLE IF NOT EXISTS area_amenities (
 CREATE INDEX IF NOT EXISTS idx_area_amenities_area_id ON area_amenities(area_id);
 CREATE INDEX IF NOT EXISTS idx_area_amenities_type ON area_amenities(amenity_type);
 
+-- 6b. Properties (featured listings for areas)
+CREATE TABLE IF NOT EXISTS properties (
+  id SERIAL PRIMARY KEY,
+  area_id INTEGER NOT NULL REFERENCES areas(id) ON DELETE CASCADE,
+  name VARCHAR(200) NOT NULL,
+  developer VARCHAR(120),
+  property_type VARCHAR(40) NOT NULL,
+  address VARCHAR(240),
+  price DECIMAL(18,2),
+  bedrooms INTEGER,
+  image_url TEXT,
+  is_featured BOOLEAN DEFAULT FALSE,
+  description TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_properties_area_id ON properties(area_id);
+CREATE INDEX IF NOT EXISTS idx_properties_type ON properties(property_type);
+CREATE INDEX IF NOT EXISTS idx_properties_featured ON properties(is_featured);
+
 -- 7. Metrics Catalog (extensible definition of each metric)
 CREATE TABLE IF NOT EXISTS metrics (
     id SERIAL PRIMARY KEY,
