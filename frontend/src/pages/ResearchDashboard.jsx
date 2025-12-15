@@ -346,10 +346,23 @@ export default function ResearchDashboard() {
 
   return (
     <div className="properties-page-modern">
+      {/* Hero Section */}
+      <div className="hero-section-premium">
+        <div className="hero-overlay"></div>
+        <div className="hero-content-premium">
+          <div className="hero-text-premium">
+            <h1 className="hero-title-premium">
+              Property <span className="hero-accent">Insights</span>
+            </h1>
+          </div>
+        </div>
+      </div>
+
+      {/* Header Section */}
       <div className="properties-header-modern">
         <div className="header-content-modern">
           <div className="page-title-row" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem'}}>
-            <h2 className="page-title-modern" style={{margin:0}}>Property Insights</h2>
+            <h2 className="page-title-modern" style={{margin:0}}>Analyze Market Trends</h2>
             {/* Global property-type selector */}
             <PropertyTypeSelector
               value={selected.propertyType}
@@ -359,7 +372,7 @@ export default function ResearchDashboard() {
             />
           </div>
           <p className="page-subtitle-modern">
-            Choose a location to explore insights. Start with country, then province, city, and area.
+            Deep dive into property distributions, pricing trends, and strategic location analysis
           </p>
         </div>
       </div>
