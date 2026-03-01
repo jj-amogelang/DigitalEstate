@@ -1,0 +1,6 @@
+# Ignore backend entirely - deployed on Render, not Vercel
+backend/
+
+# Ignore docs and other non-frontend folders
+docs/
+debug/
