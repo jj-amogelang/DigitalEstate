@@ -481,7 +481,7 @@ def api_area_detail(area_ref):
                         SELECT image_url
                         FROM area_images
                         WHERE area_id = :id
-                        ORDER BY is_primary DESC, sort_order ASC, id ASC
+                        ORDER BY is_primary DESC, image_order ASC, id ASC
                         LIMIT 1
                     """), {'id': resolved_id}).mappings().first()
                 if img and img['image_url']:
@@ -625,35 +625,122 @@ def api_area_images(area_ref):
                         collected.append({'image_url': _absolute_url(rel_path), 'caption': os.path.splitext(fname)[0]})
             if collected:
                 break
-        # 2) If none found in static, check DB table area_images for this area
-        if not collected:
-            try:
-                if 'resolved_id' not in locals() or not resolved_id:
-                    resolved_id = _resolve_area_id_flex(area_ref)
-                # Use direct SQL aligned to schema (title/caption/sort_order)
-                with db.engine.connect() as conn:
-                    rows = conn.execute(text("""
-                        SELECT image_url, COALESCE(title, caption) AS title, caption, is_primary, sort_order
-                        FROM area_images
-                        WHERE area_id = :id
-                        ORDER BY is_primary DESC, sort_order ASC, id ASC
-                    """), {'id': resolved_id}).mappings().all()
-                for r in rows:
-                    collected.append({
-                        'image_url': _absolute_url(r['image_url']),
-                        'caption': r['title'] or r['caption'] or 'Area image'
-                    })
-            except Exception:
-                pass
+        # 2) Also fetch DB images (always – merge with static so all sources show)
+        try:
+            if 'resolved_id' not in locals() or not resolved_id:
+                resolved_id = _resolve_area_id_flex(area_ref)
+            existing_urls = {i['image_url'] for i in collected}
+            with db.engine.connect() as conn:
+                rows = conn.execute(text("""
+                    SELECT image_url,
+                           COALESCE(image_title, image_description) AS title,
+                           is_primary, image_order
+                    FROM area_images
+                    WHERE area_id = :id
+                    ORDER BY is_primary DESC, image_order ASC, id ASC
+                """), {'id': resolved_id}).mappings().all()
+            for r in rows:
+                url = _absolute_url(r['image_url'])
+                if url not in existing_urls:
+                    collected.append({'image_url': url, 'caption': r['title'] or 'Area image'})
+                    existing_urls.add(url)
+        except Exception:
+            pass
         # 3) Fallback placeholder if still empty
         if not collected:
             collected = [{
-                'image_url': _absolute_url(f'https://source.unsplash.com/featured/?city,architecture&sig={area_ref}'),
-                'caption': 'Representative area image'
+                'image_url': _absolute_url(f'https://images.unsplash.com/photo-1486325212027-8081e485255e?w=1200&sig={area_ref}'),
+                'caption': 'Area image'
             }]
         return jsonify({'success': True, 'images': collected})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/area/<area_ref>/amenities', methods=['GET'])
+def api_area_amenities(area_ref):
+    """Return amenities for an area grouped by type."""
+    try:
+        resolved_id = _resolve_area_id_flex(area_ref)
+        if not resolved_id:
+            return jsonify({'success': False, 'error': 'Area not found'}), 404
+        with db.engine.connect() as conn:
+            rows = conn.execute(text("""
+                SELECT amenity_type, name, distance_km, rating, description
+                FROM area_amenities
+                WHERE area_id = :id
+                ORDER BY amenity_type, distance_km ASC
+            """), {'id': resolved_id}).mappings().all()
+        grouped = {}
+        items = []
+        for r in rows:
+            item = {
+                'amenity_type': r['amenity_type'],
+                'name': r['name'],
+                'distance_km': float(r['distance_km']) if r['distance_km'] is not None else None,
+                'rating': float(r['rating']) if r['rating'] is not None else None,
+                'description': r['description'],
+            }
+            items.append(item)
+            grouped.setdefault(r['amenity_type'], []).append(item)
+        return jsonify({'success': True, 'amenities': grouped, 'all': items})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/area/<area_ref>/trends', methods=['GET'])
+def api_area_trends(area_ref):
+    """Return market trend time series from market_trends table.
+    Query params: metric_type (default average_price), months (default 12)
+    """
+    try:
+        resolved_id = _resolve_area_id_flex(area_ref)
+        if not resolved_id:
+            return jsonify({'success': False, 'error': 'Area not found'}), 404
+        metric_type = request.args.get('metric_type', 'average_price')
+        months = request.args.get('months', 12, type=int)
+        driver = db.engine.url.drivername
+        if 'sqlite' in driver:
+            date_filter = f"AND metric_date >= date('now', '-{months} months')"
+        else:
+            date_filter = f"AND metric_date >= (CURRENT_DATE - INTERVAL '{months} month')"
+        with db.engine.connect() as conn:
+            rows = conn.execute(text(f"""
+                SELECT metric_date, metric_value
+                FROM market_trends
+                WHERE area_id = :id
+                  AND metric_type = :metric_type
+                  {date_filter}
+                ORDER BY metric_date ASC
+            """), {'id': resolved_id, 'metric_type': metric_type}).mappings().all()
+        # Also try area_metric_values as a richer fallback
+        if not rows and _area_metrics_supported():
+            # map legacy metric_type names to metric codes
+            code_map = {
+                'average_price': 'avg_price',
+                'avg_price': 'avg_price',
+                'rental_yield': 'rental_yield',
+                'vacancy_rate': 'vacancy_rate',
+            }
+            code = code_map.get(metric_type, metric_type)
+            with db.engine.connect() as conn:
+                rows = conn.execute(text("""
+                    SELECT v.period_start AS metric_date, v.value_numeric AS metric_value
+                    FROM area_metric_values v
+                    JOIN metrics m ON m.id = v.metric_id
+                    WHERE v.area_id = :id AND m.code = :code
+                    ORDER BY v.period_start ASC
+                """), {'id': resolved_id, 'code': code}).mappings().all()
+        trends = []
+        for r in rows:
+            md = r['metric_date']
+            trends.append({
+                'metric_date': md.isoformat() if hasattr(md, 'isoformat') else str(md),
+                'metric_value': float(r['metric_value']) if r['metric_value'] is not None else None,
+            })
+        return jsonify({'success': True, 'trends': trends, 'metric_type': metric_type})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 # Simple placeholder image endpoint returning an SVG with text label
 @app.route('/api/placeholder/<int:width>/<int:height>')
@@ -735,49 +822,81 @@ def _area_metrics_supported_pg_probe():
 
 def _fetch_latest_metrics_for_area(area_id, metric_codes=None):
     """Return latest metrics for a given area_id.
-    Uses window function; falls back gracefully if tables missing."""
+    Cross-dialect: works on both SQLite (dev) and PostgreSQL (production)."""
     if not _area_metrics_supported():
         return {'available': False, 'metrics': []}
     engine = db.engine
-    codes_filter_clause = ''
-    params = { 'area_id': area_id }
+    driver = engine.url.drivername
+    is_sqlite = 'sqlite' in driver
+
+    codes = []
     if metric_codes:
         codes = [c.strip() for c in metric_codes.split(',') if c.strip()]
-        if codes:
-            codes_filter_clause = 'AND m.code = ANY(:codes)'
-            params['codes'] = codes
-    sql = text(f"""
-        SELECT m.code,
-               m.name,
-               m.unit,
-               m.category,
-               lv.period_start,
-               lv.value_numeric,
-               lv.value_text,
-               lv.value_json,
-               lv.source,
-               lv.quality_score
-        FROM metrics m
-        JOIN LATERAL (
-            SELECT v.*
-            FROM area_metric_values v
-            WHERE v.metric_id = m.id AND v.area_id = :area_id
-            ORDER BY v.period_start DESC, v.created_at DESC
-            LIMIT 1
-        ) lv ON TRUE
-        WHERE 1=1 {codes_filter_clause}
-        ORDER BY m.code
-    """)
+
     with engine.connect() as conn:
-        rows = conn.execute(sql, params).mappings().all()
+        if is_sqlite:
+            # SQLite: no LATERAL / ANY — use correlated subquery + named IN params
+            params = {'area_id': area_id}
+            codes_filter_clause = ''
+            if codes:
+                in_keys = []
+                for i, c in enumerate(codes):
+                    k = f'c{i}'
+                    params[k] = c
+                    in_keys.append(f':{k}')
+                codes_filter_clause = f"AND m.code IN ({','.join(in_keys)})"
+            sql_str = f"""
+                SELECT m.code, m.name, m.unit, m.category,
+                       v.period_start, v.value_numeric, v.value_text,
+                       v.value_json, v.source, v.quality_score
+                FROM metrics m
+                JOIN area_metric_values v
+                  ON v.metric_id = m.id
+                 AND v.area_id = :area_id
+                 AND v.period_start = (
+                       SELECT MAX(v2.period_start)
+                       FROM area_metric_values v2
+                       WHERE v2.metric_id = m.id AND v2.area_id = :area_id
+                 )
+                WHERE 1=1 {codes_filter_clause}
+                ORDER BY m.code
+            """
+            rows = conn.execute(text(sql_str), params).mappings().all()
+        else:
+            # PostgreSQL: use LATERAL for efficiency
+            params = {'area_id': area_id}
+            codes_filter_clause = ''
+            if codes:
+                codes_filter_clause = 'AND m.code = ANY(:codes)'
+                params['codes'] = codes
+            sql_str = f"""
+                SELECT m.code, m.name, m.unit, m.category,
+                       lv.period_start, lv.value_numeric, lv.value_text,
+                       lv.value_json, lv.source, lv.quality_score
+                FROM metrics m
+                JOIN LATERAL (
+                    SELECT v.*
+                    FROM area_metric_values v
+                    WHERE v.metric_id = m.id AND v.area_id = :area_id
+                    ORDER BY v.period_start DESC, v.created_at DESC
+                    LIMIT 1
+                ) lv ON TRUE
+                WHERE 1=1 {codes_filter_clause}
+                ORDER BY m.code
+            """
+            rows = conn.execute(text(sql_str), params).mappings().all()
+
     metrics = []
     for r in rows:
+        ps = r['period_start']
+        if ps and hasattr(ps, 'isoformat'):
+            ps = ps.isoformat()
         metrics.append({
             'code': r['code'],
             'name': r['name'],
             'unit': r['unit'],
             'category': r['category'],
-            'latest_period_start': r['period_start'].isoformat() if r['period_start'] else None,
+            'latest_period_start': ps,
             'value_numeric': float(r['value_numeric']) if r['value_numeric'] is not None else None,
             'value_text': r['value_text'],
             'value_json': r['value_json'],
