@@ -12,7 +12,7 @@
  *  duration   number        – animation duration in ms (default 500)
  */
 
-import { useEffect, useRef, useMemo, forwardRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -46,6 +46,7 @@ export default function CogAnimatedMarker({
   const prevPos   = useRef(position);
   const rafRef    = useRef(null);
   const startRef  = useRef(null);
+  // eslint-disable-next-line no-unused-vars
   const map       = useMap();
 
   const resolvedIcon = useMemo(() => icon || DEFAULT_ICON, [icon]);

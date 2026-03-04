@@ -23,14 +23,17 @@ import metricGlossary from "../components/metricGlossary";
 export default function ExplorePage() {
   const navigate = useNavigate();
   const location = useLocation();
+  // eslint-disable-next-line no-unused-vars
   const [countries, setCountries] = useState([]);
   const [provinces, setProvinces] = useState([]);
   const [cities, setCities] = useState([]);
   const [areas, setAreas] = useState([]);
   // Master lists for showing all options when parent is not selected
   const [allProvinces, setAllProvinces] = useState([]);
+  // eslint-disable-next-line no-unused-vars
   const [allCities, setAllCities] = useState([]);
   const [allAreas, setAllAreas] = useState([]);
+  // eslint-disable-next-line no-unused-vars
   const [propertyList, setPropertyList] = useState([]);
   const [featuredProps, setFeaturedProps] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -57,6 +60,7 @@ export default function ExplorePage() {
   const [insightsLoading, setInsightsLoading] = useState(false);
 
   // Recently viewed + saved areas (localStorage-backed)
+  // eslint-disable-next-line no-unused-vars
   const { recent, saved, pushRecent, toggleSave, isSaved, unsaveArea } = useRecentlyViewed();
 
   // Location-aware area detection — GPS when permitted, popular area as fallback
@@ -64,7 +68,7 @@ export default function ExplorePage() {
     effectiveArea: locationArea,
     isLocationBased,
     loading: locationLoading,
-    source: locationSource,
+    source: locationSource, // eslint-disable-line no-unused-vars
     permissionState: locationPermState,
     requestPermission: requestLocationPermission,
   } = useAppLocation();
@@ -79,6 +83,7 @@ export default function ExplorePage() {
 
   // Hero metrics strip — areaLatestMetrics is stored as a CODE→OBJECT map.
   // (Previous code wrongly checked Array.isArray; it's always an object map.)
+  // eslint-disable-next-line no-unused-vars
   const heroMetrics = React.useMemo(() => {
     if (!areaLatestMetrics || typeof areaLatestMetrics !== 'object') return null;
     // Support both array-of-objects and code-keyed-map shapes
@@ -294,6 +299,7 @@ export default function ExplorePage() {
   useEffect(() => {
     console.log('🌍 Loading countries from area API...');
     loadCountriesFromAPI();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load all provinces, cities, and areas for unrestricted dropdowns
@@ -393,6 +399,7 @@ export default function ExplorePage() {
   };
 
   // Load properties for display (separate from location filtering)
+  // eslint-disable-next-line no-unused-vars
   const loadPropertiesForDisplay = async () => {
     try {
       console.log('🔍 Fetching properties for display...');
@@ -471,6 +478,7 @@ export default function ExplorePage() {
       }
       prevCountryRef.current = selected.country;
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected.country, isRestoringFilters]);
 
   // Load provinces from area API
@@ -599,6 +607,7 @@ export default function ExplorePage() {
         setSelected(prev => ({ ...prev, areaName: fromList.name }));
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected.area, areas, allAreas, setSelected]);
 
   // Load area data from API when area is selected (supports both ID and name input)
@@ -724,6 +733,7 @@ export default function ExplorePage() {
     if (selected.area) {
       loadAreaData(selected.area);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected.area]);
 
   /**

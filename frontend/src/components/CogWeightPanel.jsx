@@ -23,7 +23,7 @@
  */
 
 import React from 'react';
-import { SCENARIOS, FACTOR_LABELS, ALL_ZONINGS } from '../hooks/useCogSolver';
+import { FACTOR_LABELS, ALL_ZONINGS } from '../hooks/useCogSolver';
 import './styles/CentreOfGravity.css';
 
 const ZONING_LABELS = {

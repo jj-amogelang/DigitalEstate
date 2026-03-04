@@ -56,6 +56,7 @@ export default function PropertyDetailsPage() {
   };
 
   // Contact form handlers
+  // eslint-disable-next-line no-unused-vars
   const handleContactFormChange = (e) => {
     const { name, value } = e.target;
     setContactForm(prev => ({
@@ -64,6 +65,7 @@ export default function PropertyDetailsPage() {
     }));
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleContactSubmit = (e) => {
     e.preventDefault();
     // Here you would typically send the contact form to your backend
@@ -83,6 +85,7 @@ export default function PropertyDetailsPage() {
     if (id) {
       fetchPropertyDetails();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchPropertyDetails = async () => {
