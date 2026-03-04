@@ -4,6 +4,15 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { API_ENDPOINTS } from "../config/api";
 import areaDataService from "../services/areaDataService";
 import AWSAlert from "../components/AWSAlert";
+import CentreOfGravity from "../components/CentreOfGravity";
+import InsightDashboard from "../components/InsightDashboard";
+import GlobalSearchBar from "../components/GlobalSearchBar";
+import RecentAndSaved from "../components/RecentAndSaved";
+import InsightCard from "../components/InsightCard";
+import InvestmentProfiles from "../components/InvestmentProfiles";
+import useProvinceDetect from "../hooks/useProvinceDetect";
+import useRecentlyViewed from "../hooks/useRecentlyViewed";
+import { useAppLocation } from "../context/LocationContext";
 import "../components/styles/DropdownFix.css";
 import "../components/styles/PropertiesAWS.css";
 import "../components/styles/AWSComponents.css";
@@ -40,16 +49,42 @@ export default function ExplorePage() {
   const [loadingAreaData, setLoadingAreaData] = useState(false);
   const [alert, setAlert] = useState(null);
   const [isRefreshingMV, setIsRefreshingMV] = useState(false);
+  const [cogOpen, setCogOpen] = useState(false);
+
+  // Province auto-detection + landing dashboard
+  const detected = useProvinceDetect(allProvinces);
+  const [provinceInsights, setProvinceInsights] = useState(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+
+  // Recently viewed + saved areas (localStorage-backed)
+  const { recent, saved, pushRecent, toggleSave, isSaved, unsaveArea } = useRecentlyViewed();
+
+  // Location-aware area detection — GPS when permitted, popular area as fallback
+  const {
+    effectiveArea: locationArea,
+    isLocationBased,
+    loading: locationLoading,
+    source: locationSource,
+    permissionState: locationPermState,
+    requestPermission: requestLocationPermission,
+  } = useAppLocation();
+
+  // Investment profile selected from the page (applied when CoG modal opens)
+  const [selectedProfile, setSelectedProfile] = useState('balanced');
 
   // Set page title
   useEffect(() => {
     document.title = 'Explore Areas - Digital Estate';
   }, []);
 
-  // Simple hero metrics derived from latest metrics when available
+  // Hero metrics strip — areaLatestMetrics is stored as a CODE→OBJECT map.
+  // (Previous code wrongly checked Array.isArray; it's always an object map.)
   const heroMetrics = React.useMemo(() => {
-    if (!areaLatestMetrics || !Array.isArray(areaLatestMetrics)) return null;
-    const map = Object.fromEntries(areaLatestMetrics.map(m => [m.code, m]));
+    if (!areaLatestMetrics || typeof areaLatestMetrics !== 'object') return null;
+    // Support both array-of-objects and code-keyed-map shapes
+    const map = Array.isArray(areaLatestMetrics)
+      ? Object.fromEntries(areaLatestMetrics.map(m => [m.code, m]))
+      : areaLatestMetrics;
     const fmtPrice = (v) => {
       if (v == null) return '—';
       const n = Number(v);
@@ -75,19 +110,56 @@ export default function ExplorePage() {
     area: "", 
     areaName: ""
   });
+
+  // Context province — tracks the selected area's province first, then detected province.
+  // Declared here (after `selected` and `selectedAreaDetails`) to avoid TDZ errors.
+  const contextProvinceId =
+    (selectedAreaDetails?.province_id) ||
+    (selected.province ? Number(selected.province) : null) ||
+    detected.provinceId;
+  const contextProvinceName =
+    selectedAreaDetails?.province ||
+    provinces.find(p => String(p.id) === String(contextProvinceId))?.name ||
+    detected.provinceName;
+
+  // Fetch province-level intelligence whenever context province changes.
+  // Must be after contextProvinceId/contextProvinceName declarations.
+  useEffect(() => {
+    if (!contextProvinceId || detected.loading) return;
+    let cancelled = false;
+    setInsightsLoading(true);
+    areaDataService.getProvinceInsights(contextProvinceId)
+      .then(data => {
+        if (!cancelled) {
+          setProvinceInsights(data);
+          setInsightsLoading(false);
+        }
+      })
+      .catch(err => {
+        console.warn('Province insights fetch failed:', err);
+        if (!cancelled) {
+          setProvinceInsights(null);
+          setInsightsLoading(false);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [contextProvinceId, detected.loading]);
+
   const [selectedPropertyType, setSelectedPropertyType] = useState(() => {
     const urlParams = new URLSearchParams(location.search);
-    return urlParams.get('type') || '';
+    return urlParams.get('type') || 'residential';  // default to residential so properties always show
   });
   // Load featured properties when area or property type changes
   useEffect(() => {
     (async () => {
-      if (!selected.area || !selectedPropertyType) {
+      if (!selected.area) {
         setFeaturedProps([]);
         return;
       }
       try {
-        const props = await areaDataService.getAreaProperties(selected.area, selectedPropertyType, true);
+        // If no type selected yet, load all featured properties (no type filter)
+        const typeParam = selectedPropertyType || undefined;
+        const props = await areaDataService.getAreaProperties(selected.area, typeParam, true);
         setFeaturedProps(props || []);
       } catch (e) {
         console.error('Error loading featured properties', e);
@@ -113,6 +185,24 @@ export default function ExplorePage() {
     // Priority: URL parameters > Navigation state > localStorage
     let filtersToRestore = {};
     
+    // Support new-style GlobalSearchBar navigation: ?areaId=X&areaName=Y
+    const urlAreaId   = urlParams.get('areaId');
+    const urlAreaName = urlParams.get('areaName');
+    if (urlAreaId) {
+      // Preserve country/province/city from URL so that the URL-tracking effect
+      // doesn't write country=1 back, triggering an infinite restoration loop.
+      filtersToRestore = {
+        country:  urlParams.get('country')  || '',
+        province: urlParams.get('province') || '',
+        city:     urlParams.get('city')     || '',
+        area:     urlAreaId,
+        areaName: decodeURIComponent(urlAreaName || ''),
+      };
+      setSelected(filtersToRestore);
+      setTimeout(() => setIsRestoringFilters(false), 300);
+      return;
+    }
+
     // First check URL parameters (highest priority - browser navigation)
     if (urlParams.toString()) {
       console.log('🔄 Restoring filters from URL parameters');
@@ -160,34 +250,28 @@ export default function ExplorePage() {
     }
   }, [selected, isRestoringFilters]);
 
-  // Update browser URL when filters change (for proper browser history)
+  // Update browser URL when filters change (for proper browser history).
+  // IMPORTANT: when an area is selected, always write it as ?areaId=X&areaName=Y
+  // so that the restoration effect can re-read it correctly without losing areaName.
   useEffect(() => {
-    if (!isRestoringFilters && selected.country) { // Only update URL when user actively changes filters
+    if (!isRestoringFilters && selected.country) {
       const searchParams = new URLSearchParams();
-      
-      if (selected.country) searchParams.set('country', selected.country);
+      if (selected.country)  searchParams.set('country',  selected.country);
       if (selected.province) searchParams.set('province', selected.province);
-      if (selected.city) searchParams.set('city', selected.city);
-      if (selected.area) searchParams.set('area', selected.area);
-      
-      const newUrl = `/properties${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
-      
-      console.log('🔗 Considering URL update:', {
-        currentUrl: window.location.pathname + window.location.search,
-        newUrl,
-        selected,
-        isRestoringFilters
-      });
-      
-      // Use replace instead of push to avoid creating too many history entries
+      if (selected.city)     searchParams.set('city',     selected.city);
+      // ↓ Use areaId/areaName format — matches what the restoration useEffect
+      //   expects so it does an early-return and never clears the selection.
+      if (selected.area) {
+        searchParams.set('areaId', selected.area);
+        const nameForUrl = selected.areaName || selectedAreaDetails?.name || '';
+        if (nameForUrl) searchParams.set('areaName', nameForUrl);
+      }
+      const newUrl = `/explore?${searchParams.toString()}`;
       if (window.location.pathname + window.location.search !== newUrl) {
         navigate(newUrl, { replace: true });
-        console.log('🔄 Updated browser URL:', newUrl);
       }
-    } else {
-      console.log('⏸️ Skipping URL update - restoring filters or no country selected');
     }
-  }, [selected, isRestoringFilters, navigate]);
+  }, [selected, isRestoringFilters, navigate, selectedAreaDetails]);
 
   // Debug: Test area API connection on mount
   useEffect(() => {
@@ -241,6 +325,11 @@ export default function ExplorePage() {
     try {
       setIsRefreshingMV(true);
       const res = await areaDataService.refreshMaterializedViews();
+      if (res && res.success === false) {
+        // Backend returned { success: false, error: '...' } — not a real crash
+        setAlert({ type: 'error', title: 'Refresh not available', message: res.error || 'Materialized views not supported in this environment' });
+        return;
+      }
       // Clear selections so the user can choose afresh
       setSelected({ country: '', province: '', city: '', area: '', areaName: '' });
       setProvinces([]);
@@ -257,6 +346,22 @@ export default function ExplorePage() {
       setIsRefreshingMV(false);
     }
   };
+
+  // Auto-select area from location context when no area is already selected.
+  // Fires for both GPS-detected areas AND popular-area fallbacks.
+  useEffect(() => {
+    if (locationLoading) return;         // still waiting for location to resolve
+    if (!locationArea) return;           // no area resolved yet
+    if (selected.area) return;           // user or URL already chose an area
+    const { id, name, province_id } = locationArea;
+    setSelected(prev => ({
+      ...prev,
+      province: province_id ? String(province_id) : prev.province,
+      city: '',
+      area: String(id),
+      areaName: name || '',
+    }));
+  }, [locationLoading, locationArea]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load countries from area API
   const loadCountriesFromAPI = async () => {
@@ -502,11 +607,16 @@ export default function ExplorePage() {
       setSelectedAreaDetails(null);
       setAreaStatistics(null);
       setAreaImages([]);
+      setAreaLatestMetrics(null);
       return;
     }
 
+    // Clear previous area's data immediately so stale info never shows for a new selection
+    setSelectedAreaDetails(null);
+    setAreaStatistics(null);
+    setAreaImages([]);
+    setAreaLatestMetrics(null);
     setLoadingAreaData(true);
-    console.log('🏘️ Loading area data for identifier:', areaIdentifier);
 
     try {
       let targetAreaId = null;
@@ -554,9 +664,15 @@ export default function ExplorePage() {
         setSelectedAreaDetails(areaDetails);
         setAreaImages(images);
 
-        // If we don't yet have a friendly areaName, derive it from details
-        if (areaDetails && areaDetails.name && (!selected.areaName || selected.areaName === String(targetAreaId))) {
-          setSelected(prev => ({ ...prev, areaName: areaDetails.name }));
+        // Always sync areaName from the API response — guards against the name
+        // being blanked out by a URL-tracking cycle while data was in-flight.
+        if (areaDetails && areaDetails.name) {
+          setSelected(prev => ({
+            ...prev,
+            areaName: areaDetails.name,
+            // Also backfill city / province into selected so downstream cascades work
+            ...(areaDetails.city     && !prev.city     ? {} : {}),
+          }));
         }
 
         // Try legacy statistics endpoint, but don't fail the overall load if it errors
@@ -610,6 +726,38 @@ export default function ExplorePage() {
     }
   }, [selected.area]);
 
+  /**
+   * Called when user clicks an area card in the InsightDashboard.
+   * Sets the area in state so the area-insights section opens.
+   * Also seeds the province dropdown so the cascading filters stay consistent.
+   */
+  const handleDashboardAreaClick = (areaId, areaName) => {
+    if (!areaId) return;
+    setSelected(prev => ({
+      ...prev,
+      province: detected.provinceId ? String(detected.provinceId) : prev.province,
+      city: '',
+      area: String(areaId),
+      areaName: areaName || '',
+    }));
+    // Scroll into view so the user sees the area details section
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Push to recently-viewed whenever a new area is selected
+  useEffect(() => {
+    if (!selected.area || !selected.areaName) return;
+    pushRecent({
+      id:       String(selected.area),
+      name:     selected.areaName,
+      city:     cities.find(c => String(c.id) === String(selected.city))?.name
+             || selectedAreaDetails?.city || '',
+      province: provinces.find(p => String(p.id) === String(selected.province))?.name
+             || selectedAreaDetails?.province || detected.provinceName || '',
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected.area]);
+
   return (
     <div className="properties-page-modern">
       {/* Hero Section */}
@@ -635,140 +783,154 @@ export default function ExplorePage() {
         </div>
       </div>
 
-      {/* Filters Section */}
+      {/* ── Centre of Gravity CTA ─────────────────────────────────────────────
+           Placed above search so international investors see it immediately.
+           They may not know which area to look for — CoG solves that. */}
+      <div className="explore-cog-banner">
+        <div className="explore-cog-banner-inner">
+          <div className="explore-cog-icon-wrap" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="18" cy="18" r="15" stroke="currentColor" strokeWidth="2" fill="none"/>
+              <circle cx="18" cy="18" r="5" stroke="currentColor" strokeWidth="1.8" fill="none"/>
+              <line x1="18" y1="3" x2="18" y2="10" stroke="currentColor" strokeWidth="2"/>
+              <line x1="18" y1="26" x2="18" y2="33" stroke="currentColor" strokeWidth="2"/>
+              <line x1="3" y1="18" x2="10" y2="18" stroke="currentColor" strokeWidth="2"/>
+              <line x1="26" y1="18" x2="33" y2="18" stroke="currentColor" strokeWidth="2"/>
+            </svg>
+          </div>
+          <div className="explore-cog-text">
+            <span className="explore-cog-heading">Not sure which area to invest in?</span>
+            <span className="explore-cog-sub">Your Centre of Gravity pinpoints the optimal South&nbsp;African location based on your investor profile — built for local and international investors alike.</span>
+          </div>
+          <button className="explore-cog-cta-btn" onClick={() => setCogOpen(true)}>
+            Find My Centre of Gravity
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Search + Actions bar */}
       <div className="filters-section-modern">
         <div className="filters-container-modern">
-          <div className="filters-toolbar" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem'}}>
-            <h2 className="filters-title-modern" style={{margin:0}}>Explore Markets by Location</h2>
-            <div className="toolbar-actions" style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>
-              <button className="toolbar-refresh" onClick={handleRefreshMetrics} disabled={isRefreshingMV} title="Refresh metrics">
-                <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v-3l4 4-4 4V8a5 5 0 105 5h2a7 7 0 11-7-7z" fill="currentColor"/></svg>
-                <span style={{marginLeft:6}}>{isRefreshingMV ? 'Refreshing…' : 'Refresh Metrics'}</span>
+          <div className="filters-toolbar" style={{display:'flex',alignItems:'center',gap:'1rem',flexWrap:'wrap'}}>
+            {/* Hero search */}
+            <GlobalSearchBar
+              variant="hero"
+              provinceId={detected.provinceId}
+              className="explore-hero-search"
+            />
+
+            {/* Property type toggle */}
+            <div className="property-type-buttons" style={{display:'flex',gap:'0.5rem'}}>
+              <button
+                className={`property-type-btn ${selectedPropertyType === 'residential' ? 'active' : ''}`}
+                onClick={() => setSelectedPropertyType('residential')}
+              >
+                Residential
               </button>
-              {alert && (
-                <AWSAlert type={alert.type} title={alert.title} message={alert.message} onClose={() => setAlert(null)} />
-              )}
-            </div>
-          </div>
-          
-          <div className="location-selectors-modern">
-            <div className="selector-item-modern">
-              <label className="selector-label-modern">Country</label>
-              <div className="selector-wrapper-modern">
-                <select
-                  className="selector-input-modern"
-                  value={selected.country}
-                  disabled
-                  style={{ opacity: 0.6, cursor: 'not-allowed' }}
-                >
-                  <option value="">South Africa</option>
-                  {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
+              <button
+                className={`property-type-btn ${selectedPropertyType === 'commercial' ? 'active' : ''}`}
+                onClick={() => setSelectedPropertyType('commercial')}
+              >
+                Commercial
+              </button>
             </div>
 
-            <div className="selector-item-modern">
-              <label className="selector-label-modern">Province</label>
-              <div className="selector-wrapper-modern">
-                <select
-                  className="selector-input-modern"
-                  value={selected.province}
-                  onChange={e => {
-                    const newProvince = e.target.value;
-                    console.log('🏛️ User selected province:', newProvince, 'Current restoring state:', isRestoringFilters);
-                    setSelected(prev => ({ ...prev, province: newProvince }));
-                  }}
-                  disabled={!selected.country}
-                >
-                  <option value="">Select Province</option>
-                  {(selected.country ? provinces : allProvinces).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-              </div>
-            </div>
+            {/* Admin: refresh metrics */}
+            <button className="toolbar-refresh" onClick={handleRefreshMetrics} disabled={isRefreshingMV} title="Refresh metrics">
+              <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v-3l4 4-4 4V8a5 5 0 105 5h2a7 7 0 11-7-7z" fill="currentColor"/></svg>
+              <span style={{marginLeft:5}}>{isRefreshingMV ? 'Refreshing…' : 'Refresh'}</span>
+            </button>
 
-            <div className="selector-item-modern">
-              <label className="selector-label-modern">City</label>
-              <div className="selector-wrapper-modern">
-                <select
-                  className="selector-input-modern"
-                  value={selected.city}
-                  onChange={e => setSelected(prev => ({ ...prev, city: e.target.value }))}
-                  disabled={!selected.province}
-                >
-                  <option value="">Select City</option>
-                  {(selected.province ? cities : allCities).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div className="selector-item-modern">
-              <label className="selector-label-modern">Area</label>
-              <div className="selector-wrapper-modern">
-                <select
-                  className="selector-input-modern"
-                  value={selected.area}
-                  onChange={e => {
-                    const selectedAreaId = e.target.value;
-                    // Ensure type-insensitive comparison (IDs may be numbers)
-                    const selectedAreaObj = areas.find(a => String(a.id) === String(selectedAreaId));
-                    const selectedAreaName = selectedAreaObj?.name || '';
-                    setSelected(prev => ({ ...prev, area: selectedAreaId, areaName: selectedAreaName }));
-                  }}
-                  disabled={!selected.city}
-                >
-                  <option value="">Select Area</option>
-                  {(selected.city ? areas : allAreas).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="selector-item-modern">
-              <label className="selector-label-modern">Property Type</label>
-              <div className="property-type-buttons">
-                <button
-                  className={`property-type-btn ${selectedPropertyType === 'residential' ? 'active' : ''}`}
-                  onClick={() => setSelectedPropertyType('residential')}
-                >
-                  Residential
-                </button>
-                <button
-                  className={`property-type-btn ${selectedPropertyType === 'commercial' ? 'active' : ''}`}
-                  onClick={() => setSelectedPropertyType('commercial')}
-                >
-                  Commercial
-                </button>
-              </div>
-            </div>
+            {alert && (
+              <AWSAlert type={alert.type} title={alert.title} message={alert.message} onClose={() => setAlert(null)} />
+            )}
           </div>
         </div>
       </div>
 
-      {/* Area Insights Section */}
-      {selected.area && selected.areaName && (
+      {/* Empty state — location resolved but no area matched (edge case) */}
+      {!selected.area && !locationLoading && !locationArea && (
+        <div className="explore-no-area-state">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="1.5"/>
+          </svg>
+          <h3>Choose an area to get started</h3>
+          <p>Use the search bar above to explore market insights, property prices, and investment data for any South African area.</p>
+        </div>
+      )}
+
+      {/* Recently Viewed + Saved — shown when no area is currently selected */}
+      {!selected.area && (
+        <div style={{ padding: '0 24px' }}>
+          <RecentAndSaved
+            recent={recent}
+            saved={saved}
+            onAreaClick={(id, name) => setSelected(prev => ({ ...prev, area: String(id), areaName: name }))}
+            onUnsave={unsaveArea}
+          />
+        </div>
+      )}
+
+
+      {/* Province Intelligence Panels — always visible, compact strip when an area is active */}
+      <InsightDashboard
+        insights={provinceInsights?.insights}
+        hot_zones={provinceInsights?.hot_zones}
+        provinceName={contextProvinceName || provinceInsights?.province_name}
+        detectionSource={detected.source}
+        loading={detected.loading || insightsLoading}
+        onAreaClick={handleDashboardAreaClick}
+        onCogClick={() => setCogOpen(true)}
+        compact={!!selected.area}
+      />
+
+      {/* Area Insights Section — visible as long as an area ID is set.
+           areaName may briefly be empty while the detail API is in-flight;
+           we show it anyway (with a derived/loading name) so there's no flash. */}
+      {selected.area && (selected.areaName || selectedAreaDetails || loadingAreaData) && (
         <div className="area-insights-section">
+
+          {/* ── Location context notice ─────────────────────────────── */}
+          {isLocationBased ? (
+            <div className="area-location-notice area-location-notice--gps">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 2C8.134 2 5 5.134 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.866-3.134-7-7-7z" stroke="currentColor" strokeWidth="2" fill="none"/>
+                <circle cx="12" cy="9" r="2.5" stroke="currentColor" strokeWidth="2" fill="none"/>
+              </svg>
+              Showing insights for your current location
+            </div>
+          ) : (
+            <div className="area-location-notice area-location-notice--popular">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/>
+                <path d="M12 8v4M12 16h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+              Showing a popular area —{' '}
+              {locationPermState === 'idle' || locationPermState === 'denied' ? (
+                <><button className="area-location-notice-link" onClick={requestLocationPermission}>enable location</button>{' '}or search above for your&nbsp;area</>
+              ) : (
+                <>search above to explore a specific area</>
+              )}
+            </div>
+          )}
+
           <div className="area-header">
             <div className="area-title-container">
               <h2 className="area-title">
-                Exploring: <span className="area-name">{selected.areaName}</span>
+                Exploring: <span className="area-name">
+                  {selected.areaName || selectedAreaDetails?.name || (
+                    loadingAreaData ? '…' : 'Unknown Area'
+                  )}
+                </span>
+                {isLocationBased && String(locationArea?.id) === String(selected.area) && (
+                  <span className="area-near-you" title="Detected from your GPS location"> • Near You</span>
+                )}
               </h2>
-              <div className="header-actions" style={{display:'flex',gap:'0.75rem',alignItems:'center'}}>
-                <button 
-                className="market-insights-link"
-                onClick={() => navigate('/insights', { 
-                  state: { 
-                    area: selected.areaName,
-                    province: selected.province,
-                    city: selected.city
-                  }
-                })}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M3 3v18h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M7 12l3-3 2 2 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <circle cx="18" cy="6" r="2" fill="currentColor"/>
-                </svg>
-                Property Insights
-              </button>
-              </div>
+
             </div>
           </div>
 
@@ -841,283 +1003,289 @@ export default function ExplorePage() {
             </div>
           </div>
 
-          {/* Area Data Display */}
-          <div className="area-data-grid">
-            {(areaStatistics || areaLatestMetrics) ? (
-              <>
-                <div className="area-data-card">
-                  <div className="data-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                  <div className="data-content">
-                    <div className="data-label">
-                      <MetricTooltip label={metricGlossary.avg_price.title} definition={metricGlossary.avg_price.definition}>
-                        <span className="metric-label">{metricGlossary.avg_price.title}</span>
-                      </MetricTooltip>
-                    </div>
-                    <div className="data-value">
-                      {areaDataService.formatPrice(
-                        areaStatistics?.average_price ||
-                        areaStatistics?.metrics?.average_price?.value ||
-                        areaLatestMetrics?.avg_price?.value_numeric
-                      )}
-                    </div>
-                    <div className={`data-trend ${areaDataService.getTrendClass(areaStatistics?.price_trend ?? areaStatistics?.metrics?.average_price?.pct_change)}`}>
-                      {areaDataService.formatPercentage(areaStatistics?.price_trend ?? areaStatistics?.metrics?.average_price?.pct_change)} YoY
-                    </div>
-                  </div>
-                </div>
+          {/* Investment Profile quick presets */}
+          <div style={{ padding: '16px 0 8px' }}>
+            <InvestmentProfiles
+              activeProfile={selectedProfile}
+              onSelect={(key) => { setSelectedProfile(key); setCogOpen(true); }}
+            />
+          </div>
 
-                <div className="area-data-card">
-                  <div className="data-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" stroke="currentColor" strokeWidth="1.5"/>
-                    </svg>
-                  </div>
-                  <div className="data-content">
-                    <div className="data-label">
-                      <MetricTooltip label={metricGlossary.rental_yield.title} definition={metricGlossary.rental_yield.definition}>
-                        <span className="metric-label">{metricGlossary.rental_yield.title}</span>
-                      </MetricTooltip>
-                    </div>
-                    <div className="data-value">
-                      {(areaStatistics?.rental_yield ?? areaStatistics?.metrics?.rental_yield?.value ?? areaLatestMetrics?.rental_yield?.value_numeric)
-                        ? `${Number(areaStatistics?.rental_yield ?? areaStatistics?.metrics?.rental_yield?.value ?? areaLatestMetrics?.rental_yield?.value_numeric).toFixed(1)}%` 
-                        : 'N/A'}
-                    </div>
-                    <div className={`data-trend ${areaDataService.getTrendClass(areaStatistics?.rental_trend ?? areaStatistics?.metrics?.rental_yield?.pct_change)}`}>
-                      {areaDataService.formatPercentage(areaStatistics?.rental_trend ?? areaStatistics?.metrics?.rental_yield?.pct_change)} YoY
-                    </div>
-                  </div>
-                </div>
+          {/* ── Market Intelligence — area-specific data ─────────────────── */}
+          <div className="area-market-intelligence">
+            <div className="area-mi-header">
+              <h3 className="area-mi-title">
+                Market Intelligence
+                {(selected.areaName || selectedAreaDetails?.name) && (
+                  <span className="area-mi-location"> — {selected.areaName || selectedAreaDetails?.name}</span>
+                )}
+              </h3>
+              {loadingAreaData && (
+                <span className="area-mi-loading">
+                  <svg className="loading-spinner" width="14" height="14" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"
+                      strokeDasharray="60" strokeDashoffset="60">
+                      <animateTransform attributeName="transform" type="rotate"
+                        values="0 12 12;360 12 12" dur="1s" repeatCount="indefinite"/>
+                    </circle>
+                  </svg>
+                  Loading data…
+                </span>
+              )}
+            </div>
 
-                <div className="area-data-card">
-                  <div className="data-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      <polyline points="9,22 9,12 15,12 15,22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                  <div className="data-content">
-                    <div className="data-label">
-                      <MetricTooltip label={metricGlossary.vacancy_rate.title} definition={metricGlossary.vacancy_rate.definition}>
-                        <span className="metric-label">{metricGlossary.vacancy_rate.title}</span>
-                      </MetricTooltip>
-                    </div>
-                    <div className="data-value">
-                      {(areaStatistics?.vacancy_rate ?? areaStatistics?.metrics?.vacancy_rate?.value ?? areaLatestMetrics?.vacancy_rate?.value_numeric)
-                        ? `${Number(areaStatistics?.vacancy_rate ?? areaStatistics?.metrics?.vacancy_rate?.value ?? areaLatestMetrics?.vacancy_rate?.value_numeric).toFixed(1)}%` 
-                        : 'N/A'}
-                    </div>
-                    <div className={`data-trend ${areaDataService.getTrendClass(-((areaStatistics?.vacancy_trend ?? areaStatistics?.metrics?.vacancy_rate?.pct_change ?? 0)))}`}>
-                      {areaDataService.formatPercentage((areaStatistics?.vacancy_trend ?? areaStatistics?.metrics?.vacancy_rate?.pct_change))} YoY
-                    </div>
-                  </div>
-                </div>
-
-                {selectedAreaDetails && (
+            <div className="area-data-grid">
+              {(areaStatistics || areaLatestMetrics) ? (
+                <>
                   <div className="area-data-card">
                     <div className="data-icon">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </div>
                     <div className="data-content">
                       <div className="data-label">
-                        <MetricTooltip label={metricGlossary.safety_rating.title} definition={metricGlossary.safety_rating.definition}>
-                          <span className="metric-label">{metricGlossary.safety_rating.title}</span>
+                        <MetricTooltip label={metricGlossary.avg_price.title} definition={metricGlossary.avg_price.definition}>
+                          <span className="metric-label">{metricGlossary.avg_price.title}</span>
                         </MetricTooltip>
                       </div>
+                      <div className="data-def">{metricGlossary.avg_price.definition}</div>
                       <div className="data-value">
-                        {selectedAreaDetails.safety_rating 
-                          ? `${selectedAreaDetails.safety_rating}/10` 
+                        {areaDataService.formatPrice(
+                          areaStatistics?.average_price ||
+                          areaStatistics?.metrics?.average_price?.value ||
+                          areaLatestMetrics?.avg_price?.value_numeric
+                        )}
+                      </div>
+                      <div className={`data-trend ${areaDataService.getTrendClass(areaStatistics?.price_trend ?? areaStatistics?.metrics?.average_price?.pct_change)}`}>
+                        {areaDataService.formatPercentage(areaStatistics?.price_trend ?? areaStatistics?.metrics?.average_price?.pct_change)} YoY
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="area-data-card">
+                    <div className="data-icon">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" stroke="currentColor" strokeWidth="1.5"/>
+                      </svg>
+                    </div>
+                    <div className="data-content">
+                      <div className="data-label">
+                        <MetricTooltip label={metricGlossary.rental_yield.title} definition={metricGlossary.rental_yield.definition}>
+                          <span className="metric-label">{metricGlossary.rental_yield.title}</span>
+                        </MetricTooltip>
+                      </div>
+                      <div className="data-def">{metricGlossary.rental_yield.definition}</div>
+                      <div className="data-value">
+                        {(areaStatistics?.rental_yield ?? areaStatistics?.metrics?.rental_yield?.value ?? areaLatestMetrics?.rental_yield?.value_numeric)
+                          ? `${Number(areaStatistics?.rental_yield ?? areaStatistics?.metrics?.rental_yield?.value ?? areaLatestMetrics?.rental_yield?.value_numeric).toFixed(1)}%`
                           : 'N/A'}
                       </div>
-                      <div className="data-trend positive">Premium Area</div>
+                      <div className={`data-trend ${areaDataService.getTrendClass(areaStatistics?.rental_trend ?? areaStatistics?.metrics?.rental_yield?.pct_change)}`}>
+                        {areaDataService.formatPercentage(areaStatistics?.rental_trend ?? areaStatistics?.metrics?.rental_yield?.pct_change)} YoY
+                      </div>
                     </div>
                   </div>
-                )}
 
-                <div className="area-data-card">
-                  <div className="data-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M13 7a4 4 0 11-8 0 4 4 0 018 0z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                  <div className="data-content">
-                    <div className="data-label">
-                      <MetricTooltip label={metricGlossary.population_density.title} definition={metricGlossary.population_density.definition}>
-                        <span className="metric-label">{metricGlossary.population_density.title}</span>
-                      </MetricTooltip>
+                  <div className="area-data-card">
+                    <div className="data-icon">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <polyline points="9,22 9,12 15,12 15,22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
                     </div>
-                    <div className="data-value">
-                      {areaStatistics?.population_density ?? areaStatistics?.metrics?.population_density?.value
-                        ? `${Number(areaStatistics?.population_density ?? areaStatistics?.metrics?.population_density?.value).toLocaleString()}/km²` 
-                        : 'N/A'}
+                    <div className="data-content">
+                      <div className="data-label">
+                        <MetricTooltip label={metricGlossary.vacancy_rate.title} definition={metricGlossary.vacancy_rate.definition}>
+                          <span className="metric-label">{metricGlossary.vacancy_rate.title}</span>
+                        </MetricTooltip>
+                      </div>
+                      <div className="data-def">{metricGlossary.vacancy_rate.definition}</div>
+                      <div className="data-value">
+                        {(areaStatistics?.vacancy_rate ?? areaStatistics?.metrics?.vacancy_rate?.value ?? areaLatestMetrics?.vacancy_rate?.value_numeric)
+                          ? `${Number(areaStatistics?.vacancy_rate ?? areaStatistics?.metrics?.vacancy_rate?.value ?? areaLatestMetrics?.vacancy_rate?.value_numeric).toFixed(1)}%`
+                          : 'N/A'}
+                      </div>
+                      <div className={`data-trend ${areaDataService.getTrendClass(-((areaStatistics?.vacancy_trend ?? areaStatistics?.metrics?.vacancy_rate?.pct_change ?? 0)))}`}>
+                        {areaDataService.formatPercentage(areaStatistics?.vacancy_trend ?? areaStatistics?.metrics?.vacancy_rate?.pct_change)} YoY
+                      </div>
                     </div>
-                    <div className="data-trend neutral">Premium Data</div>
                   </div>
-                </div>
 
-                {/* New metrics from latest telemetry */}
-                <div className="area-data-card">
-                  <div className="data-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 22s-8-5-8-12a8 8 0 1116 0c0 7-8 12-8 12z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="1.5"/>
-                    </svg>
-                  </div>
-                  <div className="data-content">
-                    <div className="data-label">
-                      <MetricTooltip label={metricGlossary.crime_index.title} definition={metricGlossary.crime_index.definition}>
-                        <span className="metric-label">{metricGlossary.crime_index.title}</span>
-                      </MetricTooltip>
+                  {selectedAreaDetails && (
+                    <div className="area-data-card">
+                      <div className="data-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                          <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                      <div className="data-content">
+                        <div className="data-label">
+                          <MetricTooltip label={metricGlossary.safety_rating.title} definition={metricGlossary.safety_rating.definition}>
+                            <span className="metric-label">{metricGlossary.safety_rating.title}</span>
+                          </MetricTooltip>
+                        </div>
+                        <div className="data-def">{metricGlossary.safety_rating.definition}</div>
+                        <div className="data-value">
+                          {selectedAreaDetails.safety_rating ? `${selectedAreaDetails.safety_rating}/10` : 'N/A'}
+                        </div>
+                        <div className="data-trend positive">Premium Area</div>
+                      </div>
                     </div>
-                    <div className="data-value">{areaLatestMetrics?.crime_index?.value_numeric ?? 'N/A'}</div>
-                    <div className="data-trend neutral">Lower is better</div>
-                  </div>
-                </div>
+                  )}
 
-                <div className="area-data-card">
-                  <div className="data-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M3 21v-2a4 4 0 014-4h3a4 4 0 014 4v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      <circle cx="7.5" cy="7.5" r="3.5" stroke="currentColor" strokeWidth="1.5"/>
-                    </svg>
-                  </div>
-                  <div className="data-content">
-                    <div className="data-label">
-                      <MetricTooltip label={metricGlossary.population_growth.title} definition={metricGlossary.population_growth.definition}>
-                        <span className="metric-label">{metricGlossary.population_growth.title}</span>
-                      </MetricTooltip>
+                  <div className="area-data-card">
+                    <div className="data-icon">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M13 7a4 4 0 11-8 0 4 4 0 018 0z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
                     </div>
-                    <div className="data-value">
-                      {areaLatestMetrics?.population_growth?.value_numeric != null
-                        ? `${Number(areaLatestMetrics.population_growth.value_numeric).toFixed(1)}%`
-                        : 'N/A'}
+                    <div className="data-content">
+                      <div className="data-label">
+                        <MetricTooltip label={metricGlossary.population_density.title} definition={metricGlossary.population_density.definition}>
+                          <span className="metric-label">{metricGlossary.population_density.title}</span>
+                        </MetricTooltip>
+                      </div>
+                      <div className="data-def">{metricGlossary.population_density.definition}</div>
+                      <div className="data-value">
+                        {(areaStatistics?.population_density ?? areaStatistics?.metrics?.population_density?.value)
+                          ? `${Number(areaStatistics?.population_density ?? areaStatistics?.metrics?.population_density?.value).toLocaleString()}/km²`
+                          : 'N/A'}
+                      </div>
+                      <div className="data-trend neutral">Premium Data</div>
                     </div>
-                    <div className="data-trend positive">Higher is growth</div>
                   </div>
-                </div>
 
-                <div className="area-data-card">
-                  <div className="data-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M3 20h18M6 20V9l6-5 6 5v11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M10 20v-6h4v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                  <div className="data-content">
-                    <div className="data-label">
-                      <MetricTooltip label={metricGlossary.planned_dev_count.title} definition={metricGlossary.planned_dev_count.definition}>
-                        <span className="metric-label">{metricGlossary.planned_dev_count.title}</span>
-                      </MetricTooltip>
+                  <div className="area-data-card">
+                    <div className="data-icon">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 22s-8-5-8-12a8 8 0 1116 0c0 7-8 12-8 12z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="1.5"/>
+                      </svg>
                     </div>
-                    <div className="data-value">{areaLatestMetrics?.planned_dev_count?.value_numeric ?? 'N/A'}</div>
-                    <div className="data-trend neutral">Pipeline</div>
+                    <div className="data-content">
+                      <div className="data-label">
+                        <MetricTooltip label={metricGlossary.crime_index.title} definition={metricGlossary.crime_index.definition}>
+                          <span className="metric-label">{metricGlossary.crime_index.title}</span>
+                        </MetricTooltip>
+                      </div>
+                      <div className="data-def">{metricGlossary.crime_index.definition}</div>
+                      <div className="data-value">{areaLatestMetrics?.crime_index?.value_numeric ?? 'N/A'}</div>
+                      <div className="data-trend neutral">Lower is better</div>
+                    </div>
                   </div>
-                </div>
 
-                <div className="area-data-card">
-                  <div className="data-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                  <div className="data-content">
-                    <div className="data-label">
-                      <MetricTooltip label={metricGlossary.development_score.title} definition={metricGlossary.development_score.definition}>
-                        <span className="metric-label">{metricGlossary.development_score.title}</span>
-                      </MetricTooltip>
+                  <div className="area-data-card">
+                    <div className="data-icon">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M3 21v-2a4 4 0 014-4h3a4 4 0 014 4v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <circle cx="7.5" cy="7.5" r="3.5" stroke="currentColor" strokeWidth="1.5"/>
+                      </svg>
                     </div>
-                    <div className="data-value">
-                      {selectedAreaDetails?.development_score 
-                        ? `${selectedAreaDetails.development_score}/100` 
-                        : 'N/A'}
-                    </div>
-                    <div className="data-trend positive">Growing</div>
-                  </div>
-                </div>
-              </>
-            ) : selected.areaName ? (
-              // Show placeholder cards while loading or when no premium data available
-              <>
-                <div className="area-data-card loading">
-                  <div className="data-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                  <div className="data-content">
-                    <div className="data-label">Average Property Price</div>
-                    <div className="data-value">
-                      {loadingAreaData ? '...' : 'Data Unavailable'}
-                    </div>
-                    <div className="data-trend neutral">
-                      {loadingAreaData ? 'Loading...' : 'Coming Soon'}
+                    <div className="data-content">
+                      <div className="data-label">
+                        <MetricTooltip label={metricGlossary.population_growth.title} definition={metricGlossary.population_growth.definition}>
+                          <span className="metric-label">{metricGlossary.population_growth.title}</span>
+                        </MetricTooltip>
+                      </div>
+                      <div className="data-def">{metricGlossary.population_growth.definition}</div>
+                      <div className="data-value">
+                        {areaLatestMetrics?.population_growth?.value_numeric != null
+                          ? `${Number(areaLatestMetrics.population_growth.value_numeric).toFixed(1)}%`
+                          : 'N/A'}
+                      </div>
+                      <div className="data-trend positive">Higher is growth</div>
                     </div>
                   </div>
-                </div>
 
-                <div className="area-data-card loading">
-                  <div className="data-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" stroke="currentColor" strokeWidth="1.5"/>
-                    </svg>
-                  </div>
-                  <div className="data-content">
-                    <div className="data-label">Average Rental Yield</div>
-                    <div className="data-value">
-                      {loadingAreaData ? '...' : 'Data Unavailable'}
+                  <div className="area-data-card">
+                    <div className="data-icon">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M3 20h18M6 20V9l6-5 6 5v11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M10 20v-6h4v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
                     </div>
-                    <div className="data-trend neutral">
-                      {loadingAreaData ? 'Loading...' : 'Coming Soon'}
+                    <div className="data-content">
+                      <div className="data-label">
+                        <MetricTooltip label={metricGlossary.planned_dev_count.title} definition={metricGlossary.planned_dev_count.definition}>
+                          <span className="metric-label">{metricGlossary.planned_dev_count.title}</span>
+                        </MetricTooltip>
+                      </div>
+                      <div className="data-def">{metricGlossary.planned_dev_count.definition}</div>
+                      <div className="data-value">{areaLatestMetrics?.planned_dev_count?.value_numeric ?? 'N/A'}</div>
+                      <div className="data-trend neutral">Pipeline</div>
                     </div>
                   </div>
-                </div>
 
-                <div className="area-data-card loading">
-                  <div className="data-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      <polyline points="9,22 9,12 15,12 15,22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                  <div className="data-content">
-                    <div className="data-label">Market Analysis</div>
-                    <div className="data-value">
-                      {loadingAreaData ? '...' : 'Select Premium Area'}
+                  <div className="area-data-card">
+                    <div className="data-icon">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
                     </div>
-                    <div className="data-trend neutral">
-                      {loadingAreaData ? 'Loading...' : 'Premium Only'}
+                    <div className="data-content">
+                      <div className="data-label">
+                        <MetricTooltip label={metricGlossary.development_score.title} definition={metricGlossary.development_score.definition}>
+                          <span className="metric-label">{metricGlossary.development_score.title}</span>
+                        </MetricTooltip>
+                      </div>
+                      <div className="data-def">{metricGlossary.development_score.definition}</div>
+                      <div className="data-value">
+                        {selectedAreaDetails?.development_score
+                          ? `${selectedAreaDetails.development_score}/100`
+                          : 'N/A'}
+                      </div>
+                      <div className="data-trend positive">Growing</div>
                     </div>
                   </div>
+                </>
+              ) : loadingAreaData ? (
+                <>
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="area-data-card loading">
+                      <div className="data-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                          <rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                        </svg>
+                      </div>
+                      <div className="data-content">
+                        <div className="data-label">Loading…</div>
+                        <div className="data-value">…</div>
+                        <div className="data-trend neutral">Loading…</div>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <div className="area-data-placeholder">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="currentColor" strokeWidth="1.5"/>
+                    <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="1.5"/>
+                  </svg>
+                  <h3>No market data yet for {selected.areaName || 'this area'}</h3>
+                  <p>Data for this area will appear here once available.</p>
                 </div>
-              </>
-            ) : (
-              // Show "select area" message when no area is selected
-              <div className="area-data-placeholder">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="currentColor" strokeWidth="1.5"/>
-                  <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="1.5"/>
-                </svg>
-                <h3>Select an Area to Explore</h3>
-                <p>Choose a location above to view detailed market insights and area statistics.</p>
-              </div>
-            )}
+              )}
+            </div>
+          </div>
+
+          {/* "Why This Location" insight card */}
+          <div style={{ padding: '16px 0 0' }}>
+            <InsightCard areaId={selected.area} areaName={selected.areaName} />
           </div>
         </div>
       )}
-      {/* Featured Properties Section */}
-      {selected.area && selectedPropertyType && featuredProps.length > 0 && (
+      {/* Featured Properties Section – shown whenever an area has featured listings */}
+      {selected.area && featuredProps.length > 0 && (
         <div className="properties-featured-modern">
           <div className="header-content-modern">
-            <h2 className="page-title-modern">Featured {selectedPropertyType === 'commercial' ? 'Commercial' : 'Residential'} Properties in {selected.areaName}</h2>
-            <p className="page-subtitle-modern">Selected listings by {selectedPropertyType === 'commercial' ? 'Eris Property Group' : 'Balwin Properties'}</p>
+            <h2 className="page-title-modern">
+              Featured {selectedPropertyType === 'commercial' ? 'Commercial' : 'Residential'} Properties{selected.areaName ? ` in ${selected.areaName}` : ''}
+            </h2>
+            <p className="page-subtitle-modern">
+              {selectedPropertyType === 'commercial' ? 'Commercial listings by Eris Property Group' : 'Residential listings by Balwin Properties'}
+            </p>
           </div>
           <div className="featured-grid-modern">
             {featuredProps.map(p => (
@@ -1153,6 +1321,14 @@ export default function ExplorePage() {
           <span>Loading properties...</span>
         </div>
       )}
+
+      <CentreOfGravity
+        isOpen={cogOpen}
+        onClose={() => setCogOpen(false)}
+        areaId={selected.area}
+        areaName={selected.areaName}
+        initialProfile={selectedProfile}
+      />
     </div>
   );
 }

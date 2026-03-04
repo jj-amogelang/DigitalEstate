@@ -151,6 +151,12 @@ class AreaDataService {
       const response = await this.api.post('/api/metrics/materialized/refresh', body);
       return response; // { success: boolean, actions: [...]} or error
     } catch (error) {
+      // 400 = known "not supported" response (e.g. SQLite dev mode) — surface
+      // a friendly message instead of a generic "Network error" throw.
+      const data = error?.response?.data;
+      if (error?.response?.status === 400 && data) {
+        return data; // let caller inspect { success: false, error: '...' }
+      }
       console.error('Error refreshing materialized views:', error);
       throw error;
     }
@@ -460,17 +466,84 @@ class AreaDataService {
     return this.buildUrl(`/api/placeholder/${width}/${height}?text=${encodeURIComponent(text)}`);
   }
 
-  // Search areas by name
-  async searchAreas(query) {
+  // Province-level landing dashboard (insights + hot-zones)
+  async getProvinceInsights(provinceId) {
     await this.ready;
     try {
-      // This would be implemented on the backend
-      const response = await this.api.get('/api/areas/search', {
-        params: { q: query }
+      const response = await this.api.get(`/api/insights/province/${provinceId}/dashboard`);
+      return response;
+    } catch (error) {
+      console.error('Error fetching province insights:', error);
+      throw error;
+    }
+  }
+
+  // Geolocation: find the area nearest to GPS coordinates.
+  // Returns { id, name, city, province, province_id, lat, lng, dist_km } or null.
+  async getNearestArea(lat, lng, radiusKm = 50) {
+    await this.ready;
+    try {
+      const result = await this.api.get('/api/areas/nearest', {
+        params: { lat, lng, radius_km: radiusKm },
       });
+      return result?.area || null;
+    } catch (err) {
+      if (err?.status === 404) return null;   // no area in radius — not an error
+      console.warn('getNearestArea failed:', err?.message || err);
+      return null;
+    }
+  }
+
+  // Search areas by name, city, or postal code.
+  // provinceId is optional — biases results toward the detected province.
+  async searchAreas(query, { provinceId, limit = 20 } = {}) {
+    await this.ready;
+    try {
+      const params = { q: query, limit };
+      if (provinceId) params.province_id = provinceId;
+      const response = await this.api.get('/api/areas/search', { params });
       return response.areas || [];
     } catch (error) {
       console.error('Error searching areas:', error);
+      return [];
+    }
+  }
+
+  // Quick-stats card for tooltip / search-result card body
+  async getAreaSummary(areaId) {
+    await this.ready;
+    try {
+      const response = await this.api.get(`/api/areas/${areaId}/summary`);
+      return response.summary || null;
+    } catch (error) {
+      console.error('Error fetching area summary:', error);
+      return null;
+    }
+  }
+
+  // "Why This Location" insight comparisons for InsightCard
+  async getAreaWhyChosen(areaId) {
+    await this.ready;
+    try {
+      const response = await this.api.get(`/api/areas/${areaId}/why-chosen`);
+      return response.reasons || [];
+    } catch (error) {
+      console.error('Error fetching why-chosen:', error);
+      return [];
+    }
+  }
+
+  // Province-aware recommended areas (excludes recently viewed)
+  async getRecommendedAreas({ provinceId, recentIds = [], limit = 8 } = {}) {
+    await this.ready;
+    try {
+      const params = { limit };
+      if (provinceId) params.province_id = provinceId;
+      if (recentIds.length) params.recent_ids = recentIds.join(',');
+      const response = await this.api.get('/api/areas/recommended', { params });
+      return response.recommended || [];
+    } catch (error) {
+      console.error('Error fetching recommended areas:', error);
       return [];
     }
   }

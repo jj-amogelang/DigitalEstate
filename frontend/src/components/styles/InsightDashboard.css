@@ -1,0 +1,462 @@
+/* ------------------------------------------------------------------ */
+/*  InsightDashboard.css                                                */
+/*  Province landing dashboard — insight panels + hot-zone map         */
+/* ------------------------------------------------------------------ */
+
+/* Design tokens (mirrors explore-page.css) */
+:root {
+  --ins-gold: #C9A96E;
+  --ins-black: #000000;
+  --ins-bg: #F8F8F8;
+  --ins-surface: #FFFFFF;
+  --ins-border: #E8E8E8;
+  --ins-text: #1a1a1a;
+  --ins-text-muted: #666666;
+  --ins-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --ins-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.10);
+  --ins-radius: 2px;
+  --ins-radius-sm: 1px;
+}
+
+/* ---- Outer wrapper ---- */
+.insight-dashboard {
+  padding: 2.5rem 3rem;
+  background: var(--ins-bg);
+  border-top: 1px solid var(--ins-border);
+}
+
+/* Compact strip — shown inline when a specific area is selected */
+.insight-dashboard--compact {
+  padding: 1.5rem 2rem;
+  background: var(--ins-surface);
+  border-top: none;
+  border-bottom: 1px solid var(--ins-border);
+  margin-bottom: 0;
+}
+
+/* ---- Header row ---- */
+.insight-dashboard__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.insight-dashboard__header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.insight-dashboard__header-sub {
+  font-size: 0.72rem;
+  color: var(--ins-text-muted);
+  font-style: italic;
+  letter-spacing: 0.03em;
+}
+
+.insight-dashboard__title {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 300;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ins-black);
+  margin: 0;
+}
+
+.insight-dashboard__title strong {
+  font-weight: 600;
+  color: var(--ins-gold);
+}
+
+.insight-dashboard__source-badge {
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ins-text-muted);
+  background: var(--ins-border);
+  padding: 0.25rem 0.6rem;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.insight-dashboard__source-badge--ip {
+  color: var(--ins-gold);
+  background: rgba(201, 169, 110, 0.12);
+}
+
+/* ---- Loading skeleton ---- */
+.insight-dashboard__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem 2rem;
+  color: var(--ins-text-muted);
+  gap: 1rem;
+}
+
+.insight-dashboard__loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--ins-border);
+  border-top-color: var(--ins-gold);
+  border-radius: 50%;
+  animation: ins-spin 0.9s linear infinite;
+}
+
+@keyframes ins-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ins-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position:  400px 0; }
+}
+
+.insight-dashboard__loading-text {
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ---- 6-panel grid ---- */
+.insight-panel-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+/* Compact / always-visible strip — horizontal scroll with fixed-width cards */
+.insight-panel-grid--scroll {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+  overflow-x: auto;
+  overflow-y: visible;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 0;
+  padding-bottom: 0.5rem;
+  /* Hide scrollbar on most browsers for a cleaner look */
+  scrollbar-width: thin;
+  scrollbar-color: var(--ins-border) transparent;
+}
+.insight-panel-grid--scroll::-webkit-scrollbar {
+  height: 4px;
+}
+.insight-panel-grid--scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.insight-panel-grid--scroll::-webkit-scrollbar-thumb {
+  background: var(--ins-border);
+  border-radius: 2px;
+}
+.insight-panel-grid--scroll .insight-panel {
+  flex: 0 0 260px;
+  scroll-snap-align: start;
+  max-width: 260px;
+}
+/* In compact mode, shrink panel list to 4 rows max */
+.insight-dashboard--compact .insight-panel__list {
+  max-height: 160px;
+  overflow: hidden;
+}
+
+@media (max-width: 1024px) {
+  .insight-panel-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .insight-panel-grid {
+    grid-template-columns: 1fr;
+  }
+  .insight-dashboard {
+    padding: 1.5rem 1.25rem;
+  }
+}
+
+/* ---- Single insight panel ---- */
+.insight-panel {
+  background: var(--ins-surface);
+  border: 1px solid var(--ins-border);
+  border-radius: var(--ins-radius);
+  overflow: hidden;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.insight-panel:hover {
+  box-shadow: var(--ins-shadow-md);
+  border-color: rgba(201, 169, 110, 0.35);
+}
+
+.insight-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.9rem 1.1rem 0.7rem;
+  border-bottom: 1px solid var(--ins-border);
+  background: #fafafa;
+}
+
+.insight-panel__icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--ins-gold);
+}
+
+.insight-panel__title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--ins-text);
+  margin: 0;
+}
+
+.insight-panel__subtitle {
+  font-size: 0.65rem;
+  color: var(--ins-text-muted);
+  margin: 0;
+  margin-left: auto;
+  letter-spacing: 0.04em;
+}
+
+/* ---- Area list inside a panel ---- */
+.insight-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0.4rem 0;
+}
+
+.insight-panel__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+  transition: background 0.15s ease;
+}
+
+.insight-panel__item:last-child {
+  border-bottom: none;
+}
+
+.insight-panel__item:hover {
+  background: rgba(201, 169, 110, 0.07);
+}
+
+.insight-panel__item-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.insight-panel__area-name {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ins-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.insight-panel__city-name {
+  font-size: 0.68rem;
+  color: var(--ins-text-muted);
+  letter-spacing: 0.03em;
+}
+
+.insight-panel__metric {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ins-gold);
+  white-space: nowrap;
+  margin-left: 0.75rem;
+  flex-shrink: 0;
+}
+
+.insight-panel__rank {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: #bbb;
+  margin-right: 0.5rem;
+  min-width: 18px;
+}
+
+/* ---- Empty state ---- */
+.insight-panel__empty {
+  padding: 1.5rem 1.1rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--ins-text-muted);
+  letter-spacing: 0.04em;
+}
+
+/* ---- CTA section ---- */
+.insight-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 2.5rem 1rem;
+  background: var(--ins-surface);
+  border: 1px solid var(--ins-border);
+  border-radius: var(--ins-radius);
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+.insight-cta__eyebrow {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ins-text-muted);
+}
+
+.insight-cta__headline {
+  font-size: 1.4rem;
+  font-weight: 200;
+  letter-spacing: 0.05em;
+  color: var(--ins-black);
+  margin: 0;
+  max-width: 480px;
+  line-height: 1.4;
+}
+
+.insight-cta__headline strong {
+  font-weight: 700;
+  color: var(--ins-gold);
+}
+
+.insight-cta__desc {
+  font-size: 0.82rem;
+  color: var(--ins-text-muted);
+  max-width: 460px;
+  line-height: 1.6;
+}
+
+.insight-cta__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 2.25rem;
+  background: var(--ins-black);
+  color: #fff;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: var(--ins-radius);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.insight-cta__button:hover {
+  background: var(--ins-gold);
+  transform: translateY(-1px);
+}
+
+.insight-cta__button svg {
+  flex-shrink: 0;
+}
+
+/* ---- Hot Zone Map wrapper ---- */
+.hotzone-map-wrapper {
+  background: var(--ins-surface);
+  border: 1px solid var(--ins-border);
+  border-radius: var(--ins-radius);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.hotzone-map-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.25rem 0.7rem;
+  border-bottom: 1px solid var(--ins-border);
+  background: #fafafa;
+}
+
+.hotzone-map-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--ins-text);
+  margin: 0;
+}
+
+.hotzone-map-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  font-size: 0.65rem;
+  color: var(--ins-text-muted);
+  letter-spacing: 0.04em;
+}
+
+.hotzone-legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.hotzone-legend-dot--high   { background: #C9A96E; }
+.hotzone-legend-dot--medium { background: #aaa; }
+.hotzone-legend-dot--low    { background: #ddd; }
+
+.hotzone-map-container {
+  height: 340px;
+  width: 100%;
+  position: relative;
+}
+
+.hotzone-map-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 340px;
+  color: var(--ins-text-muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.hotzone-map-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 340px;
+  color: var(--ins-text-muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+}
+
+/* Leaflet container inside hotzone */
+.hotzone-map-container .leaflet-container {
+  height: 100%;
+  width: 100%;
+  background: #f0f0f0;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+}

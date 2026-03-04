@@ -404,3 +404,320 @@
     margin-bottom: 20px;
   }
 }
+
+/* ── Two-column layout ─────────────────────────────────────────────── */
+.cog-modal-wide {
+  max-width: 1100px;
+}
+
+.cog-modal-columns {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 0;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.cog-modal-right {
+  padding: 20px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Weight panel (left column) ──────────────────────────────────── */
+.cog-weight-panel {
+  background: #0d0d0d;
+  border-right: 1px solid #1e1e1e;
+  padding: 20px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Slider filled track ─────────────────────────────────────────── */
+.cog-slider-track {
+  position: relative;
+  height: 6px;
+  background: #1f1f1f;
+  border-radius: 3px;
+  margin-top: 4px;
+}
+
+.cog-slider-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #ff6b6b);
+  border-radius: 3px;
+  pointer-events: none;
+  transition: width 80ms ease;
+}
+
+.cog-slider-track input[type="range"].cog-weight-slider {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform: translateY(-50%);
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+/* ── Weight header row ──────────────────────────────────────────── */
+.cog-weight-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+/* ── Auto-balance button ────────────────────────────────────────── */
+.cog-autobalance-btn {
+  background: transparent;
+  border: 1px solid #374151;
+  color: #9ca3af;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: auto;
+  transition: border-color 0.2s, color 0.2s;
+}
+.cog-autobalance-btn:hover {
+  border-color: #ff6b6b;
+  color: #ff6b6b;
+}
+
+/* ── Zoning section ─────────────────────────────────────────────── */
+.cog-zoning-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.cog-zoning-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.cog-zoning-link {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  text-decoration: underline;
+}
+.cog-zoning-link:hover { color: #ff6b6b; }
+
+.cog-zoning-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cog-zoning-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #d1d5db;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #1e1e1e;
+  transition: border-color 0.2s, background 0.2s;
+}
+.cog-zoning-chip:hover { border-color: #374151; background: #141414; }
+.cog-zoning-chip input[type="checkbox"] {
+  accent-color: #ff6b6b;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+/* ── Scenario preset grid ───────────────────────────────────────── */
+.cog-scenario-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+/* ── Heatmap canvas ─────────────────────────────────────────────── */
+.cog-heatmap-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 250;
+}
+
+/* ── Heatmap legend ─────────────────────────────────────────────── */
+.cog-heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #9ca3af;
+  padding: 0 2px;
+}
+
+.cog-legend-gradient {
+  flex: 1;
+  max-width: 120px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #2864dc, #ffbe32, #ff3c3c);
+}
+
+.cog-legend-item { white-space: nowrap; }
+
+/* ── Animated CoG marker ────────────────────────────────────────── */
+.cog-animated-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.cog-marker-pin {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #ff6b6b;
+  border: 2.5px solid #fff;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(255,107,107,0.5);
+}
+
+.cog-marker-pulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  transform: translate(-50%,-50%);
+  border-radius: 50%;
+  background: rgba(255,107,107,0.35);
+  animation: cog-pulse 1.6s ease-out infinite;
+}
+
+@keyframes cog-pulse {
+  0%   { transform: translate(-50%,-50%) scale(1);   opacity: 0.7; }
+  100% { transform: translate(-50%,-50%) scale(2.6); opacity: 0; }
+}
+
+/* ── Two-column responsive collapse ────────────────────────────── */
+@media (max-width: 720px) {
+  .cog-modal-columns {
+    grid-template-columns: 1fr;
+  }
+  .cog-weight-panel {
+    border-right: none;
+    border-bottom: 1px solid #1e1e1e;
+  }
+  .cog-modal-wide {
+    max-width: 100%;
+  }
+}
+
+/* ── Solve button ────────────────────────────────────────────────── */
+.cog-solve-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.18s ease, opacity 0.18s ease, transform 0.1s ease;
+  white-space: nowrap;
+}
+
+.cog-solve-button:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.cog-solve-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.cog-solve-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cog-solve-button.cog-solving {
+  background: #64748b;
+}
+
+/* ── Preview indicator (shows during slider drag) ───────────────── */
+.cog-preview-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 8px;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #2563eb;
+  animation: cog-preview-fade-in 0.15s ease;
+}
+
+@keyframes cog-preview-fade-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.cog-preview-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #2563eb;
+  animation: cog-dot-pulse 1.1s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes cog-dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.75); }
+}
+
+/* ── Status + error rows ─────────────────────────────────────────── */
+.cog-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.825rem;
+  color: #6b7280;
+  padding: 4px 0 8px;
+}
+
+.cog-error {
+  font-size: 0.825rem;
+  color: #dc2626;
+  padding: 6px 10px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}

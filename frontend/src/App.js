@@ -1,17 +1,19 @@
 import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from "react-router-dom";
+import GlobalSearchBar from './components/GlobalSearchBar';
 import SettingsProvider from "./context/SettingsContext";
 import { AuthProvider } from "./context/AuthContext";
+import { LocationProvider, useAppLocation } from "./context/LocationContext";
+import LocationPermissionModal from "./components/LocationPermissionModal";
 import DashboardPage from "./pages/DashboardPage";
 import ExplorePage from "./pages/ExplorePage";
 import PropertyDetailsPage from "./pages/PropertyDetailsPage";
 import Settings from "./pages/Settings";
-import ResearchDashboard from "./pages/ResearchDashboard";
 import ProfileButton from "./components/ProfileButton";
 import AuthModal from "./components/AuthModal";
 import "./App.css";
 import "./styles/aws-global.css";
-import { LayoutGrid, MapPinned, Settings as Cog, Home as HomeIcon } from "lucide-react";
+import { LayoutGrid, MapPinned, Settings as Cog } from "lucide-react";
 
 function Sidebar({ isOpen, toggleSidebar }) {
   const location = useLocation();
@@ -68,15 +70,6 @@ function Sidebar({ isOpen, toggleSidebar }) {
           {isOpen && <span className="nav-text">Explore Properties</span>}
         </Link>
 
-        <Link 
-          to="/insights" 
-          className={`nav-link ${location.pathname === '/insights' ? 'active' : ''}`}
-          title="Property Insights"
-        >
-          <HomeIcon className="nav-icon" size={20} />
-          {isOpen && <span className="nav-text">Property Insights</span>}
-        </Link>
-
         {/* Analytics removed */}
 
         <Link 
@@ -102,6 +95,24 @@ function Sidebar({ isOpen, toggleSidebar }) {
   );
 }
 
+/**
+ * LocationModalBridge
+ * Thin bridge component that reads from LocationContext (which lives inside
+ * LocationProvider) and renders the permission modal when needed.
+ * Must be rendered INSIDE <LocationProvider> but OUTSIDE <Router> is fine
+ * since it doesn't use any routing hooks.
+ */
+function LocationModalBridge() {
+  const { showModal, requestPermission, dismissModal } = useAppLocation();
+  if (!showModal) return null;
+  return (
+    <LocationPermissionModal
+      onAllow={requestPermission}
+      onSkip={dismissModal}
+    />
+  );
+}
+
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -124,6 +135,7 @@ function App() {
   return (
     <AuthProvider>
       <SettingsProvider>
+        <LocationProvider>
         <Router>
           <div className="app-layout">
             <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
@@ -160,6 +172,8 @@ function App() {
                       <path d="M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                     </svg>
                   </button>
+                  {/* Global area search — navigates to /explore?areaId=X&areaName=Y */}
+                  <GlobalSearchBar variant="header" />
                 </div>
                 <div className="nav-right">
                   <ProfileButton 
@@ -176,7 +190,6 @@ function App() {
                   <Route path="/properties" element={<ExplorePage />} />
                   <Route path="/explore" element={<ExplorePage />} />
                   <Route path="/property/:id" element={<PropertyDetailsPage />} />
-                  <Route path="/insights" element={<ResearchDashboard />} />
                   {/* Analytics route removed */}
                   <Route path="/settings" element={<Settings />} />
                 </Routes>
@@ -191,6 +204,9 @@ function App() {
             />
           </div>
         </Router>
+        {/* Location permission modal — shown once per browser on first visit */}
+        <LocationModalBridge />
+        </LocationProvider>
       </SettingsProvider>
     </AuthProvider>
   );

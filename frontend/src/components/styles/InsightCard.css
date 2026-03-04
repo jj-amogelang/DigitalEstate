@@ -1,0 +1,116 @@
+/* ============================================================
+   InsightCard.css
+   ============================================================ */
+
+.ic-root {
+  width: 100%;
+  background: #fff;
+  border: 1px solid var(--border-grey, #E8E8E8);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+/* ─── Header ──────────────────────────────────────────────── */
+.ic-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid var(--border-grey, #E8E8E8);
+}
+.ic-header-label {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #999;
+}
+.ic-header-area {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--primary-black, #000);
+}
+
+/* ─── Reason list ─────────────────────────────────────────── */
+.ic-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0;
+}
+
+.ic-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 18px;
+  transition: background 0.12s;
+}
+.ic-row:hover { background: #FAFAFA; }
+
+/* coloured dot */
+.ic-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.ic-row--pos .ic-dot { background: var(--accent-gold, #C9A96E); }
+.ic-row--neu .ic-dot { background: #CCC; }
+
+.ic-icon {
+  flex-shrink: 0;
+  color: #ADADAD;
+  display: flex;
+  align-items: center;
+}
+
+.ic-text {
+  flex: 1;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  color: #333;
+  line-height: 1.4;
+}
+.ic-row--pos .ic-text { color: var(--primary-black, #000); }
+
+.ic-value {
+  flex-shrink: 0;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--accent-gold, #C9A96E);
+}
+
+/* ─── Skeleton loading ────────────────────────────────────── */
+.ic-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+}
+.ic-skeleton {
+  background: #F0F0F0;
+  border-radius: 2px;
+  animation: ic-pulse 1.4s ease-in-out infinite;
+}
+.ic-skeleton-icon { width: 24px; height: 14px; border-radius: 2px; }
+.ic-skeleton-text { flex: 1; height: 12px; border-radius: 2px; }
+@keyframes ic-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+
+/* ─── Error / empty states ────────────────────────────────── */
+.ic-error,
+.ic-empty {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  color: #ADADAD;
+  text-align: center;
+  padding: 18px;
+  margin: 0;
+}
+.ic-error { color: #d64040; }

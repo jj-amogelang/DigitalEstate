@@ -1,0 +1,191 @@
+/* ============================================================
+   GlobalSearchBar.css
+   Zara-minimal style, respects design tokens from index.css
+   ============================================================ */
+
+/* ─── Root wrapper (positions dropdown relative to input) ─── */
+.gsb-root {
+  position: relative;
+  z-index: 400;
+}
+
+/* ─── Input row ──────────────────────────────────────────── */
+.gsb-input-row {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--border-grey, #E8E8E8);
+  transition: border-color 0.18s;
+}
+.gsb-input-row:focus-within {
+  border-color: var(--accent-gold, #C9A96E);
+}
+
+.gsb-icon-left {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: #999;
+  pointer-events: none;
+}
+
+.gsb-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color: var(--primary-black, #000);
+  /* reset native search input chrome */
+  -webkit-appearance: none;
+}
+.gsb-input::placeholder { color: #ADADAD; }
+.gsb-input::-webkit-search-decoration,
+.gsb-input::-webkit-search-cancel-button { display: none; }
+
+.gsb-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ADADAD;
+  line-height: 1;
+  padding: 0 4px;
+  transition: color 0.15s;
+}
+.gsb-clear:hover { color: var(--primary-black, #000); }
+
+/* ─── Spinner animation ──────────────────────────────────── */
+.gsb-spinner {
+  animation: gsb-spin 0.7s linear infinite;
+  color: var(--accent-gold, #C9A96E);
+}
+@keyframes gsb-spin { to { transform: rotate(360deg); } }
+
+/* ─── Dropdown ───────────────────────────────────────────── */
+.gsb-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--border-grey, #E8E8E8);
+  border-top: none;
+  max-height: 300px;
+  overflow-y: auto;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.07);
+  animation: gsb-drop 0.12s ease;
+}
+@keyframes gsb-drop {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Option row ─────────────────────────────────────────── */
+.gsb-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+.gsb-option:hover,
+.gsb-option--active {
+  background: #F8F8F8;
+}
+
+.gsb-option-icon {
+  flex-shrink: 0;
+  color: var(--accent-gold, #C9A96E);
+  display: flex;
+  align-items: center;
+}
+
+.gsb-option-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.gsb-option-name {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--primary-black, #000);
+}
+.gsb-option-sub {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #888;
+}
+.gsb-option-arrow {
+  flex-shrink: 0;
+  color: #CCC;
+  font-size: 16px;
+}
+
+/* ─── Header variant (compact) ───────────────────────────── */
+.gsb-header .gsb-input-row {
+  border-radius: 2px;
+  padding: 7px 10px;
+  gap: 8px;
+  width: 220px;
+  min-width: 160px;
+}
+.gsb-header .gsb-input {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.gsb-header .gsb-option {
+  padding: 9px 12px;
+}
+.gsb-header .gsb-option-name { font-size: 13px; }
+.gsb-header .gsb-option-sub  { font-size: 11px; }
+
+/* ─── Hero variant (large, centered) ─────────────────────── */
+.gsb-hero {
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+}
+.gsb-hero .gsb-input-row {
+  border-radius: 2px;
+  padding: 14px 16px;
+  gap: 12px;
+}
+.gsb-hero .gsb-input {
+  font-size: 16px;
+  line-height: 1.5;
+}
+.gsb-hero .gsb-dropdown {
+  max-height: 380px;
+}
+.gsb-hero .gsb-option {
+  padding: 12px 16px;
+}
+.gsb-hero .gsb-option-name { font-size: 15px; }
+.gsb-hero .gsb-option-sub  { font-size: 12px; }
+
+/* ─── Responsive ─────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .gsb-header .gsb-input-row {
+    width: 170px;
+  }
+}
+@media (max-width: 400px) {
+  .gsb-header .gsb-input-row {
+    width: 140px;
+    padding: 6px 8px;
+  }
+}

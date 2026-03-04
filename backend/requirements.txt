@@ -10,3 +10,9 @@ pandas>=2.0.0
 openpyxl>=3.1.0
 pillow>=10.0.0
 requests>=2.31.0
+# ── CoG solver acceleration ───────────────────────────────────────
+# KD-tree O(N log N) neighbour index + compiler-allocated thread pool
+scipy>=1.11.0
+# JIT compilation of the inner best-neighbour ascent loop (~2x speedup
+# for large parcel sets; falls back gracefully if unavailable)
+numba>=0.59.0

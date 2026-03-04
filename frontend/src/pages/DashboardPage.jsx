@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useAppLocation } from "../context/LocationContext";
 import "./styles/dashboard-page.css";
 import areaDataService from "../services/areaDataService";
 import PropertyTypeSelector from "../components/PropertyTypeSelector";
@@ -8,45 +9,45 @@ import PropertyTypeSelector from "../components/PropertyTypeSelector";
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
-  const [sandtonMetrics, setSandtonMetrics] = useState(null);
+  const { effectiveArea, isLocationBased, source: locationSource, loading: locationLoading } = useAppLocation();
+
+  // Dynamic area metrics (driven by LocationContext instead of hardcoded Sandton)
+  const [areaMetrics, setAreaMetrics] = useState(null);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [metricsError, setMetricsError] = useState(null);
   const [selectedPropertyType, setSelectedPropertyType] = useState(() => {
     try { return window.localStorage.getItem('selectedPropertyType') || 'residential'; } catch { return 'residential'; }
   });
 
+  // Fetch metrics whenever the effective area changes
   useEffect(() => {
-    // Fetch Sandton area id, then latest metrics for target codes
+    if (locationLoading) return;       // wait until location resolves
+    if (!effectiveArea?.id) return;    // no area yet
+    let cancelled = false;
     const fetchMetrics = async () => {
       try {
         setLoadingMetrics(true);
         setMetricsError(null);
-        const areas = await areaDataService.searchAreas("Sandton");
-        const sandton = areas.find(a => a.name?.toLowerCase() === "sandton");
-        if (!sandton) {
-          setMetricsError("Sandton area not found");
-          setLoadingMetrics(false);
-          return;
-        }
-        // Call backend directly for latest metrics
-        const resp = await areaDataService.api.get(`/api/areas/${sandton.id}/metrics/latest`, {
-          params: { metrics: "avg_price,rental_yield,vacancy_rate,crime_index,population_growth,planned_dev_count" }
+        const resp = await areaDataService.api.get(`/api/areas/${effectiveArea.id}/metrics/latest`, {
+          params: { metrics: 'avg_price,rental_yield,vacancy_rate,crime_index,population_growth,planned_dev_count' }
         });
+        if (cancelled) return;
         const metricsArr = resp.metrics || [];
         const map = Object.fromEntries(metricsArr.map(m => [m.code, m]));
-        setSandtonMetrics({ areaId: sandton.id, areaName: sandton.name, map });
+        setAreaMetrics({ areaId: effectiveArea.id, areaName: effectiveArea.name, map });
       } catch (err) {
-        setMetricsError(err?.message || "Failed to load metrics");
+        if (!cancelled) setMetricsError(err?.message || 'Failed to load metrics');
       } finally {
-        setLoadingMetrics(false);
+        if (!cancelled) setLoadingMetrics(false);
       }
     };
     fetchMetrics();
-  }, []);
+    return () => { cancelled = true; };
+  }, [effectiveArea?.id, locationLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const sandtonDisplay = useMemo(() => {
-    if (!sandtonMetrics) return null;
-    const m = sandtonMetrics.map;
+  const areaDisplay = useMemo(() => {
+    if (!areaMetrics) return null;
+    const m = areaMetrics.map;
     const fmtPrice = (v) => {
       if (v == null) return "—";
       const n = Number(v);
@@ -64,7 +65,7 @@ export default function DashboardPage() {
       { key: "population_growth", label: "Population Growth", value: fmtPct(m.population_growth?.value_numeric) },
       { key: "planned_dev_count", label: "Planned Dev.", value: fmtNum(m.planned_dev_count?.value_numeric) },
     ];
-  }, [sandtonMetrics]);
+  }, [areaMetrics]);
 
   return (
     <div className="dashboard">
@@ -113,23 +114,59 @@ export default function DashboardPage() {
       </div>
       
       <div className="dashboard-content">
-        {/* Sandton Key Metrics (Live) */}
+        {/* Dynamic Area Key Metrics (Live — driven by user location or popular area) */}
         <div className="container-professional" style={{marginTop: '24px'}}>
           <div className="sandton-strip">
             <div className="sandton-strip-header">
-              <div className="sandton-chip">Live</div>
-              <h3>Sandton Key Metrics</h3>
+              <div className="sandton-chip">
+                {isLocationBased ? 'Near You' : 'Popular'}
+              </div>
+              <h3>
+                {areaMetrics?.areaName
+                  ? `${areaMetrics.areaName} Key Metrics`
+                  : locationLoading
+                    ? 'Detecting your area…'
+                    : 'Key Metrics'}
+              </h3>
+              {!isLocationBased && areaMetrics?.areaName && (
+                <span className="sandton-area-note" title="Showing a popular area — share your location for personalised data">
+                  Popular area
+                </span>
+              )}
               {loadingMetrics && <span className="sandton-loading">Loading…</span>}
               {metricsError && <span className="sandton-error">{metricsError}</span>}
             </div>
-            {sandtonDisplay && (
+            {areaDisplay && (
               <div className="sandton-metrics-grid">
-                {sandtonDisplay.map(item => (
+                {areaDisplay.map(item => (
                   <div className="sandton-metric" key={item.key}>
                     <div className="sandton-metric-label">{item.label}</div>
                     <div className="sandton-metric-value">{item.value}</div>
                   </div>
                 ))}
+              </div>
+            )}
+            {/* Prompt to enable location when we're showing a popular area */}
+            {!isLocationBased && locationSource !== 'loading' && (
+              <div className="sandton-location-nudge">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 2C8.134 2 5 5.134 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.866-3.134-7-7-7z"
+                    stroke="currentColor" strokeWidth="1.8" fill="none"/>
+                  <circle cx="12" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.8" fill="none"/>
+                </svg>
+                <span>
+                  Showing data for a popular area.{' '}
+                  <button
+                    className="sandton-location-link"
+                    onClick={() => {
+                      try { localStorage.removeItem('de_location_perm'); } catch {}
+                      window.location.reload();
+                    }}
+                  >
+                    Enable location
+                  </button>{' '}
+                  to see your area's metrics.
+                </span>
               </div>
             )}
           </div>

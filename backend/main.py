@@ -1,3 +1,8 @@
+import sys, os as _os
+_venv_py = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "venv", "bin", "python3")
+if _os.path.exists(_venv_py) and _os.path.abspath(sys.executable) != _os.path.abspath(_venv_py):
+    _os.execv(_venv_py, [_venv_py] + sys.argv)
+
 from flask import Flask, jsonify, request, send_file, Response
 from flask_cors import CORS
 from app_config import Config
@@ -8,10 +13,53 @@ from datetime import datetime, date
 import os
 import tempfile
 from werkzeug.utils import secure_filename
+from cog_solver import (
+    CentreOfGravitySolver, SolverConfig,
+    parcels_from_db, Parcel,
+    WEIGHT_TO_METRIC,
+    _score_all, _build_neighbour_index, discrete_solve,
+    CogValidationError, validate_weights,
+    acceleration_info, warmup_jit,
+)
+from parcel_cache import parcel_cache, populate_from_parcels
+from parcel_domain import (
+    fetch_feasible_parcels,
+    fetch_all_parcels,
+    snapshots_to_parcels,
+    parcels_to_numpy,   # available for future vectorised endpoints
+)
+
+# ---------------------------------------------------------------------------
+#  CoG error helper
+# ---------------------------------------------------------------------------
+
+def _cog_error(message: str, code: str, status: int = 400, **details):
+    """
+    Return a structured JSON error response for CoG endpoints.
+
+    The frontend maps ``code`` to a user-facing message via ERROR_MESSAGES.
+    ``details`` is an optional dict of machine-readable context.
+    """
+    return jsonify({
+        'success': False,
+        'error':   message,
+        'code':    code,
+        'details': details or {},
+    }), status
 
 app = Flask(__name__)
 app.config.from_object(Config)
 db.init_app(app)
+
+# Pre-compile Numba JIT kernels in a background thread so the first CoG
+# solve request is not delayed by ~2 s of LLVM compilation.
+import threading as _threading
+_threading.Thread(target=warmup_jit, daemon=True, name="numba-warmup").start()
+_accel = acceleration_info()
+app.logger.info(
+    "CoG solver acceleration: tier=%s (%s)",
+    _accel["tier"], _accel["tier_label"],
+)
 # Restrict CORS in production to known frontend domain; allow all in dev
 FrontendOrigin = os.getenv('FRONTEND_ORIGIN', 'https://digital-estate.vercel.app')
 is_prod = os.getenv('FLASK_ENV') == 'production'
@@ -81,6 +129,485 @@ def api_health():
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+# ---- Centre-of-Gravity solver endpoint ----
+@app.route('/api/cog/solve', methods=['POST'])
+def cog_solve():
+    """
+    POST /api/cog/solve
+
+    Body (JSON)
+    -----------
+    {
+      "area_id": <int>,
+      "weights": {
+          "rentalYield": 30,
+          "pricePerSqm": 25,
+          "vacancy": 20,
+          "transitProximity": 15,
+          "footfall": 10
+      },
+      "constraints": {
+          "zoning_allow": ["commercial", "mixed", "residential"]   // optional
+      },
+      "solver": {                // optional overrides
+          "max_iter": 200,
+          "tolerance": 5e-6,
+          "alpha0": 5e-4,
+          "damp_beta": 3e6
+      }
+    }
+
+    Response
+    --------
+    {
+      "success": true,
+      "lat": float,
+      "lng": float,
+      "uncertainty": { "radius_m", "ellipse_a_m", "ellipse_b_m", "theta_deg" },
+      "convergence": { "iterations", "delta_m", "converged", "jitter_m" },
+      "potential": float,
+      "feasible": bool,
+      "parcels": [ { id, lat, lng, score, feasible, zoning }, ... ]
+    }
+    """
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        area_id = body.get('area_id')
+        if not area_id:
+            return jsonify({'success': False, 'error': 'area_id required'}), 400
+
+        raw_weights = body.get('weights', {
+            'rentalYield': 25, 'pricePerSqm': 25,
+            'vacancy': 20, 'transitProximity': 15, 'footfall': 15,
+        })
+        constraints = body.get('constraints', {})
+        solver_opts = body.get('solver', {})
+
+        # ── Validate weight vector ────────────────────────────────────────
+        ok, err_msg, err_code, err_details = validate_weights(raw_weights)
+        if not ok:
+            return _cog_error(err_msg, err_code, 400, **err_details)
+
+        # Default zoning: allow all unless specified
+        zoning_allow = set(constraints.get(
+            'zoning_allow',
+            ['residential', 'commercial', 'mixed', 'industrial', 'retail']
+        ))
+
+        # Load real data from DB
+        area = Area.query.get(area_id)
+        if not area:
+            return jsonify({'success': False, 'error': 'Area not found'}), 404
+
+        # Resolve area centroid from stored coordinates or statistics
+        area_lat, area_lng = -26.1076, 28.0567   # safe fallback (Sandton)
+        if area.coordinates:
+            try:
+                parts = str(area.coordinates).split(',')
+                area_lat, area_lng = float(parts[0].strip()), float(parts[1].strip())
+            except Exception:
+                pass
+
+        # Check for latitude/longitude columns (metrics schema)
+        for lat_col in ('latitude', 'lat'):
+            v = getattr(area, lat_col, None)
+            if v is not None:
+                try:
+                    area_lat = float(v)
+                except Exception:
+                    pass
+                break
+        for lng_col in ('longitude', 'lng'):
+            v = getattr(area, lng_col, None)
+            if v is not None:
+                try:
+                    area_lng = float(v)
+                except Exception:
+                    pass
+                break
+
+        # ── Fetch latest area statistics (used as fallback metrics) ──────────
+        area_stats = (
+            AreaStatistics.query
+            .filter(AreaStatistics.area_id == area_id)
+            .order_by(AreaStatistics.created_at.desc())
+            .first()
+        )
+
+        # ── Tier 1: parcel_snapshots table (fast, indexed, per-parcel metrics) ─
+        # Uses ix_ps_area_zoning_safe (partial, non-hazard) or
+        # ix_ps_area_zoning_hazard depending on the exclude_hazard flag.
+        snap_rows = fetch_feasible_parcels(
+            area_id,
+            zoning_allow=zoning_allow,
+            exclude_hazard=True,   # skip hazard parcels by default
+            limit=2000,
+        )
+        if snap_rows:
+            parcels = snapshots_to_parcels(snap_rows)
+            data_source = 'real'
+
+        else:
+            # ── Tier 2: legacy Property rows (no per-parcel metrics) ──────────
+            # Uses area-level statistics to fill metric values for every parcel.
+            properties = (
+                Property.query
+                .filter(Property.area_id == area_id)
+                .limit(500)
+                .all()
+            )
+            if properties:
+                parcels = parcels_from_db(properties, area_stats, area_lat, area_lng)
+                data_source = 'real'
+
+            else:
+                # ── Tier 3: synthetic parcels from area_statistics ────────────
+                # Graceful degradation: still returns a meaningful CoG when no
+                # per-parcel data exists at all.
+                import numpy as np
+                rng = np.random.default_rng(int(area_id))
+                zoning_choices = list(zoning_allow)
+
+                def _fs(attr, fallback, jitter=0.0):
+                    v = float(getattr(area_stats, attr) or fallback) if area_stats else fallback
+                    return v + float(rng.uniform(-jitter, jitter))
+
+                parcels = [
+                    Parcel(
+                        id=-(i + 1),
+                        lat=area_lat + float(rng.uniform(-0.023, 0.023)),
+                        lng=area_lng + float(rng.uniform(-0.023, 0.023)),
+                        zoning=zoning_choices[i % len(zoning_choices)],
+                        hazard_flag=False,
+                        metrics={
+                            'rental_yield':   _fs('rental_yield',    6.5,     1.0),
+                            'price_per_m2':   _fs('price_per_sqm',   18000.0, 2000.0),
+                            'vacancy':        _fs('vacancy_rate',    8.0,     2.0),
+                            'transit_score':  _fs('transport_score', 55.0,    10.0),
+                            'footfall_score': _fs('amenities_score', 55.0,    10.0),
+                        },
+                    )
+                    for i in range(40)
+                ]
+                data_source = 'synthetic_from_area_stats'
+
+        # ── Populate parcel cache (used by /cog/preview) ──────────────────
+        # populate_from_parcels fits the QuantileNormaliser once so that
+        # preview requests for this area skip all DB I/O and normalisation.
+        populate_from_parcels(area_id, parcels)
+
+        # ── Guard: must have at least 3 parcels ────────────────────────────
+        if len(parcels) < 3:
+            return _cog_error(
+                f"Area has too few parcels ({len(parcels)}) for a meaningful solve.",
+                "INSUFFICIENT_PARCELS",
+                422,
+                parcel_count=len(parcels),
+                minimum=3,
+                data_source=data_source,
+            )
+
+        # ── Guard: at least 1 parcel must pass the zoning filter ───────────
+        _zoning_lower = {z.lower() for z in zoning_allow}
+        feasible_count = sum(1 for p in parcels if p.zoning.lower() in _zoning_lower)
+        if feasible_count == 0:
+            return _cog_error(
+                "All parcels are excluded by the current zoning filter. "
+                "Allow at least one zoning category.",
+                "ALL_ZONING_FILTERED",
+                422,
+                zoning_allow=sorted(zoning_allow),
+                parcel_zonings=sorted({p.zoning.lower() for p in parcels}),
+            )
+
+        # Build solver config from optional overrides
+        cfg = SolverConfig(
+            max_iter=int(solver_opts.get('max_iter', 200)),
+            tolerance=float(solver_opts.get('tolerance', 5e-6)),
+            alpha0=float(solver_opts.get('alpha0', 5e-4)),
+            damp_beta=float(solver_opts.get('damp_beta', 3e6)),
+        )
+
+        solver = CentreOfGravitySolver(
+            parcels=parcels,
+            weights=raw_weights,
+            zoning_allow=zoning_allow,
+            config=cfg,
+        )
+
+        try:
+            result = solver.solve()
+        except CogValidationError as ve:
+            return _cog_error(str(ve), ve.code, 422, **ve.details)
+        except Exception as se:
+            import numpy as _np
+            if isinstance(se, _np.linalg.LinAlgError):
+                return _cog_error(
+                    "Numerical error in solver (degenerate parcel distribution).",
+                    "SOLVER_NUMERICAL_ERROR",
+                    500,
+                    internal=str(se),
+                )
+            app.logger.exception("Unexpected solver error for area_id=%s", area_id)
+            return _cog_error(
+                "Solver failed unexpectedly. Please try again.",
+                "SOLVER_FAILED",
+                500,
+            )
+
+        return jsonify({
+            'success': True,
+            'lat': result.lat,
+            'lng': result.lng,
+            'uncertainty': result.uncertainty,
+            'convergence': result.convergence,
+            'potential': result.potential,
+            'feasible': result.feasible,
+            'parcels': result.parcels,
+            'parcel_count': len(result.parcels),
+            'data_source': data_source,
+        })
+
+    except CogValidationError as ve:
+        return _cog_error(str(ve), ve.code, 422, **ve.details)
+    except Exception as e:
+        import traceback
+        app.logger.exception("Unhandled error in /cog/solve for area_id=%s", body.get('area_id'))
+        return _cog_error(
+            "An unexpected error occurred. Please try again.",
+            "SOLVER_FAILED",
+            500,
+        )
+
+
+# ── Centre-of-Gravity PREVIEW endpoint ────────────────────────────────────
+@app.route('/api/cog/preview', methods=['POST'])
+def cog_preview():
+    """
+    POST /api/cog/preview
+
+    Lightweight version of /cog/solve for real-time slider drag previews.
+
+    Differences from /cog/solve
+    ---------------------------
+    * Uses the in-process parcel cache (no DB query on cache hit).
+    * Runs the discrete solver for at most 5 iterations — enough to move
+      the marker to the rough neighbourhood of the optimum.
+    * Skips the confidence-ellipse calculation entirely.
+    * Returns a lean response: lat, lng, potential, and per-parcel scores
+      but no uncertainty / convergence diagnostics.
+    * Falls back to a full load + /cog/solve path on cache miss so the
+      first request for a new area is always correct.
+
+    Expected latency (Neon + Render free-tier)
+    ------------------------------------------
+    Cache hit   :  10 – 30 ms
+    Cache miss  : 200 – 600 ms  (same as /cog/solve)
+
+    Body (JSON)
+    -----------
+    {
+      "area_id": <int>,
+      "weights": { "rentalYield": 30, ... },
+      "constraints": { "zoning_allow": ["commercial", "mixed"] }
+    }
+
+    Response
+    --------
+    {
+      "success": true,
+      "lat": float,
+      "lng": float,
+      "potential": float,
+      "parcels": [ { id, lat, lng, score, feasible } ],
+      "cache_hit": bool
+    }
+    """
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        area_id = body.get('area_id')
+        if not area_id:
+            return jsonify({'success': False, 'error': 'area_id required'}), 400
+
+        raw_weights  = body.get('weights', {
+            'rentalYield': 25, 'pricePerSqm': 25,
+            'vacancy': 20, 'transitProximity': 15, 'footfall': 15,
+        })
+        zoning_allow = set(
+            body.get('constraints', {}).get(
+                'zoning_allow',
+                ['residential', 'commercial', 'mixed', 'industrial', 'retail'],
+            )
+        )
+
+        # ── 1. Try cache first ──────────────────────────────────────────
+        import numpy as np
+        entry    = parcel_cache.get(area_id)
+        cache_hit = entry is not None
+
+        if not cache_hit:
+            # Cache miss: run a minimal load exactly like /cog/solve does,
+            # then populate_from_parcels so subsequent previews are fast.
+            area = Area.query.get(area_id)
+            if not area:
+                return jsonify({'success': False, 'error': 'Area not found'}), 404
+
+            area_lat, area_lng = -26.1076, 28.0567
+            if area.coordinates:
+                try:
+                    parts = str(area.coordinates).split(',')
+                    area_lat = float(parts[0].strip())
+                    area_lng = float(parts[1].strip())
+                except Exception:
+                    pass
+
+            area_stats = (
+                AreaStatistics.query
+                .filter(AreaStatistics.area_id == area_id)
+                .order_by(AreaStatistics.created_at.desc())
+                .first()
+            )
+
+            snap_rows = fetch_feasible_parcels(
+                area_id, zoning_allow=zoning_allow,
+                exclude_hazard=True, limit=2000,
+            )
+            if snap_rows:
+                raw_parcels = snapshots_to_parcels(snap_rows)
+            else:
+                props = Property.query.filter(
+                    Property.area_id == area_id
+                ).limit(500).all()
+                if props:
+                    raw_parcels = parcels_from_db(props, area_stats, area_lat, area_lng)
+                else:
+                    rng = np.random.default_rng(int(area_id))
+                    zc  = list(zoning_allow)
+
+                    def _fs2(attr, fb, jit=0.0):
+                        v = float(getattr(area_stats, attr) or fb) if area_stats else fb
+                        return v + float(rng.uniform(-jit, jit))
+
+                    raw_parcels = [
+                        Parcel(
+                            id=-(i + 1),
+                            lat=area_lat + float(rng.uniform(-0.023, 0.023)),
+                            lng=area_lng + float(rng.uniform(-0.023, 0.023)),
+                            zoning=zc[i % len(zc)],
+                            hazard_flag=False,
+                            metrics={
+                                'rental_yield':   _fs2('rental_yield',    6.5,     1.0),
+                                'price_per_m2':   _fs2('price_per_sqm',   18000.0, 2000.0),
+                                'vacancy':        _fs2('vacancy_rate',    8.0,     2.0),
+                                'transit_score':  _fs2('transport_score', 55.0,    10.0),
+                                'footfall_score': _fs2('amenities_score', 55.0,    10.0),
+                            },
+                        )
+                        for i in range(40)
+                    ]
+
+            entry = populate_from_parcels(area_id, raw_parcels)
+
+        # ── 2. Build weight vector from cache entry key order ───────────
+        import numpy as np
+        total_w = sum(abs(v) for v in raw_weights.values()) or 1.0
+        weight_vec = np.array(
+            [
+                raw_weights.get(api_key, 0.0) / total_w
+                for api_key in WEIGHT_TO_METRIC
+            ],
+            dtype=np.float64,
+        )
+
+        # ── Guard: weight vector must not be all-zero after normalisation ──
+        if float(np.abs(weight_vec).sum()) < 1e-9:
+            return _cog_error(
+                "All weights are zero — solver has no optimisation direction.",
+                "INVALID_WEIGHTS",
+                400,
+            )
+
+        # ── 3. Recompute masks (cheap — no DB call) ─────────────────────
+        feasible_mask = entry.feasible_mask(zoning_allow)
+
+        # ── Guard: at least 1 parcel must pass the zoning filter ─────────
+        if not feasible_mask.any():
+            return _cog_error(
+                "All parcels are excluded by the current zoning filter. "
+                "Allow at least one zoning category.",
+                "ALL_ZONING_FILTERED",
+                422,
+                zoning_allow=sorted(zoning_allow),
+                parcel_zonings=sorted(set(entry.zoning_codes)),
+            )
+
+        # ── 4. Score all parcels (one matrix multiply, ~10 µs) ─────────
+        from cog_solver import SolverConfig as _SC, K_NEIGHBOURS
+        cfg_preview = _SC(max_iter=5, k_neighbours=min(K_NEIGHBOURS, entry.n_parcels - 1))
+        V = _score_all(
+            entry.normed, weight_vec,
+            feasible_mask, entry.hazard_flags,
+            cfg_preview,
+        )
+
+        # ── 5. Shallow discrete solve (max 5 iterations) ────────────────
+        best_idx, _ = discrete_solve(
+            entry.positions, entry.normed, weight_vec,
+            feasible_mask, entry.hazard_flags,
+            cfg_preview,
+        )
+
+        # ── 6. Normalise scores to [0, 1] ───────────────────────────────
+        v_min   = float(V.min())
+        v_span  = float(V.max() - v_min) or 1.0
+        scores_norm = (V - v_min) / v_span
+
+        parcels_out = [
+            {
+                'id':       int(entry.parcel_ids[i]),
+                'lat':      float(entry.positions[i, 0]),
+                'lng':      float(entry.positions[i, 1]),
+                'score':    round(float(scores_norm[i]), 4),
+                'feasible': bool(feasible_mask[i]),
+                'zoning':   entry.zoning_codes[i],
+            }
+            for i in range(entry.n_parcels)
+        ]
+
+        return jsonify({
+            'success':   True,
+            'lat':       round(float(entry.positions[best_idx, 0]), 7),
+            'lng':       round(float(entry.positions[best_idx, 1]), 7),
+            'potential': round(float(scores_norm[best_idx]), 4),
+            'parcels':   parcels_out,
+            'cache_hit': cache_hit,
+        })
+
+    except CogValidationError as ve:
+        return _cog_error(str(ve), ve.code, 422, **ve.details)
+    except Exception as e:
+        app.logger.exception("Unhandled error in /cog/preview for area_id=%s", body.get('area_id'))
+        return _cog_error(
+            "Preview failed unexpectedly. Please try again.",
+            "SOLVER_FAILED",
+            500,
+        )
+
+
+# ── Cache stats endpoint (dev / health tool) ──────────────────────────────
+@app.route('/api/cog/cache-stats', methods=['GET'])
+def cog_cache_stats():
+    """Return current parcel-cache statistics (hit rate, entry count, etc.)."""
+    return jsonify({'success': True, 'cache': parcel_cache.stats()})
+
+
+# ── Acceleration info endpoint (dev / monitoring tool) ──────────────────
+@app.route('/api/cog/acceleration', methods=['GET'])
+def cog_acceleration():
+    """Report which computation backend the solver is using."""
+    return jsonify({'success': True, 'acceleration': acceleration_info()})
+
 
 # ---- Helpers to resolve string refs (code/name) to numeric IDs ----
 def _resolve_country_id(ref):
@@ -501,12 +1028,14 @@ def api_area_detail(area_ref):
         lat = None
         lng = None
         try:
-            if 'latitude' in (area.keys() if isinstance(area, dict) else []):
+            # RowMapping is not a plain dict, so use .keys() directly
+            area_keys = list(area.keys())
+            if 'latitude' in area_keys:
                 lat = float(area['latitude']) if area['latitude'] is not None else None
-            if 'longitude' in (area.keys() if isinstance(area, dict) else []):
+            if 'longitude' in area_keys:
                 lng = float(area['longitude']) if area['longitude'] is not None else None
-            if (lat is None or lng is None) and 'coordinates' in (area.keys() if isinstance(area, dict) else []):
-                coord = area.get('coordinates')
+            if (lat is None or lng is None) and 'coordinates' in area_keys:
+                coord = area['coordinates']
                 if coord:
                     parts = [p.strip() for p in str(coord).split(',')]
                     if len(parts) == 2:
@@ -520,7 +1049,9 @@ def api_area_detail(area_ref):
             'id': area['id'],
             'name': area['name'],
             'city': city['name'] if city else None,
+            'city_id': city['id'] if city else None,
             'province': province['name'] if province else None,
+            'province_id': province['id'] if province else None,
             'country': country['name'] if country else None,
             'primary_image_url': primary_image_url,
             'lat': lat,
@@ -761,41 +1292,574 @@ def api_placeholder(width, height):
 
 @app.route('/api/areas/search', methods=['GET'])
 def search_areas():
-    """Lightweight area name search endpoint for frontend service."""
+    """
+    Autocomplete search – returns up to 20 areas ranked by match quality.
+
+    ?q=<term>              – required search string (≥ 1 char)
+    ?province_id=<int>     – optional: bias results toward a province
+    ?limit=<int>           – optional: max results (capped at 40, default 20)
+
+    Ranking:
+      1 – exact name match
+      2 – name starts with term
+      3 – postal_code exact match
+      4 – name contains term / city name contains term
+    """
     try:
         term = request.args.get('q', '').strip()
         if not term:
             return jsonify({'success': True, 'areas': []})
-        like = f"%{term}%"
+
+        limit  = min(int(request.args.get('limit', 20)), 40)
+        prov_id = request.args.get('province_id', '').strip()
+
+        like_any   = f"%{term}%"
+        like_start = f"{term}%"
         driver = db.engine.url.drivername if hasattr(db, 'engine') else ''
-        id_expr = "CAST(a.id AS TEXT)" if 'sqlite' in driver else "a.id::text"
+        is_pg  = 'sqlite' not in driver
+
+        # Build a CASE-based priority rank directly in SQL so the ORDER BY is server-side
+        rank_expr = """
+            CASE
+              WHEN lower(a.name) = lower(:exact)                       THEN 1
+              WHEN lower(a.name) LIKE lower(:start)                    THEN 2
+              WHEN a.postal_code IS NOT NULL
+               AND lower(a.postal_code) = lower(:exact)                THEN 3
+              ELSE 4
+            END
+        """
+        # Province bias: boost in-province areas to the front within each rank tier
+        prov_expr = "0" if not prov_id else f"CASE WHEN p.id = {int(prov_id)} THEN 0 ELSE 1 END"
+
         sql = text(f"""
-            SELECT a.id, a.name, a.city_id,
-                   c.name AS city_name,
-                   p.name AS province_name
-            FROM areas a
-            LEFT JOIN cities c ON c.id = a.city_id
+            SELECT a.id, a.name, a.city_id, a.coordinates,
+                   a.postal_code,
+                   c.name  AS city_name,
+                   p.id    AS province_id,
+                   p.name  AS province_name,
+                   ({rank_expr}) AS rank,
+                   ({prov_expr}) AS prov_bias
+            FROM   areas  a
+            LEFT JOIN cities    c ON c.id = a.city_id
             LEFT JOIN provinces p ON p.id = c.province_id
-            WHERE a.name ILIKE :like
-               OR lower(trim({id_expr})) = lower(trim(:exact))
-               OR {id_expr} ILIKE :like
-            ORDER BY a.name
-            LIMIT 20
+            WHERE  lower(a.name)              LIKE lower(:like)
+               OR  lower(c.name)              LIKE lower(:like)
+               OR  (a.postal_code IS NOT NULL
+                    AND lower(a.postal_code)  LIKE lower(:like))
+            ORDER BY prov_bias, rank, a.name
+            LIMIT  :lim
         """)
         with db.engine.connect() as conn:
-            rows = conn.execute(sql, {'like': like, 'exact': term}).mappings().all()
-        areas_payload = [
-            {
-                'id': r['id'],
-                'name': r['name'],
-                'city_id': r['city_id'],
-                'city': r['city_name'],
-                'province': r['province_name']
-            } for r in rows
-        ]
+            rows = conn.execute(sql, {
+                'like': like_any, 'start': like_start,
+                'exact': term, 'lim': limit,
+            }).mappings().all()
+
+        def _parse_coords(s):
+            try:
+                if not s: return None, None
+                parts = str(s).split(',')
+                return float(parts[0].strip()), float(parts[1].strip())
+            except Exception:
+                return None, None
+
+        areas_payload = []
+        for r in rows:
+            lat, lng = _parse_coords(r['coordinates'])
+            areas_payload.append({
+                'id':          r['id'],
+                'name':        r['name'],
+                'city_id':     r['city_id'],
+                'city':        r['city_name'],
+                'province_id': r['province_id'],
+                'province':    r['province_name'],
+                'postal_code': r['postal_code'],
+                'lat':         lat,
+                'lng':         lng,
+            })
         return jsonify({'success': True, 'areas': areas_payload})
     except Exception as e:
+        app.logger.exception('search_areas error')
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/areas/nearest', methods=['GET'])
+def areas_nearest():
+    """
+    Return the area nearest to the given GPS coordinates.
+
+    ?lat=<float>&lng=<float>   – required
+    ?radius_km=<float>         – optional max search radius (default 50 km)
+
+    Uses Python-side Haversine so it works on both SQLite and PostgreSQL.
+    """
+    import math
+    try:
+        try:
+            lat = float(request.args['lat'])
+            lng = float(request.args['lng'])
+        except (KeyError, ValueError):
+            return jsonify({'success': False, 'error': 'lat and lng are required numeric parameters'}), 400
+
+        radius_km = float(request.args.get('radius_km', 50))
+
+        # Fetch all areas that have coordinate data stored
+        sql = text("""
+            SELECT a.id, a.name, a.coordinates, a.postal_code,
+                   c.name  AS city_name,
+                   p.id    AS province_id,
+                   p.name  AS province_name
+            FROM   areas      a
+            LEFT JOIN cities    c ON c.id = a.city_id
+            LEFT JOIN provinces p ON p.id = c.province_id
+            WHERE  a.coordinates IS NOT NULL AND a.coordinates != ''
+        """)
+        with db.engine.connect() as conn:
+            rows = conn.execute(sql).mappings().all()
+
+        def haversine(lat1, lng1, lat2, lng2):
+            R = 6371.0  # Earth radius km
+            dlat = math.radians(lat2 - lat1)
+            dlng = math.radians(lng2 - lng1)
+            a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng/2)**2
+            return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+
+        best = None
+        best_dist = float('inf')
+        for r in rows:
+            try:
+                parts = [p.strip() for p in str(r['coordinates']).split(',')]
+                if len(parts) != 2:
+                    continue
+                a_lat, a_lng = float(parts[0]), float(parts[1])
+                dist = haversine(lat, lng, a_lat, a_lng)
+                if dist < best_dist:
+                    best_dist = dist
+                    best = {'row': r, 'lat': a_lat, 'lng': a_lng, 'dist_km': dist}
+            except Exception:
+                continue
+
+        if best is None or best_dist > radius_km:
+            return jsonify({'success': False, 'error': 'No area found within radius', 'radius_km': radius_km}), 404
+
+        r = best['row']
+        return jsonify({
+            'success': True,
+            'area': {
+                'id':          r['id'],
+                'name':        r['name'],
+                'city':        r['city_name'],
+                'province':    r['province_name'],
+                'province_id': r['province_id'],
+                'postal_code': r['postal_code'],
+                'lat':         best['lat'],
+                'lng':         best['lng'],
+                'dist_km':     round(best_dist, 2),
+            },
+        })
+    except Exception as e:
+        app.logger.exception('areas_nearest error')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/areas/<area_ref>/summary', methods=['GET'])
+def area_summary(area_ref):
+    """
+    Quick-stats card for tooltip / hover / card body.  Sub-50 ms on cache hit.
+
+    Returns the seven core AreaStatistics fields plus city/province context.
+    Falls back to area_metric_values (extensible metric system) for richer
+    data when available.
+    """
+    try:
+        area_id = _resolve_area_id_flex(area_ref)
+        if area_id is None:
+            return jsonify({'success': False, 'error': 'Area not found'}), 404
+
+        area  = Area.query.get(area_id)
+        if not area:
+            return jsonify({'success': False, 'error': 'Area not found'}), 404
+
+        city     = City.query.get(area.city_id)     if area.city_id     else None
+        province = Province.query.get(city.province_id) if city and city.province_id else None
+
+        stats = (
+            AreaStatistics.query
+            .filter(AreaStatistics.area_id == area_id)
+            .order_by(AreaStatistics.created_at.desc())
+            .first()
+        )
+
+        def _s(v):
+            return float(v) if v is not None else None
+
+        summary = {
+            'area_id':         area_id,
+            'area_name':       area.name,
+            'city':            city.name     if city     else None,
+            'province':        province.name if province else None,
+            'coordinates':     area.coordinates,
+            'postal_code':     getattr(area, 'postal_code', None),
+            # Core investment stats
+            'rental_yield':    _s(stats.rental_yield)    if stats else None,
+            'vacancy_rate':    _s(stats.vacancy_rate)    if stats else None,
+            'price_per_sqm':   _s(stats.price_per_sqm)  if stats else None,
+            'average_price':   _s(stats.average_price)  if stats else None,
+            'transport_score': _s(stats.transport_score) if stats else None,
+            'amenities_score': _s(stats.amenities_score) if stats else None,
+            'crime_index':     _s(stats.crime_index_score) if stats else None,
+        }
+
+        # Enrich with extensible metric values if schema available
+        if _area_metrics_supported():
+            try:
+                codes = 'rental_yield,vacancy_rate,price_per_sqm,avg_price,transport_score,amenities_score,planned_dev_count'
+                enriched = _fetch_latest_metrics_for_area(area_id, codes)
+                for m in enriched.get('metrics', []):
+                    if m['value_numeric'] is not None:
+                        summary[m['code']] = m['value_numeric']
+            except Exception:
+                pass
+
+        return jsonify({'success': True, 'summary': summary})
+    except Exception as e:
+        app.logger.exception('area_summary error for %s', area_ref)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/areas/<area_ref>/why-chosen', methods=['GET'])
+def area_why_chosen(area_ref):
+    """
+    Produce human-readable insight comparisons for the InsightCard.
+
+    Compares this area's stats against the provincial median (via other areas
+    in the same province) and returns a JSON list of reasons suitable for
+    rendering as insight bullets.
+
+    Response:
+    {
+      "success": true,
+      "area_id": ...,
+      "area_name": ...,
+      "reasons": [
+        { "icon": "yield",    "text": "Rental yield 8.2% — +2.1 pp above province average", "positive": true },
+        ...
+      ]
+    }
+    """
+    try:
+        area_id = _resolve_area_id_flex(area_ref)
+        if area_id is None:
+            return jsonify({'success': False, 'error': 'Area not found'}), 404
+
+        area  = Area.query.get(area_id)
+        if not area:
+            return jsonify({'success': False, 'error': 'Area not found'}), 404
+
+        city     = City.query.get(area.city_id)         if area.city_id else None
+        prov_id  = city.province_id                      if city          else None
+
+        # ── Area's own stats ──────────────────────────────────────────────
+        stats = (
+            AreaStatistics.query
+            .filter(AreaStatistics.area_id == area_id)
+            .order_by(AreaStatistics.created_at.desc())
+            .first()
+        )
+
+        def _f(v): return float(v) if v is not None else None
+
+        area_ry  = _f(stats.rental_yield)    if stats else None
+        area_vr  = _f(stats.vacancy_rate)    if stats else None
+        area_pp  = _f(stats.price_per_sqm)   if stats else None
+        area_ts  = _f(stats.transport_score) if stats else None
+        area_ams = _f(stats.amenities_score) if stats else None
+        area_ci  = _f(stats.crime_index_score) if stats else None
+
+        # ── Province medians ──────────────────────────────────────────────
+        prov_ry = prov_vr = prov_pp = prov_ts = prov_ams = prov_ci = None
+        if prov_id:
+            try:
+                latest_subq = (
+                    db.session.query(
+                        AreaStatistics.area_id,
+                        func.max(AreaStatistics.id).label('max_id'),
+                    )
+                    .join(Area,  Area.id  == AreaStatistics.area_id)
+                    .join(City,  City.id  == Area.city_id)
+                    .filter(City.province_id == prov_id)
+                    .group_by(AreaStatistics.area_id)
+                    .subquery()
+                )
+                agg = (
+                    db.session.query(
+                        func.avg(AreaStatistics.rental_yield).label('ry'),
+                        func.avg(AreaStatistics.vacancy_rate).label('vr'),
+                        func.avg(AreaStatistics.price_per_sqm).label('pp'),
+                        func.avg(AreaStatistics.transport_score).label('ts'),
+                        func.avg(AreaStatistics.amenities_score).label('ams'),
+                        func.avg(AreaStatistics.crime_index_score).label('ci'),
+                    )
+                    .join(latest_subq,
+                          (latest_subq.c.area_id == AreaStatistics.area_id) &
+                          (latest_subq.c.max_id  == AreaStatistics.id))
+                    .first()
+                )
+                if agg:
+                    prov_ry  = _f(agg.ry)
+                    prov_vr  = _f(agg.vr)
+                    prov_pp  = _f(agg.pp)
+                    prov_ts  = _f(agg.ts)
+                    prov_ams = _f(agg.ams)
+                    prov_ci  = _f(agg.ci)
+            except Exception:
+                pass  # province stats unavailable — fall back to absolute thresholds
+
+        reasons = []
+
+        def _pp_diff(a, b):
+            """Percentage-point difference rounded to 1 dp."""
+            if a is None or b is None: return None
+            return round(a - b, 1)
+
+        def _pct_rank(val, avg, higher_is_better=True):
+            """Simple text label based on distance from average."""
+            if val is None or avg is None or avg == 0:
+                return None
+            ratio = val / avg
+            if higher_is_better:
+                if ratio >= 1.20: return 'top percentile'
+                if ratio >= 1.10: return 'above average'
+                if ratio >= 0.90: return 'near average'
+                return 'below average'
+            else:
+                if ratio <= 0.80: return 'lowest tier'
+                if ratio <= 0.90: return 'below average'
+                if ratio <= 1.10: return 'near average'
+                return 'above average'
+
+        # Rental yield
+        if area_ry is not None:
+            diff = _pp_diff(area_ry, prov_ry)
+            if diff is not None:
+                sign = '+' if diff >= 0 else ''
+                reasons.append({
+                    'icon': 'yield',
+                    'text': f"Rental yield {area_ry:.1f}% — {sign}{diff:.1f} pp vs. province avg",
+                    'positive': diff >= 0,
+                })
+            else:
+                reasons.append({
+                    'icon': 'yield',
+                    'text': f"Rental yield {area_ry:.1f}%",
+                    'positive': area_ry >= 7.0,
+                })
+
+        # Vacancy rate (lower is better)
+        if area_vr is not None:
+            diff = _pp_diff(area_vr, prov_vr)
+            if diff is not None:
+                sign = '+' if diff >= 0 else ''
+                reasons.append({
+                    'icon': 'vacancy',
+                    'text': f"Vacancy {area_vr:.1f}% — {sign}{diff:.1f} pp vs. province avg (lower is better)",
+                    'positive': diff <= 0,
+                })
+            else:
+                reasons.append({
+                    'icon': 'vacancy',
+                    'text': f"Vacancy rate {area_vr:.1f}%",
+                    'positive': area_vr < 10.0,
+                })
+
+        # Price per m²
+        if area_pp is not None:
+            rank = _pct_rank(area_pp, prov_pp, higher_is_better=False)
+            label = f" ({rank})" if rank else ''
+            reasons.append({
+                'icon': 'price',
+                'text': f"Price R{area_pp:,.0f}/m²{label}",
+                'positive': rank in ('lowest tier', 'below average') if rank else True,
+            })
+
+        # Transport
+        if area_ts is not None:
+            rank = _pct_rank(area_ts, prov_ts, higher_is_better=True)
+            reasons.append({
+                'icon': 'transit',
+                'text': f"Transit score {area_ts:.0f}/100 — {rank or 'scored'}",
+                'positive': (area_ts or 0) >= 50,
+            })
+
+        # Amenities
+        if area_ams is not None:
+            rank = _pct_rank(area_ams, prov_ams, higher_is_better=True)
+            reasons.append({
+                'icon': 'amenities',
+                'text': f"Amenities score {area_ams:.0f}/100 — {rank or 'scored'}",
+                'positive': (area_ams or 0) >= 50,
+            })
+
+        # Crime (lower is better)
+        if area_ci is not None:
+            rank = _pct_rank(area_ci, prov_ci, higher_is_better=False)
+            reasons.append({
+                'icon': 'crime',
+                'text': f"Crime index {area_ci:.0f}/100 — {rank or 'rated'}",
+                'positive': (area_ci or 100) < 50,
+            })
+
+        if not reasons:
+            reasons.append({
+                'icon': 'info',
+                'text': 'No detailed statistics available for this area yet.',
+                'positive': None,
+            })
+
+        return jsonify({
+            'success':   True,
+            'area_id':   area_id,
+            'area_name': area.name,
+            'reasons':   reasons,
+        })
+    except Exception as e:
+        app.logger.exception('area_why_chosen error for %s', area_ref)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/areas/recommended', methods=['GET'])
+def areas_recommended():
+    """
+    Return recommended areas based on province context + recent views + trends.
+
+    ?province_id=<int>          – bias toward this province
+    ?recent_ids=1,2,3           – comma-sep area IDs the user recently viewed
+                                  (used to avoid repeating them AND to infer
+                                   the user's province if province_id absent)
+    ?limit=<int>                – default 8, max 20
+
+    Scoring (all from latest AreaStatistics):
+      raw_score = yield*0.35  +  (transit/100)*0.20  +  (amenities/100)*0.20
+                - vacancy*0.15 -  (crime/100)*0.10
+
+    Ties broken by average_price ASC (more accessible first).
+    """
+    try:
+        limit    = min(int(request.args.get('limit', 8)), 20)
+        prov_raw = request.args.get('province_id', '').strip()
+        recent_raw = request.args.get('recent_ids', '').strip()
+
+        prov_id = int(prov_raw) if prov_raw.isdigit() else None
+        recent_ids = []
+        if recent_raw:
+            try:
+                recent_ids = [int(x) for x in recent_raw.split(',') if x.strip().isdigit()]
+            except Exception:
+                pass
+
+        from sqlalchemy import func as sa_func
+
+        # Infer province from recent areas if not supplied
+        if not prov_id and recent_ids:
+            try:
+                first_area = Area.query.get(recent_ids[0])
+                if first_area and first_area.city_id:
+                    city = City.query.get(first_area.city_id)
+                    if city:
+                        prov_id = city.province_id
+            except Exception:
+                pass
+
+        # Fallback: Gauteng (most common starting province)
+        if not prov_id:
+            gp = Province.query.filter(
+                func.lower(Province.name).like('%gauteng%')
+            ).first()
+            if gp:
+                prov_id = gp.id
+
+        # ── Latest AreaStatistics per area in province ─────────────────
+        latest_subq = (
+            db.session.query(
+                AreaStatistics.area_id,
+                sa_func.max(AreaStatistics.id).label('max_id'),
+            )
+            .join(Area, Area.id == AreaStatistics.area_id)
+            .join(City, City.id == Area.city_id)
+        )
+        if prov_id:
+            latest_subq = latest_subq.filter(City.province_id == prov_id)
+        latest_subq = latest_subq.group_by(AreaStatistics.area_id).subquery()
+
+        rows = (
+            db.session.query(Area, City, AreaStatistics)
+            .join(City,          City.id == Area.city_id)
+            .join(AreaStatistics, AreaStatistics.area_id == Area.id)
+            .join(latest_subq,
+                  (latest_subq.c.area_id == AreaStatistics.area_id) &
+                  (latest_subq.c.max_id  == AreaStatistics.id))
+            .all()
+        )
+
+        def _f(v): return float(v) if v is not None else None
+
+        def _score(stats):
+            ry  = (_f(stats.rental_yield)     or 0) / 15.0
+            vr  = 1.0 - min((_f(stats.vacancy_rate) or 10) / 20.0, 1.0)
+            ts  = (_f(stats.transport_score)  or 50) / 100.0
+            ams = (_f(stats.amenities_score)  or 50) / 100.0
+            ci  = 1.0 - (_f(stats.crime_index_score) or 50) / 100.0
+            return ry * 0.35 + ts * 0.20 + ams * 0.20 + vr * 0.15 + ci * 0.10
+
+        def _parse_coords(s):
+            try:
+                if not s: return None, None
+                parts = str(s).split(',')
+                return float(parts[0].strip()), float(parts[1].strip())
+            except Exception:
+                return None, None
+
+        scored = []
+        for area, city, stats in rows:
+            if area.id in recent_ids:  # exclude recently viewed
+                continue
+            lat, lng = _parse_coords(area.coordinates)
+            scored.append({
+                'area_id':         area.id,
+                'area_name':       area.name,
+                'city':            city.name,
+                'lat':             lat,
+                'lng':             lng,
+                'rental_yield':    _f(stats.rental_yield),
+                'vacancy_rate':    _f(stats.vacancy_rate),
+                'price_per_sqm':   _f(stats.price_per_sqm),
+                'transport_score': _f(stats.transport_score),
+                'score':           _score(stats),
+            })
+
+        scored.sort(key=lambda r: r['score'], reverse=True)
+        top = scored[:limit]
+
+        # Build one-line summary tag per area
+        for r in top:
+            tags = []
+            if r['rental_yield'] and r['rental_yield'] >= 8.0:
+                tags.append(f"Yield ↑ {r['rental_yield']:.1f}%")
+            elif r['rental_yield']:
+                tags.append(f"Yield {r['rental_yield']:.1f}%")
+            if r['vacancy_rate'] and r['vacancy_rate'] < 8.0:
+                tags.append("Vacancy ↓")
+            if r['transport_score'] and r['transport_score'] >= 65:
+                tags.append("Good Transit")
+            if not tags:
+                tags.append("Recommended")
+            r['tag_line'] = ' · '.join(tags)
+
+        return jsonify({'success': True, 'recommended': top})
+    except Exception as e:
+        app.logger.exception('areas_recommended error')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 # ============ NEW AREA METRICS ENDPOINTS (EXTENSIBLE METRIC SYSTEM) ============
 
@@ -1208,6 +2272,259 @@ def api_province_metrics_rollup(province_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@app.route('/api/insights/province/<int:province_id>/dashboard', methods=['GET'])
+def province_insights_dashboard(province_id):
+    """
+    Return a province-level insight dashboard.
+
+    Response shape:
+    {
+      success, province_id, province_name,
+      insights: { rising_yield, falling_vacancy, best_value, high_transit, low_crime, planned_dev },
+      hot_zones: [ { area_id, area_name, city_name, lat, lng, composite_score }, ... ]
+    }
+    Each insight list item: { area_id, area_name, city_name, metric_value, metric_label, lat, lng }
+    """
+    try:
+        # --- Fetch province name ---
+        province = db.session.query(Province).filter(Province.id == province_id).first()
+        if not province:
+            return jsonify({'success': False, 'error': 'Province not found'}), 404
+
+        # --- Latest AreaStatistics per area (using max id as latest proxy) ---
+        from sqlalchemy import func as sa_func
+        latest_subq = (
+            db.session.query(
+                AreaStatistics.area_id,
+                sa_func.max(AreaStatistics.id).label('max_id')
+            )
+            .join(Area, Area.id == AreaStatistics.area_id)
+            .join(City, City.id == Area.city_id)
+            .filter(City.province_id == province_id)
+            .group_by(AreaStatistics.area_id)
+            .subquery()
+        )
+
+        rows = (
+            db.session.query(Area, City, AreaStatistics)
+            .join(City, City.id == Area.city_id)
+            .join(AreaStatistics, AreaStatistics.area_id == Area.id)
+            .join(latest_subq,
+                  (latest_subq.c.area_id == AreaStatistics.area_id) &
+                  (latest_subq.c.max_id == AreaStatistics.id))
+            .filter(City.province_id == province_id)
+            .all()
+        )
+
+        if not rows:
+            return jsonify({
+                'success': True,
+                'province_id': province_id,
+                'province_name': province.name,
+                'insights': {k: [] for k in ['rising_yield','falling_vacancy','best_value','high_transit','low_crime','planned_dev']},
+                'hot_zones': []
+            })
+
+        # --- Build enriched area records ---
+        def _parse_coords(coord_str):
+            """Parse 'lat,lng' string → (float, float) or (None, None)."""
+            if not coord_str:
+                return None, None
+            try:
+                parts = str(coord_str).split(',')
+                return float(parts[0].strip()), float(parts[1].strip())
+            except Exception:
+                return None, None
+
+        def _safe(v):
+            if v is None:
+                return None
+            try:
+                return float(v)
+            except Exception:
+                return None
+
+        def _fmt_pct(v):
+            return f"{v:.1f}%" if v is not None else '—'
+
+        def _fmt_score(v):
+            return f"{v:.0f}/100" if v is not None else '—'
+
+        def _fmt_ratio(v):
+            return f"{v:.2f}" if v is not None else '—'
+
+        def _fmt_price(v):
+            if v is None:
+                return '—'
+            if v >= 1_000_000:
+                return f"R{v/1_000_000:.1f}M"
+            if v >= 1_000:
+                return f"R{v/1_000:.0f}K"
+            return f"R{v:,.0f}"
+
+        areas_data = []
+        for area, city, stats in rows:
+            lat, lng = _parse_coords(area.coordinates)
+            ry = _safe(stats.rental_yield)
+            vr = _safe(stats.vacancy_rate)
+            ppsqm = _safe(stats.price_per_sqm)
+            avg_price = _safe(stats.average_price)
+            ts = _safe(stats.transport_score)
+            ams = _safe(stats.amenities_score)
+            cs = _safe(stats.crime_index_score)
+
+            # value_ratio = rental_yield / price_per_sqm * 1000 (higher is better)
+            value_ratio = (ry / ppsqm * 1000) if (ry is not None and ppsqm and ppsqm > 0) else None
+
+            # Composite score [0..1] for hot-zone ranking
+            # Components: yield contributes positively, vacancy & crime negatively
+            ry_norm  = min((ry or 0) / 15.0, 1.0)
+            ts_norm  = (ts or 50.0) / 100.0
+            ams_norm = (ams or 50.0) / 100.0
+            vr_norm  = 1.0 - min((vr or 10.0) / 20.0, 1.0)
+            cs_norm  = 1.0 - (cs or 50.0) / 100.0
+            composite = (ry_norm * 0.30 + ts_norm * 0.25 + ams_norm * 0.20
+                         + vr_norm * 0.15 + cs_norm * 0.10)
+
+            areas_data.append({
+                'area_id': area.id,
+                'area_name': area.name,
+                'city_name': city.name,
+                'lat': lat,
+                'lng': lng,
+                'rental_yield': ry,
+                'vacancy_rate': vr,
+                'price_per_sqm': ppsqm,
+                'average_price': avg_price,
+                'transport_score': ts,
+                'amenities_score': ams,
+                'crime_index_score': cs,
+                'value_ratio': value_ratio,
+                'composite': round(composite, 4),
+            })
+
+        TOP_N = 5
+
+        def _build_item(r, metric_value, metric_label):
+            return {
+                'area_id': r['area_id'],
+                'area_name': r['area_name'],
+                'city_name': r['city_name'],
+                'metric_value': metric_value,
+                'metric_label': metric_label,
+                'lat': r['lat'],
+                'lng': r['lng'],
+            }
+
+        # 1. Rising Yield — highest rental_yield
+        rising_yield = sorted([r for r in areas_data if r['rental_yield'] is not None],
+                               key=lambda r: r['rental_yield'], reverse=True)[:TOP_N]
+        rising_yield = [_build_item(r, r['rental_yield'], _fmt_pct(r['rental_yield'])) for r in rising_yield]
+
+        # 2. Falling Vacancy — lowest vacancy_rate
+        falling_vacancy = sorted([r for r in areas_data if r['vacancy_rate'] is not None],
+                                  key=lambda r: r['vacancy_rate'])[:TOP_N]
+        falling_vacancy = [_build_item(r, r['vacancy_rate'], _fmt_pct(r['vacancy_rate'])) for r in falling_vacancy]
+
+        # 3. Best Value — highest yield/price_per_sqm ratio
+        best_value = sorted([r for r in areas_data if r['value_ratio'] is not None],
+                             key=lambda r: r['value_ratio'], reverse=True)[:TOP_N]
+        best_value = [_build_item(r, r['value_ratio'], _fmt_ratio(r['value_ratio'])) for r in best_value]
+
+        # 4. High Transit — best transport_score
+        high_transit = sorted([r for r in areas_data if r['transport_score'] is not None],
+                               key=lambda r: r['transport_score'], reverse=True)[:TOP_N]
+        high_transit = [_build_item(r, r['transport_score'], _fmt_score(r['transport_score'])) for r in high_transit]
+
+        # 5. Low Crime — lowest crime_index_score within top-50% by average_price
+        priced = [r for r in areas_data if r['average_price'] is not None]
+        if priced:
+            price_median = sorted([r['average_price'] for r in priced])[len(priced) // 2]
+            crime_pool = [r for r in priced
+                          if r['average_price'] >= price_median and r['crime_index_score'] is not None]
+        else:
+            crime_pool = [r for r in areas_data if r['crime_index_score'] is not None]
+        low_crime = sorted(crime_pool, key=lambda r: r['crime_index_score'])[:TOP_N]
+        low_crime = [_build_item(r, r['crime_index_score'], _fmt_score(r['crime_index_score'])) for r in low_crime]
+
+        # 6. Planned Development — try area_metric_values if schema available, else fallback to amenities_score
+        planned_dev = []
+        if _area_metrics_supported():
+            try:
+                dev_sql = text("""
+                    WITH latest_dev AS (
+                        SELECT v.area_id, v.value_numeric
+                        FROM area_metric_values v
+                        JOIN metrics m ON m.id = v.metric_id
+                        WHERE m.code = 'planned_dev_count'
+                        AND v.area_id IN (
+                            SELECT a.id FROM areas a JOIN cities c ON c.id = a.city_id
+                            WHERE c.province_id = :pid
+                        )
+                        ORDER BY v.period_start DESC, v.created_at DESC
+                    )
+                    SELECT DISTINCT ON (area_id) area_id, value_numeric
+                    FROM latest_dev
+                    ORDER BY area_id, value_numeric DESC
+                """)
+                with db.engine.connect() as conn:
+                    dev_rows = conn.execute(dev_sql, {'pid': province_id}).mappings().all()
+                dev_map = {r['area_id']: float(r['value_numeric']) for r in dev_rows if r['value_numeric'] is not None}
+                if dev_map:
+                    dev_pool = [r for r in areas_data if r['area_id'] in dev_map]
+                    dev_pool.sort(key=lambda r: dev_map[r['area_id']], reverse=True)
+                    planned_dev = [
+                        _build_item(r, dev_map[r['area_id']], str(int(dev_map[r['area_id']])) + ' projects')
+                        for r in dev_pool[:TOP_N]
+                    ]
+            except Exception:
+                pass  # fall through to amenities fallback
+
+        if not planned_dev:
+            # Fallback: highest amenities_score as proxy for development activity
+            dev_fallback = sorted([r for r in areas_data if r['amenities_score'] is not None],
+                                  key=lambda r: r['amenities_score'], reverse=True)[:TOP_N]
+            planned_dev = [_build_item(r, r['amenities_score'], _fmt_score(r['amenities_score'])) for r in dev_fallback]
+
+        # --- Hot Zones — top 50 areas by composite score with valid coordinates ---
+        hot_zones_pool = sorted(
+            [r for r in areas_data if r['lat'] is not None and r['lng'] is not None],
+            key=lambda r: r['composite'], reverse=True
+        )[:50]
+        hot_zones = [
+            {
+                'area_id': r['area_id'],
+                'area_name': r['area_name'],
+                'city_name': r['city_name'],
+                'lat': r['lat'],
+                'lng': r['lng'],
+                'composite_score': r['composite'],
+                'rental_yield': r['rental_yield'],
+            }
+            for r in hot_zones_pool
+        ]
+
+        return jsonify({
+            'success': True,
+            'province_id': province_id,
+            'province_name': province.name,
+            'insights': {
+                'rising_yield': rising_yield,
+                'falling_vacancy': falling_vacancy,
+                'best_value': best_value,
+                'high_transit': high_transit,
+                'low_crime': low_crime,
+                'planned_dev': planned_dev,
+            },
+            'hot_zones': hot_zones,
+        })
+
+    except Exception as e:
+        app.logger.exception('province_insights_dashboard error')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 def initialize_database():
     """Minimal initialization: ensure tables exist for area hierarchy & metrics.
 
@@ -1492,7 +2809,12 @@ def api_metrics_materialized_refresh():
         if not _area_metrics_supported():
             return jsonify({'success': False, 'error': 'Metrics schema not initialized'}), 400
         result = _refresh_materialized_views(recreate=recreate, concurrent=concurrent)
-        status = 200 if result.get('success') else 500
+        if result.get('success'):
+            status = 200
+        elif 'unsupported' in str(result.get('error', '')).lower() or 'postgresql' in str(result.get('error', '')).lower():
+            status = 400   # expected on SQLite dev env – not a server error
+        else:
+            status = 500
         return jsonify(result), status
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
