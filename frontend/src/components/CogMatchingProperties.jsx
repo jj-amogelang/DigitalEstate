@@ -3,7 +3,7 @@
  * Shows properties near the Centre of Gravity result, sorted by distance.
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import { areaDataService } from '../services/areaDataService';
+import areaDataService from '../services/areaDataService';
 import './styles/CogMatchingProperties.css';
 
 const TYPE_LABELS = {
@@ -57,7 +57,7 @@ export default function CogMatchingProperties({ cogResult, weights }) {
     setLoading(true);
     setError(null);
     try {
-      const base = areaDataService.getApiBase();
+      const base = areaDataService.getApiBase ? areaDataService.getApiBase() : (process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000');
       const body = {
         lat:       cogResult.lat,
         lng:       cogResult.lng,
