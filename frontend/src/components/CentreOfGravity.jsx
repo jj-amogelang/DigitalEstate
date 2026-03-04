@@ -27,6 +27,7 @@ import CogWeightPanel from './CogWeightPanel';
 import CogParcelHeatmap from './CogParcelHeatmap';
 import CogAnimatedMarker from './CogAnimatedMarker';
 import InvestmentProfiles from './InvestmentProfiles';
+import CogMatchingProperties from './CogMatchingProperties';
 import './styles/CentreOfGravity.css';
 
 // ── Fix default Leaflet marker icons ──────────────────────────────────────
@@ -363,6 +364,12 @@ export default function CentreOfGravity({ isOpen, onClose, areaId, areaName, ini
                     </li>
                   </ul>
                 </div>
+
+                {/* Matching properties near CoG */}
+                <CogMatchingProperties
+                  cogResult={cog.result}
+                  weights={cog.weights}
+                />
 
               </div>
             )}

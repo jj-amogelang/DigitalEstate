@@ -609,6 +609,102 @@ def cog_acceleration():
     return jsonify({'success': True, 'acceleration': acceleration_info()})
 
 
+# ── CoG Matching Properties endpoint ─────────────────────────────────────────
+import math as _math
+
+def _haversine_km(lat1, lng1, lat2, lng2):
+    """Return great-circle distance in km between two (lat, lng) points."""
+    R = 6371.0
+    phi1, phi2 = _math.radians(lat1), _math.radians(lat2)
+    dphi  = _math.radians(lat2 - lat1)
+    dlam  = _math.radians(lng2 - lng1)
+    a = _math.sin(dphi / 2) ** 2 + _math.cos(phi1) * _math.cos(phi2) * _math.sin(dlam / 2) ** 2
+    return R * 2 * _math.atan2(_math.sqrt(a), _math.sqrt(1 - a))
+
+
+@app.route('/api/cog/matching-properties', methods=['POST'])
+def cog_matching_properties():
+    """
+    Return properties from areas within *radius_km* of a CoG result lat/lng.
+
+    Body (JSON):
+        lat          float   – CoG latitude
+        lng          float   – CoG longitude
+        radius_km    float   – search radius (default 15)
+        property_type str    – filter by type ('residential','commercial',…)
+        max_price    float   – upper price filter
+        min_bedrooms int     – minimum bedrooms (residential only)
+        limit        int     – max properties to return (default 20, max 50)
+
+    Returns:
+        { success, count, properties: [ { …property fields, area_name, distance_km } ] }
+    """
+    try:
+        body = request.get_json(silent=True) or {}
+        cog_lat  = float(body.get('lat', 0))
+        cog_lng  = float(body.get('lng', 0))
+        if cog_lat == 0 and cog_lng == 0:
+            return jsonify({'success': False, 'error': 'lat and lng are required'}), 400
+
+        radius_km      = float(body.get('radius_km', 15))
+        filter_type    = body.get('property_type')
+        max_price      = body.get('max_price')
+        min_bedrooms   = body.get('min_bedrooms')
+        limit          = min(int(body.get('limit', 20)), 50)
+
+        # 1. Fetch all areas that have coordinates
+        areas = Area.query.filter(Area.coordinates.isnot(None)).all()
+
+        # 2. Determine which area IDs are within radius; record distance
+        area_dist = {}
+        for a in areas:
+            try:
+                parts = a.coordinates.split(',')
+                if len(parts) < 2:
+                    continue
+                a_lat, a_lng = float(parts[0]), float(parts[1])
+                d = _haversine_km(cog_lat, cog_lng, a_lat, a_lng)
+                if d <= radius_km:
+                    area_dist[a.id] = {'name': a.name, 'distance_km': round(d, 2)}
+            except Exception:
+                continue
+
+        if not area_dist:
+            return jsonify({'success': True, 'count': 0, 'properties': [],
+                            'message': f'No areas found within {radius_km} km of the specified location.'})
+
+        # 3. Query properties in those areas
+        qry = Property.query.filter(Property.area_id.in_(list(area_dist.keys())))
+        if filter_type:
+            qry = qry.filter(Property.property_type.ilike(f'%{filter_type}%'))
+        if max_price is not None:
+            qry = qry.filter(Property.price <= float(max_price))
+        if min_bedrooms is not None:
+            qry = qry.filter(Property.bedrooms >= int(min_bedrooms))
+
+        props = qry.order_by(Property.is_featured.desc(), Property.created_at.desc()).limit(limit * 3).all()
+
+        # 4. Build response, injecting area_name + distance_km, sort by distance
+        results = []
+        for p in props:
+            d_info = area_dist.get(p.area_id, {})
+            entry = p.to_dict()
+            entry['area_name']    = d_info.get('name', '')
+            entry['distance_km']  = d_info.get('distance_km', None)
+            results.append(entry)
+
+        results.sort(key=lambda x: (x['distance_km'] or 9999, not x['is_featured']))
+        results = results[:limit]
+
+        return jsonify({'success': True, 'count': len(results), 'properties': results,
+                        'cog': {'lat': cog_lat, 'lng': cog_lng},
+                        'radius_km': radius_km})
+
+    except Exception as exc:
+        app.logger.exception('cog_matching_properties error')
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
+
 # ---- Helpers to resolve string refs (code/name) to numeric IDs ----
 def _resolve_country_id(ref):
     try:
