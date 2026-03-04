@@ -286,6 +286,20 @@ def main():
         conn.commit()
         print("  ✅ Tables ensured")
 
+        # 6b. Run additional SQL migration files (parcel snapshots, search indices)
+        print("Applying SQL migrations…")
+        _sql_dir = os.path.join(os.path.dirname(__file__), 'sql')
+        for _migration in ('parcel_snapshots_migration.sql', 'search_indices.sql'):
+            _migration_path = os.path.join(_sql_dir, _migration)
+            if os.path.exists(_migration_path):
+                with open(_migration_path, 'r') as _f:
+                    _sql = _f.read()
+                cur.execute(_sql)
+                conn.commit()
+                print(f"  ✅ Applied {_migration}")
+            else:
+                print(f"  ⚠️  Migration not found: {_migration_path}")
+
         # 7. Update area metadata
         print("Updating area metadata…")
         for area_id, desc, area_type, postal, coords in AREA_META:
