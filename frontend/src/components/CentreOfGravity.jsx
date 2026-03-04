@@ -42,12 +42,13 @@ L.Icon.Default.mergeOptions({
 const cogIcon = new L.Icon({
   iconUrl: 'data:image/svg+xml;base64,' + btoa(`
     <svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="18" cy="18" r="16" fill="#ff6b6b" stroke="#fff" stroke-width="2.5"/>
-      <circle cx="18" cy="18" r="6.5" fill="#fff"/>
-      <line x1="18" y1="2"  x2="18" y2="9"  stroke="#fff" stroke-width="2.5"/>
-      <line x1="18" y1="27" x2="18" y2="34" stroke="#fff" stroke-width="2.5"/>
-      <line x1="2"  y1="18" x2="9"  y2="18" stroke="#fff" stroke-width="2.5"/>
-      <line x1="27" y1="18" x2="34" y2="18" stroke="#fff" stroke-width="2.5"/>
+      <circle cx="18" cy="18" r="16" fill="#d4af37" stroke="#fff" stroke-width="2"/>
+      <circle cx="18" cy="18" r="6" fill="#0e1420"/>
+      <circle cx="18" cy="18" r="2.5" fill="#d4af37"/>
+      <line x1="18" y1="2"  x2="18" y2="9"  stroke="#fff" stroke-width="2"/>
+      <line x1="18" y1="27" x2="18" y2="34" stroke="#fff" stroke-width="2"/>
+      <line x1="2"  y1="18" x2="9"  y2="18" stroke="#fff" stroke-width="2"/>
+      <line x1="27" y1="18" x2="34" y2="18" stroke="#fff" stroke-width="2"/>
     </svg>
   `),
   iconSize:    [36, 36],
@@ -134,22 +135,35 @@ export default function CentreOfGravity({ isOpen, onClose, areaId, areaName, ini
 
         {/* ── Header ─────────────────────────────────────────────────── */}
         <div className="cog-modal-header">
-          <div>
-            <h2 className="cog-modal-title">Centre of Gravity Analysis</h2>
-            <p className="cog-modal-subtitle">Discrete k-NN potential-field optimizer — {areaName}</p>
+          <div className="cog-modal-header-left">
+            <div className="cog-header-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5"/>
+                <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                <line x1="12" y1="2" x2="12" y2="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="2" y1="12" x2="6" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="18" y1="12" x2="22" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </div>
+            <div>
+              <h2 className="cog-modal-title">Centre of Gravity</h2>
+              <p className="cog-modal-subtitle">k-NN Optimizer · {areaName}</p>
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {/* Solve button — explicit full solve */}
+          <div className="cog-modal-header-actions">
             <button
               className={`cog-solve-button${cog.loading ? ' cog-solving' : ''}`}
               onClick={() => cog.solve()}
               disabled={cog.loading || !cog.weightsValid}
               title={!cog.weightsValid ? 'Weights must sum to 100' : 'Run full 200-iteration solve'}
             >
-              {cog.loading ? 'Solving…' : 'Solve'}
+              {cog.loading
+                ? <><span className="loading-spinner-small" style={{border:'2px solid rgba(0,0,0,0.15)',borderTopColor:'#0e1420'}}/> Solving…</>
+                : <>&#x25B6; Solve</>}
             </button>
             <button className="cog-close-button" onClick={onClose} aria-label="Close">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               </svg>
             </button>
@@ -157,7 +171,7 @@ export default function CentreOfGravity({ isOpen, onClose, areaId, areaName, ini
         </div>
 
         {/* ── Investment Profile presets ───────────────────────────────── */}
-        <div style={{ padding: '8px 20px 0' }}>
+        <div className="cog-profile-strip">
           <InvestmentProfiles
             activeProfile={cog.scenario}
             onSelect={cog.applyScenario}
@@ -239,8 +253,8 @@ export default function CentreOfGravity({ isOpen, onClose, areaId, areaName, ini
                   <Polygon
                     positions={ellipsePolygon}
                     pathOptions={{
-                      color: '#ff6b6b', weight: 1.5, opacity: 0.8,
-                      fillColor: '#ff6b6b', fillOpacity: 0.1, dashArray: '6 4',
+                      color: '#d4af37', weight: 1.5, opacity: 0.7,
+                      fillColor: '#d4af37', fillOpacity: 0.07, dashArray: '5 4',
                     }}
                   />
                 )}
@@ -292,77 +306,103 @@ export default function CentreOfGravity({ isOpen, onClose, areaId, areaName, ini
                 {/* Score + source badges */}
                 <div className="cog-results-header">
                   <h3 className="cog-section-title">Optimal Zone</h3>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div className="cog-badges">
                     <div className="cog-score-badge">
-                      Potential: {(cog.result.potential * 100).toFixed(1)}%
+                      {(cog.result.potential * 100).toFixed(1)}% potential
                     </div>
                     <span
                       className="cog-custom-badge"
-                      style={{ background: cog.result.data_source === 'real' ? '#166534' : '#92400e' }}
+                      style={{ background: cog.result.data_source === 'real' ? 'rgba(22,101,52,0.7)' : 'rgba(146,64,14,0.7)', border: '1px solid rgba(255,255,255,0.1)' }}
                       title={cog.result.data_source === 'real'
                         ? `${cog.result.parcel_count} real DB parcels`
-                        : 'Synthesised from area-level statistics'}
+                        : 'Synthesised from area statistics'}
                     >
                       {cog.result.data_source === 'real'
-                        ? `Real · ${cog.result.parcel_count}p`
-                        : 'Synthetic'}
+                        ? `● Real · ${cog.result.parcel_count}p`
+                        : '○ Synthetic'}
                     </span>
                     {cog.result.feasible
-                      ? <span className="cog-custom-badge" style={{ background: '#14532d' }}>✓ Feasible</span>
-                      : <span className="cog-custom-badge" style={{ background: '#7f1d1d' }}>⚠ Infeasible</span>}
+                      ? <span className="cog-custom-badge" style={{ background: 'rgba(20,83,45,0.7)', border: '1px solid rgba(74,222,128,0.25)' }}>✓ Feasible</span>
+                      : <span className="cog-custom-badge" style={{ background: 'rgba(127,29,29,0.7)', border: '1px solid rgba(248,113,113,0.25)' }}>⚠ Infeasible</span>}
                   </div>
                 </div>
 
                 {/* Solver diagnostics grid */}
-                <div className="cog-insights" style={{ marginBottom: 12 }}>
-                  <h4 className="cog-insights-title">Solver Diagnostics</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '5px 20px', fontSize: 13 }}>
-                    <span><strong>Iterations:</strong> {cog.result.convergence.iterations}</span>
-                    <span>
-                      <strong>Converged:</strong>&nbsp;
-                      <span style={{ color: cog.result.convergence.converged ? '#4ade80' : '#fb923c' }}>
-                        {cog.result.convergence.converged ? 'Yes' : 'No (max iter)'}
-                      </span>
-                    </span>
-                    <span><strong>Final Δ:</strong> {cog.result.convergence.delta_m?.toFixed(2)} m</span>
-                    <span><strong>Jitter σ:</strong> {cog.result.convergence.jitter_m?.toFixed(3)} m</span>
-                    <span><strong>1-σ radius:</strong> {cog.result.uncertainty.radius_m?.toFixed(0)} m</span>
-                    <span>
-                      <strong>Ellipse:</strong>&nbsp;
-                      {cog.result.uncertainty.ellipse_a_m?.toFixed(0)} ×&nbsp;
-                      {cog.result.uncertainty.ellipse_b_m?.toFixed(0)} m @&nbsp;
-                      {cog.result.uncertainty.theta_deg?.toFixed(1)}°
-                    </span>
+                <div className="cog-metric-grid">
+                  <div className="cog-metric-card">
+                    <div className="cog-metric-label">Iterations</div>
+                    <div className="cog-metric-value">{cog.result.convergence.iterations}</div>
+                    <div className="cog-metric-sub">solver cycles</div>
+                  </div>
+                  <div className="cog-metric-card">
+                    <div className="cog-metric-label">Converged</div>
+                    <div className={`cog-metric-value ${cog.result.convergence.converged ? 'converged-yes' : 'converged-no'}`}>
+                      {cog.result.convergence.converged ? 'Yes' : 'Max iter'}
+                    </div>
+                    <div className="cog-metric-sub">status</div>
+                  </div>
+                  <div className="cog-metric-card">
+                    <div className="cog-metric-label">Final Δ</div>
+                    <div className="cog-metric-value">{cog.result.convergence.delta_m?.toFixed(2)}<span style={{fontSize:'0.6em',color:'#64748b',marginLeft:2}}>m</span></div>
+                    <div className="cog-metric-sub">positional drift</div>
+                  </div>
+                  <div className="cog-metric-card">
+                    <div className="cog-metric-label">Jitter σ</div>
+                    <div className="cog-metric-value">{cog.result.convergence.jitter_m?.toFixed(3)}<span style={{fontSize:'0.6em',color:'#64748b',marginLeft:2}}>m</span></div>
+                    <div className="cog-metric-sub">stochastic noise</div>
+                  </div>
+                  <div className="cog-metric-card">
+                    <div className="cog-metric-label">1-σ Radius</div>
+                    <div className="cog-metric-value">{cog.result.uncertainty.radius_m?.toFixed(0)}<span style={{fontSize:'0.6em',color:'#64748b',marginLeft:2}}>m</span></div>
+                    <div className="cog-metric-sub">uncertainty</div>
+                  </div>
+                  <div className="cog-metric-card">
+                    <div className="cog-metric-label">Ellipse θ</div>
+                    <div className="cog-metric-value">{cog.result.uncertainty.theta_deg?.toFixed(1)}<span style={{fontSize:'0.6em',color:'#64748b',marginLeft:1}}>°</span></div>
+                    <div className="cog-metric-sub">{cog.result.uncertainty.ellipse_a_m?.toFixed(0)} × {cog.result.uncertainty.ellipse_b_m?.toFixed(0)} m</div>
                   </div>
                 </div>
 
                 {/* Strategic narrative */}
-                <div className="cog-insights">
-                  <h4 className="cog-insights-title">Strategic Output</h4>
-                  <ul className="cog-insights-list">
-                    <li>
-                      Optimal locus at&nbsp;
-                      <strong>({cog.result.lat.toFixed(5)}, {cog.result.lng.toFixed(5)})</strong>
-                      &nbsp;— uncertainty ±<strong>{cog.result.uncertainty.radius_m?.toFixed(0)} m</strong>
-                    </li>
-                    <li>
-                      Ellipse&nbsp;
-                      <strong>{cog.result.uncertainty.ellipse_a_m?.toFixed(0)} m</strong> ×&nbsp;
-                      <strong>{cog.result.uncertainty.ellipse_b_m?.toFixed(0)} m</strong> at&nbsp;
-                      <strong>{cog.result.uncertainty.theta_deg?.toFixed(1)}°</strong> from east
-                    </li>
-                    <li>
-                      Converged in <strong>{cog.result.convergence.iterations}</strong> iterations
-                      (Δ = {cog.result.convergence.delta_m?.toFixed(2)} m,
-                      jitter σ = {cog.result.convergence.jitter_m?.toFixed(3)} m)
-                    </li>
-                    <li>
-                      {cog.result.parcel_count} parcel{cog.result.parcel_count !== 1 ? 's' : ''} evaluated —&nbsp;
-                      {cog.result.data_source === 'real'
-                        ? 'live database records'
-                        : 'synthesised from area-level statistics'}
-                    </li>
-                  </ul>
+                <div className="cog-insights-panel">
+                  <h4 className="cog-insights-panel-title">Strategic Summary</h4>
+                  <div className="cog-strategic-rows">
+                    <div className="cog-strategic-row">
+                      <span className="cog-strategic-row-icon">◎</span>
+                      <span>
+                        Optimal locus at&nbsp;
+                        <strong>({cog.result.lat.toFixed(5)}, {cog.result.lng.toFixed(5)})</strong>
+                        &nbsp;— uncertainty radius&nbsp;
+                        <strong>±{cog.result.uncertainty.radius_m?.toFixed(0)} m</strong>
+                      </span>
+                    </div>
+                    <div className="cog-strategic-row">
+                      <span className="cog-strategic-row-icon">⬭</span>
+                      <span>
+                        1-σ ellipse&nbsp;
+                        <strong>{cog.result.uncertainty.ellipse_a_m?.toFixed(0)} × {cog.result.uncertainty.ellipse_b_m?.toFixed(0)} m</strong>
+                        &nbsp;at <strong>{cog.result.uncertainty.theta_deg?.toFixed(1)}°</strong> from east
+                      </span>
+                    </div>
+                    <div className="cog-strategic-row">
+                      <span className="cog-strategic-row-icon">↻</span>
+                      <span>
+                        Converged in&nbsp;<strong>{cog.result.convergence.iterations}</strong> iterations
+                        &nbsp;(Δ = {cog.result.convergence.delta_m?.toFixed(2)} m,
+                        jitter σ = {cog.result.convergence.jitter_m?.toFixed(3)} m)
+                      </span>
+                    </div>
+                    <div className="cog-strategic-row">
+                      <span className="cog-strategic-row-icon">▤</span>
+                      <span>
+                        <strong>{cog.result.parcel_count}</strong>&nbsp;
+                        parcel{cog.result.parcel_count !== 1 ? 's' : ''} evaluated —&nbsp;
+                        {cog.result.data_source === 'real'
+                          ? 'live database records'
+                          : 'synthesised from area-level statistics'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Matching properties near CoG */}
