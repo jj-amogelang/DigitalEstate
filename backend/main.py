@@ -2684,7 +2684,31 @@ def initialize_database():
         except Exception as e:
             print(f"Database initialization error: {e}")
 
-initialize_database()
+def _initialize_with_retry(max_attempts=3, delay=3):
+    """Call initialize_database() with retry on transient Postgres SSL/network errors."""
+    import time
+    for attempt in range(1, max_attempts + 1):
+        try:
+            initialize_database()
+            return
+        except Exception as exc:
+            msg = str(exc)
+            # Retry on SSL drops or transient connection errors
+            if attempt < max_attempts and any(k in msg for k in [
+                'SSL connection has been closed',
+                'SSL SYSCALL error',
+                'could not connect to server',
+                'connection reset',
+                'timeout',
+            ]):
+                print(f"⚠️  DB init attempt {attempt}/{max_attempts} failed ({exc}), retrying in {delay}s…")
+                time.sleep(delay)
+                delay *= 2  # exponential backoff
+            else:
+                print(f"❌ DB init failed after {attempt} attempt(s): {exc}")
+                return
+
+_initialize_with_retry()
 
 # ================= MATERIALIZED VIEW MAINTENANCE ENDPOINT ==================
 
