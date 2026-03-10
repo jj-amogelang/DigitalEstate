@@ -2779,6 +2779,7 @@ def initialize_database():
                 print(f"⚠️ Metrics seeding skipped: {se}")
         except Exception as e:
             print(f"Database initialization error: {e}")
+            raise  # propagate so _initialize_with_retry can retry on transient SSL errors
 
 def _initialize_with_retry(max_attempts=3, delay=3):
     """Call initialize_database() with retry on transient Postgres SSL/network errors."""
@@ -2796,8 +2797,16 @@ def _initialize_with_retry(max_attempts=3, delay=3):
                 'could not connect to server',
                 'connection reset',
                 'timeout',
+                'OperationalError',
+                'server closed the connection',
             ]):
                 print(f"⚠️  DB init attempt {attempt}/{max_attempts} failed ({exc}), retrying in {delay}s…")
+                # Dispose pool so next attempt opens fresh SSL connections
+                try:
+                    with app.app_context():
+                        db.engine.dispose()
+                except Exception:
+                    pass
                 time.sleep(delay)
                 delay *= 2  # exponential backoff
             else:
