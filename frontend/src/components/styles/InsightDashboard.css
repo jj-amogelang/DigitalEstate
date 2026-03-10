@@ -181,7 +181,13 @@
 }
 @media (max-width: 640px) {
   .insight-panel-grid { grid-template-columns: 1fr; }
-  .insight-dashboard { padding: 1.5rem 1.25rem; }
+  .insight-dashboard { padding: 1.25rem 1rem 2rem; }
+  .insight-dashboard__header { margin-bottom: 1.25rem; }
+  .insight-dashboard__title { font-size: 1.1rem; }
+  .insight-cta {
+    padding: 1.5rem 1.25rem;
+  }
+  .insight-cta__headline { font-size: 1.25rem; }
 }
 
 /* ---- Single insight panel ---- */
@@ -425,8 +431,24 @@
     grid-template-rows: auto;
     text-align: center;
   }
-  .insight-cta__button { grid-column: 1; grid-row: auto; margin-top: 0.75rem; self-align: center; }
+  .insight-cta__button { grid-column: 1; grid-row: auto; margin-top: 0.75rem; align-self: center; }
   .insight-cta__desc { max-width: 100%; }
+}
+
+/* ---- Responsive hot zone map ---- */
+@media (max-width: 768px) {
+  .hotzone-map-container,
+  .hotzone-map-loading,
+  .hotzone-map-empty { height: 260px; }
+  .hotzone-map-legend { display: none; }
+}
+
+@media (max-width: 480px) {
+  .hotzone-map-container,
+  .hotzone-map-loading,
+  .hotzone-map-empty { height: 220px; }
+  .hotzone-map-header { padding: 0.7rem 1rem; }
+  .hotzone-map-title { font-size: 0.65rem; }
 }
 
 /* ---- Hot Zone Map wrapper ---- */

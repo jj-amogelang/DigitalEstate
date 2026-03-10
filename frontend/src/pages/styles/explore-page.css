@@ -22,6 +22,17 @@
 @media (max-width: 1024px) {
   .hero-metrics--explore { display: none; }
 }
+@media (max-width: 768px) {
+  .explore-hero {
+    padding: var(--spacing-lg) var(--spacing-md) var(--spacing-sm);
+  }
+}
+@media (max-width: 480px) {
+  .explore-hero {
+    padding: var(--spacing-md) var(--spacing-sm) var(--spacing-xs);
+  }
+  .explore-hero-subtitle { font-size: 0.875rem; }
+}
 /* Zara-Inspired Sleek Minimalist Theme */
 
 :root {
@@ -81,6 +92,13 @@ body {
   padding: 4rem 2rem;
   background: var(--light-grey);
   border-top: 1px solid var(--border-grey);
+}
+
+@media (max-width: 768px) {
+  .properties-featured-modern { padding: 2.5rem 1.25rem; }
+}
+@media (max-width: 480px) {
+  .properties-featured-modern { padding: 2rem 1rem; }
 }
 
 .properties-featured-modern .header-content-modern {
@@ -208,7 +226,11 @@ body {
   gap: 0;
   margin: 2rem 0 1.5rem;
   border-bottom: 1px solid var(--border-grey);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
+.property-type-buttons::-webkit-scrollbar { display: none; }
 
 .property-type-btn {
   padding: 0.75rem 2rem;
@@ -235,6 +257,20 @@ body {
   color: var(--primary-black);
   border-bottom-color: var(--primary-black);
   font-weight: var(--font-weight-medium);
+}
+
+@media (max-width: 640px) {
+  .property-type-btn {
+    padding: 0.625rem 1.25rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+}
+@media (max-width: 480px) {
+  .property-type-btn {
+    padding: 0.5rem 0.875rem;
+    font-size: 0.75rem;
+  }
 }
 
 @media (max-width: 1024px) {

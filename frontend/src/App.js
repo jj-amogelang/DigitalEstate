@@ -113,6 +113,39 @@ function LocationModalBridge() {
   );
 }
 
+/**
+ * BottomNav
+ * Mobile-only sticky bottom navigation for quick access to main sections.
+ * Visible only on screens ≤ 768px via CSS.
+ */
+function BottomNav() {
+  const location = useLocation();
+  const navItems = [
+    { to: '/explore', icon: MapPinned, label: 'Explore', match: ['/', '/explore', '/properties'] },
+    { to: '/about',   icon: Info,      label: 'About',   match: ['/about'] },
+    { to: '/settings',icon: Cog,       label: 'Settings',match: ['/settings'] },
+  ];
+
+  return (
+    <nav className="bottom-nav" aria-label="Mobile navigation">
+      {navItems.map(({ to, icon: Icon, label, match }) => {
+        const isActive = match.some(p => p.trim() === location.pathname);
+        return (
+          <Link
+            key={to}
+            to={to}
+            className={`bottom-nav-item${isActive ? ' active' : ''}`}
+            aria-current={isActive ? 'page' : undefined}
+          >
+            <Icon className="bottom-nav-icon" size={22} />
+            <span className="bottom-nav-label">{label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -195,6 +228,9 @@ function App() {
                   <Route path="/settings" element={<Settings />} />
                 </Routes>
               </div>
+
+              {/* Mobile bottom navigation — only rendered/visible on ≤768px */}
+              <BottomNav />
             </main>
 
             {/* Authentication Modal */}

@@ -996,6 +996,26 @@
 }
 
 /* ── Responsive ───────────────────────────────────────────────────── */
+
+/* Tablet (≤900px): stack columns before modal gets cramped */
+@media (max-width: 900px) {
+  .cog-modal-content {
+    max-width: calc(100vw - 32px);
+  }
+  .cog-modal-columns {
+    grid-template-columns: 1fr;
+  }
+  .cog-weight-panel {
+    border-right: none;
+    border-bottom: 1px solid var(--cog-border);
+    max-height: 320px;
+    overflow-y: auto;
+  }
+  .cog-modal-wide { max-width: 100%; }
+  .cog-scenario-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Small tablet / large phone (≤720px) */
 @media (max-width: 720px) {
   .cog-modal-columns {
     grid-template-columns: 1fr;
@@ -1003,18 +1023,74 @@
   .cog-weight-panel {
     border-right: none;
     border-bottom: 1px solid var(--cog-border);
-    max-height: 300px;
+    max-height: 280px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .cog-modal-header-actions {
+    gap: 6px;
   }
   .cog-zoning-grid { grid-template-columns: repeat(3, 1fr); }
   .cog-modal-wide { max-width: 100%; }
   .cog-metric-grid { grid-template-columns: repeat(2, 1fr); }
+  .cog-kpi-row { flex-wrap: wrap; }
+  .cog-kpi { min-width: 80px; }
+  .cog-scenario-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-@media (max-width: 480px) {
-  .cog-modal-overlay { padding: 0; }
-  .cog-modal-content { border-radius: 0; max-height: 100vh; }
-  .cog-modal-header { padding: 14px 16px 12px; }
-  .cog-modal-right { padding: 14px 14px; }
+/* Mobile (≤600px): tighten up header, stack action buttons */
+@media (max-width: 600px) {
+  .cog-modal-overlay { padding: 8px; }
+  .cog-modal-content {
+    border-radius: var(--cog-radius);
+    max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px);
+  }
+  .cog-modal-header {
+    padding: 14px 16px 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .cog-modal-header-left {
+    flex: 1;
+    min-width: 0;
+  }
+  .cog-modal-header-actions {
+    flex-wrap: wrap;
+    gap: 6px;
+    order: 3;
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .cog-reset-button {
+    display: none; /* hide reset to save space; accessible via weight panel */
+  }
+  .cog-modal-right { padding: 14px; }
+  .cog-profile-strip { padding: 10px 14px; }
+  .cog-area-summary { padding: 12px 14px; }
   .cog-metric-grid { grid-template-columns: 1fr 1fr; }
   .cog-zoning-grid { grid-template-columns: 1fr 1fr; }
+  .cog-map-placeholder { min-height: 220px; padding: 28px 16px; }
+  .cog-browse-properties-btn { font-size: 0.68rem; padding: 12px 14px; }
+}
+
+/* Small phone (≤480px): near-fullscreen modal */
+@media (max-width: 480px) {
+  .cog-modal-overlay { padding: 0; }
+  .cog-modal-content {
+    border-radius: 0;
+    max-height: 100vh;
+    max-height: 100dvh;
+  }
+  .cog-modal-header { padding: 12px 14px 10px; }
+  .cog-modal-title { font-size: 0.875rem; }
+  .cog-modal-subtitle { font-size: 0.6rem; }
+  .cog-modal-right { padding: 12px; }
+  .cog-weight-panel { max-height: 240px; padding: 14px 12px; }
+  .cog-metric-grid { grid-template-columns: 1fr 1fr; }
+  .cog-zoning-grid { grid-template-columns: 1fr 1fr; }
+  .cog-solve-button { padding: 7px 14px; font-size: 0.68rem; }
+  .cog-section-title { font-size: 0.58rem; }
+  .cog-kpi-value { font-size: 0.88rem; }
+  .cog-kpi { padding: 10px 8px; }
 }
