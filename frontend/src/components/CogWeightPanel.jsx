@@ -34,21 +34,12 @@ const ZONING_LABELS = {
   retail:      'Retail',
 };
 
-const SCENARIO_OPTIONS = [
-  { key: 'balanced',       label: 'Balanced' },
-  { key: 'valueInvestor',  label: 'Value Investor' },
-  { key: 'transitFocused', label: 'Transit-Focused' },
-  { key: 'highFootfall',   label: 'High Footfall' },
-];
-
 export default function CogWeightPanel({
   weights,
-  scenario,
   totalWeight,
   weightsValid,
-  onWeightChange,    // used by auto-balance (not by sliders during drag)
+  onWeightChange,
   onAutoBalance,
-  onScenarioChange,
   zoning,
   onToggleZoning,
   onSetAll,
@@ -62,28 +53,10 @@ export default function CogWeightPanel({
 
   return (
     <aside className="cog-weight-panel">
-      {/* ── Scenario presets ──────────────────────────────────────── */}
-      <div className="cog-section">
-        <p className="cog-section-title">Scenario Presets</p>
-        <div className="cog-scenario-grid">
-          {SCENARIO_OPTIONS.map(({ key, label }) => (
-            <button
-              key={key}
-              className={`cog-scenario-button${scenario === key ? ' active' : ''}`}
-              onClick={() => onScenarioChange(key)}
-            >
-              {label}
-            </button>
-          ))}
-          {scenario === 'custom' && (
-            <span className="cog-custom-badge">Custom</span>
-          )}
-        </div>
-      </div>
 
       {/* ── Factor weight sliders ─────────────────────────────────── */}
       <div className="cog-section">
-        <p className="cog-section-title">Investment Weights</p>
+        <p className="cog-panel-section-label">Investment Weights</p>
 
         {factors.map(factor => {
           const pct = weights[factor];
@@ -104,17 +77,11 @@ export default function CogWeightPanel({
                   max={100}
                   value={pct}
                   className="cog-weight-slider"
-                  // Drag lifecycle: preview fires on every pixel of movement;
-                  // full solve fires on pointer release.
                   onPointerDown={() => onDragStart()}
                   onInput={e  => onDragMove(factor, e.target.value)}
                   onPointerUp={e => onDragEnd(factor, e.target.value)}
-                  // Keyboard fallback: treat arrow-key release as drag end
                   onKeyUp={e  => onDragEnd(factor, e.target.value)}
-                  // onBlur catch-all (e.g. mouse leaves window while pressed)
                   onBlur={e   => onDragEnd(factor, e.target.value)}
-                  // onChange kept so React's controlled input stays in sync
-                  // without fighting the drag callbacks
                   onChange={e => onDragMove(factor, e.target.value)}
                 />
               </div>
@@ -122,17 +89,16 @@ export default function CogWeightPanel({
           );
         })}
 
-        {/* Weight total + auto-balance ─────────────────────────── */}
+        {/* Weight total + auto-balance */}
         <div className={`cog-weight-total${!weightsValid ? ' invalid' : ''}`}>
-          Total: <strong>{totalWeight}%</strong>
+          <span>Total: <strong>{totalWeight}%</strong></span>
           {!weightsValid && (
-            <span className="cog-weight-warning"> ≠ 100</span>
+            <span className="cog-weight-warning">≠ 100</span>
           )}
           <button
             className="cog-autobalance-btn"
             title="Distribute remaining % evenly across other factors"
             onClick={() => {
-              // Balance relative to the heaviest factor
               const top = factors.reduce((a, b) =>
                 weights[a] >= weights[b] ? a : b
               );
@@ -147,10 +113,10 @@ export default function CogWeightPanel({
       {/* ── Zoning constraints ───────────────────────────────────── */}
       <div className="cog-section">
         <div className="cog-zoning-header">
-          <p className="cog-section-title" style={{ marginBottom: 0 }}>Zoning Filter</p>
+          <p className="cog-panel-section-label" style={{ marginBottom: 0 }}>Zoning Filter</p>
           <div className="cog-zoning-actions">
             <button className="cog-zoning-link" onClick={onSetAll}>All</button>
-            <span>·</span>
+            <span style={{color:'#d1d5db'}}>·</span>
             <button className="cog-zoning-link" onClick={onClearAll}>None</button>
           </div>
         </div>

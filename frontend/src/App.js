@@ -13,7 +13,7 @@ import ProfileButton from "./components/ProfileButton";
 import AuthModal from "./components/AuthModal";
 import "./App.css";
 import "./styles/aws-global.css";
-import { LayoutGrid, MapPinned, Settings as Cog } from "lucide-react";
+import { Info, MapPinned, Settings as Cog } from "lucide-react";
 
 function Sidebar({ isOpen, toggleSidebar }) {
   const location = useLocation();
@@ -53,21 +53,21 @@ function Sidebar({ isOpen, toggleSidebar }) {
       {/* Navigation */}
       <nav className="sidebar-nav">
         <Link 
-          to="/" 
-          className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}
-          title="Home"
+          to="/explore" 
+          className={`nav-link ${location.pathname === '/' || location.pathname === '/explore' || location.pathname === '/properties' ? 'active' : ''}`}
+          title="Explore Areas"
         >
-          <LayoutGrid className="nav-icon" size={20} />
-          {isOpen && <span className="nav-text">Home</span>}
+          <MapPinned className="nav-icon" size={20} />
+          {isOpen && <span className="nav-text">Explore Areas</span>}
         </Link>
 
         <Link 
-          to="/explore" 
-          className={`nav-link ${location.pathname === '/explore' || location.pathname === '/properties' ? 'active' : ''}`}
-          title="Explore Properties"
+          to="/about" 
+          className={`nav-link ${location.pathname === '/about' ? 'active' : ''}`}
+          title="About"
         >
-          <MapPinned className="nav-icon" size={20} />
-          {isOpen && <span className="nav-text">Explore Properties</span>}
+          <Info className="nav-icon" size={20} />
+          {isOpen && <span className="nav-text">About</span>}
         </Link>
 
         {/* Analytics removed */}
@@ -186,9 +186,10 @@ function App() {
               {/* Main Content Area */}
               <div className="content-area">
                 <Routes>
-                  <Route path="/" element={<DashboardPage />} />
+                  <Route path="/" element={<ExplorePage />} />
                   <Route path="/properties" element={<ExplorePage />} />
                   <Route path="/explore" element={<ExplorePage />} />
+                  <Route path="/about" element={<DashboardPage />} />
                   <Route path="/property/:id" element={<PropertyDetailsPage />} />
                   {/* Analytics route removed */}
                   <Route path="/settings" element={<Settings />} />

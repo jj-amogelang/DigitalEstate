@@ -211,11 +211,11 @@ export default function InsightDashboard({
             {compact ? 'At a Glance' : 'Market Intelligence'}
             {provinceName ? <> — <strong>{provinceName}</strong></> : null}
           </h3>
-          {compact && (
-            <span className="insight-dashboard__header-sub">
-              Province-level snapshot · scroll to explore
-            </span>
-          )}
+          <span className="insight-dashboard__header-sub">
+            {compact
+              ? 'Province snapshot · scroll to explore'
+              : 'Top-ranked areas by investment category · click any row to drill in'}
+          </span>
         </div>
         {!loading && provinceName && (
           <span className={badgeClass}>{badgeLabel}</span>
@@ -251,13 +251,13 @@ export default function InsightDashboard({
               Find your Investment <strong>Bull's-Eye</strong>
             </h4>
             <p className="insight-cta__desc">
-              Use our Centre of Gravity solver to pinpoint the single best location
+              Use our Centre of Gravity solver to pinpoint the single optimal location
               in {provinceName || 'South Africa'} based on your weighted investment
               criteria — built for local and international investors.
             </p>
             <button className="insight-cta__button" onClick={onCogClick}>
               <Icons.BullsEye />
-              Find My Investment Bull's-Eye (CoG)
+              Find My CoG
             </button>
           </div>
         </>

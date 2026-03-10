@@ -24,31 +24,26 @@ export const INVESTMENT_PROFILES = [
   {
     key:         'balanced',
     label:       'Balanced',
-    icon:        '⚖',
     description: 'Equal weight across all metrics',
   },
   {
     key:         'valueInvestor',
     label:       'Value Investor',
-    icon:        '💰',
     description: 'High yield · low vacancy · affordable price',
   },
   {
     key:         'transitFocused',
     label:       'Transit-Focused',
-    icon:        '🚆',
     description: 'Strong transport accessibility',
   },
   {
     key:         'highFootfall',
     label:       'High Footfall',
-    icon:        '🏙',
     description: 'Maximum pedestrian & consumer activity',
   },
   {
     key:         'developmentOpportunity',
     label:       'Development Opp.',
-    icon:        '🏗',
     description: 'Low price/sqm · high footfall · vacancy',
   },
 ];
@@ -75,7 +70,6 @@ export default function InvestmentProfiles({ activeProfile, onSelect, compact = 
               onClick={() => onSelect(p.key)}
               title={p.description}
             >
-              <span className="ip-chip-icon" aria-hidden="true">{p.icon}</span>
               <span className="ip-chip-label">{p.label}</span>
               {isActive && <span className="ip-chip-check" aria-hidden="true">✓</span>}
             </button>

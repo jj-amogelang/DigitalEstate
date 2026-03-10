@@ -5,6 +5,7 @@ import { API_ENDPOINTS } from "../config/api";
 import areaDataService from "../services/areaDataService";
 import AWSAlert from "../components/AWSAlert";
 import CentreOfGravity from "../components/CentreOfGravity";
+import CogMatchingProperties from "../components/CogMatchingProperties";
 import InsightDashboard from "../components/InsightDashboard";
 import GlobalSearchBar from "../components/GlobalSearchBar";
 import RecentAndSaved from "../components/RecentAndSaved";
@@ -53,6 +54,9 @@ export default function ExplorePage() {
   const [alert, setAlert] = useState(null);
   const [isRefreshingMV, setIsRefreshingMV] = useState(false);
   const [cogOpen, setCogOpen] = useState(false);
+  // Persisted CoG result — set when user clicks "View Properties" inside the modal
+  const [savedCogContext, setSavedCogContext] = useState(null); // { result, weights, areaName }
+  const propertiesRef = useRef(null);
 
   // Province auto-detection + landing dashboard
   const detected = useProvinceDetect(allProvinces);
@@ -737,6 +741,18 @@ export default function ExplorePage() {
   }, [selected.area]);
 
   /**
+   * Called when user clicks "View Properties Near This Location" inside the CoG modal.
+   * Stores the result, closes the modal, and scrolls to the properties section.
+   */
+  const handleBrowseProperties = (cogResult, weights) => {
+    setSavedCogContext({ result: cogResult, weights, areaName: selected.areaName });
+    setCogOpen(false);
+    setTimeout(() => {
+      propertiesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 120);
+  };
+
+  /**
    * Called when user clicks an area card in the InsightDashboard.
    * Sets the area in state so the area-insights section opens.
    * Also seeds the province dropdown so the cascading filters stay consistent.
@@ -1332,12 +1348,66 @@ export default function ExplorePage() {
         </div>
       )}
 
+      {/* ── CoG Properties Section ───────────────────────────────────────── */}
+      {savedCogContext && (
+        <div className="cog-properties-section" ref={propertiesRef}>
+          {/* Resume banner */}
+          <div className="cog-resume-banner">
+            <div className="cog-resume-banner-left">
+              <div className="cog-resume-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5"/>
+                  <circle cx="12" cy="12" r="2.5" fill="currentColor"/>
+                  <line x1="12" y1="2" x2="12" y2="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  <line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  <line x1="2" y1="12" x2="6" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  <line x1="18" y1="12" x2="22" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <div>
+                <p className="cog-resume-title">
+                  Properties near your CoG in&nbsp;<strong>{savedCogContext.areaName}</strong>
+                </p>
+                <p className="cog-resume-sub">
+                  Potential score:&nbsp;<strong>{(savedCogContext.result.potential * 100).toFixed(1)}%</strong>
+                  &nbsp;· radius ±{savedCogContext.result.uncertainty?.radius_m?.toFixed(0)} m
+                </p>
+              </div>
+            </div>
+            <div className="cog-resume-banner-right">
+              <button
+                className="cog-resume-btn"
+                onClick={() => setCogOpen(true)}
+              >
+                ↩ Resume CoG
+              </button>
+              <button
+                className="cog-resume-dismiss"
+                onClick={() => setSavedCogContext(null)}
+                aria-label="Dismiss"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                  <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Matching properties list */}
+          <CogMatchingProperties
+            cogResult={savedCogContext.result}
+            weights={savedCogContext.weights}
+          />
+        </div>
+      )}
+
       <CentreOfGravity
         isOpen={cogOpen}
         onClose={() => setCogOpen(false)}
         areaId={selected.area}
         areaName={selected.areaName}
         initialProfile={selectedProfile}
+        onBrowseProperties={handleBrowseProperties}
       />
     </div>
   );

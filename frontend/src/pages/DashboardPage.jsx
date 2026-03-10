@@ -4,7 +4,6 @@ import { useAuth } from "../context/AuthContext";
 import { useAppLocation } from "../context/LocationContext";
 import "./styles/dashboard-page.css";
 import areaDataService from "../services/areaDataService";
-import PropertyTypeSelector from "../components/PropertyTypeSelector";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -15,9 +14,6 @@ export default function DashboardPage() {
   const [areaMetrics, setAreaMetrics] = useState(null);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [metricsError, setMetricsError] = useState(null);
-  const [selectedPropertyType, setSelectedPropertyType] = useState(() => {
-    try { return window.localStorage.getItem('selectedPropertyType') || 'residential'; } catch { return 'residential'; }
-  });
 
   // Fetch metrics whenever the effective area changes
   useEffect(() => {
@@ -77,7 +73,7 @@ export default function DashboardPage() {
               Welcome back, {user.firstName}! 👋
             </h2>
             <p className="welcome-subtitle">
-              Ready to explore the South African property market? Your personalized dashboard awaits.
+              Ready to find the Centre of Gravity for your next property decision? Head to Explore Areas to get started.
             </p>
           </div>
         </div>
@@ -88,20 +84,29 @@ export default function DashboardPage() {
         <div className="hero-overlay">
             <div className="hero-content">
             <h1 className="dashboard-title">
-              Smart, Data-Driven
-              <span className="title-highlight"> Real Estate Dashboard</span>
+              Find the
+              <span className="title-highlight"> Centre of Gravity</span>
             </h1>
             <p className="dashboard-subtitle">
-              Designed to give you insights into all property in South Africa. 
-              A centralized, user-friendly platform to explore property listings, view real-time data, and access detailed insights — all in one place.
+              DigitalEstate helps you discover the <strong>Centre of Gravity (CoG)</strong> — the optimal hotspot
+              in any area where property demand, investment potential, and market momentum converge.
+              Explore South African areas, compare live metrics, and let data guide your next property decision.
             </p>
             <div className="hero-cta">
-              <ExplorePropertiesMenu navigate={navigate} />
+              <button
+                onClick={() => navigate('/explore')}
+                className="btn btn-primary"
+              >
+                Explore Areas &amp; Find CoG
+                <svg className="cta-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
               <button 
-                onClick={() => navigate('/explore')} 
+                onClick={() => navigate('/settings')} 
                 className="btn btn-secondary"
               >
-                View Live Data
+                Settings
               </button>
             </div>
             {/* hero metrics moved to Explore page */}
@@ -176,9 +181,9 @@ export default function DashboardPage() {
         <div className="platform-overview-section">
           <div className="container-professional">
             <div className="overview-header">
-              <h2 className="section-title-professional">Complete Property Intelligence Platform</h2>
+              <h2 className="section-title-professional">What is the Centre of Gravity (CoG)?</h2>
               <p className="section-subtitle-professional">
-                Comprehensive property data, market insights, and analytics for South Africa's real estate market
+                The CoG is the weighted hotspot within an area where property value, demand, and opportunity converge — helping you invest with confidence.
               </p>
             </div>
             
@@ -191,8 +196,8 @@ export default function DashboardPage() {
                     <path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                   </svg>
                 </div>
-                <h4>Location Intelligence</h4>
-                <p>Advanced search and filtering across all South African provinces and cities</p>
+                <h4>Pinpoint the CoG</h4>
+                <p>The CoG algorithm scores parcels across multiple weighted metrics to surface the single optimal location in any area.</p>
               </div>
               
               <div className="capability-card">
@@ -203,8 +208,8 @@ export default function DashboardPage() {
                     <circle cx="18" cy="6" r="2" fill="currentColor"/>
                   </svg>
                 </div>
-                <h4>Real-Time Analytics</h4>
-                <p>Live market data with pricing trends, yields, and performance metrics</p>
+                <h4>Live Area Metrics</h4>
+                <p>Real-time data feeds — pricing trends, rental yields, vacancy rates, crime indices, and population growth — power every CoG calculation.</p>
               </div>
               
               <div className="capability-card">
@@ -216,8 +221,8 @@ export default function DashboardPage() {
                     <circle cx="12" cy="7" r="1" fill="currentColor"/>
                   </svg>
                 </div>
-                <h4>Property Intelligence</h4>
-                <p>Detailed property data including costs, specifications, and developer information</p>
+                <h4>Adjust Your Weights</h4>
+                <p>Customise which metrics matter most to you — safety, yield, growth, or price — and watch the CoG update in real time on the map.</p>
               </div>
             </div>
           </div>
@@ -297,49 +302,40 @@ export default function DashboardPage() {
           <div className="container-professional">
             <div className="excellence-content">
               <div className="excellence-text">
-                <h3 className="excellence-title">Making Property Data Accessible, Meaningful, and Beautiful</h3>
+                <h3 className="excellence-title">How to Use DigitalEstate</h3>
                 <p className="excellence-description">
-                  We reimagine how property data is accessed in South Africa — combining comprehensive information 
-                  with intelligent design to empower smarter real estate decisions.
+                  Open <strong>Explore Areas</strong> from the sidebar, select a province, city, and area,
+                  then click <em>Find Centre of Gravity</em>. Adjust the metric weights to match your investment
+                  strategy and the map will highlight the optimal parcel — your CoG.
                 </p>
                 <div className="excellence-features">
                   <div className="feature-badge">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                      <path d="M8 12l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <circle cx="12" cy="12" r="3" fill="currentColor"/>
                     </svg>
-                    Accessible to All
+                    Select an Area
                   </div>
                   <div className="feature-badge">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                       <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
-                    Actionable Insights
+                    Run CoG Solver
                   </div>
                   <div className="feature-badge">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                       <path d="M12 2l2.4 7.2H22l-6 4.8 2.4 7.2L12 17.2l-6.4 4L8 13.2 2 8.4h7.6L12 2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
-                    Modern Interface
+                    Invest with Confidence
                   </div>
                 </div>
               </div>
               <div className="excellence-cta">
                 <button 
-                  onClick={() => navigate(`/insights?type=${selectedPropertyType}`)} 
+                  onClick={() => navigate('/explore')} 
                   className="btn-professional btn-primary-professional"
                 >
-                  <span>Explore Property Insights</span>
-                  <div style={{marginLeft:'auto'}}>
-                    <PropertyTypeSelector
-                      value={selectedPropertyType}
-                      onChange={(val)=>{
-                        try{window.localStorage.setItem('selectedPropertyType',val);}catch{}
-                        setSelectedPropertyType(val);
-                      }}
-                      size="sm"
-                    />
-                  </div>
+                  <span>Start Exploring Areas &amp; CoG</span>
                   <svg className="cta-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none">
                     <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
@@ -348,102 +344,6 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function ExplorePropertiesMenu({ navigate }) {
-  const [open, setOpen] = useState(false);
-  const [focusedIndex, setFocusedIndex] = useState(-1);
-  const menuRef = React.useRef(null);
-  const toggleRef = React.useRef(null);
-
-  const items = [
-    { label: 'Residential', path: '/explore?type=residential' },
-    { label: 'Commercial', path: '/explore?type=commercial' },
-    { label: 'All Properties', path: '/explore' },
-  ];
-
-  const go = (path) => {
-    setOpen(false);
-    setFocusedIndex(-1);
-    navigate(path);
-  };
-
-  // Close on outside click
-  useEffect(() => {
-    const onDocClick = (e) => {
-      if (!open) return;
-      const t = e.target;
-      if (menuRef.current && !menuRef.current.contains(t) && toggleRef.current && !toggleRef.current.contains(t)) {
-        setOpen(false);
-        setFocusedIndex(-1);
-      }
-    };
-    document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
-  }, [open]);
-
-  // Keyboard navigation
-  const onKeyDown = (e) => {
-    if (!open) return;
-    if (e.key === 'Escape') {
-      setOpen(false);
-      setFocusedIndex(-1);
-      toggleRef.current?.focus();
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setFocusedIndex((i) => (i + 1) % items.length);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setFocusedIndex((i) => (i - 1 + items.length) % items.length);
-    } else if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      const target = items[focusedIndex];
-      if (target) go(target.path);
-    }
-  };
-
-  useEffect(() => {
-    if (open) setFocusedIndex(0);
-    else setFocusedIndex(-1);
-  }, [open]);
-
-  return (
-    <div className="explore-properties-wrapper">
-      <button
-        ref={toggleRef}
-        className="btn btn-primary explore-properties-toggle"
-        aria-haspopup="true"
-        aria-expanded={open ? 'true' : 'false'}
-        aria-controls="explore-properties-menu"
-        onClick={() => setOpen(!open)}
-      >
-        <span>Explore Properties</span>
-        <svg className={`cta-arrow ${open ? 'open' : ''}`} width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </button>
-      <div
-        id="explore-properties-menu"
-        ref={menuRef}
-        className={`explore-properties-menu ${open ? 'open' : ''}`}
-        role="menu"
-        aria-label="Explore property categories"
-        onKeyDown={onKeyDown}
-      >
-        {items.map((item, idx) => (
-          <button
-            key={item.label}
-            role="menuitem"
-            className={`menu-item ${focusedIndex === idx ? 'focused' : ''}`}
-            tabIndex={open ? (idx === focusedIndex ? 0 : -1) : -1}
-            onClick={() => go(item.path)}
-          >
-            <span className="menu-item-label">{item.label}</span>
-          </button>
-        ))}
       </div>
     </div>
   );
