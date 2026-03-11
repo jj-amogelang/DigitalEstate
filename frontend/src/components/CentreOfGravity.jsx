@@ -18,7 +18,7 @@
  *   - Data source badge (real DB parcels vs. synthetic from area stats)
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Polygon, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -91,8 +91,33 @@ export default function CentreOfGravity({ isOpen, onClose, areaId, areaName, ini
   const cog = useCogSolver({ areaId, isActive: isOpen, previewActive: !!areaId });
 
   // Track whether the user has run a solve at least once in this session
-  const [hasSolved, setHasSolved] = useState(false);
-  const prevLoadingRef = useRef(false);
+  const [hasSolved, setHasSolved]             = useState(false);
+  const prevLoadingRef                         = useRef(false);
+
+  // API-sourced profiles (fetched once; used to enrich the profile strip)
+  const [apiProfiles, setApiProfiles]          = useState([]);
+
+  // Slider animation gate — set true briefly when a profile chip is clicked
+  const [animatingProfile, setAnimatingProfile] = useState(false);
+  const animTimerRef                            = useRef(null);
+
+  const handleProfileSelect = useCallback((key) => {
+    // Kick the animation flag, then clear it after the transition completes
+    if (animTimerRef.current) clearTimeout(animTimerRef.current);
+    setAnimatingProfile(true);
+    animTimerRef.current = setTimeout(() => setAnimatingProfile(false), 480);
+    cog.applyScenario(key);
+  }, [cog]);
+
+  // Fetch investor profiles once on mount
+  useEffect(() => {
+    areaDataService.getInvestorProfiles?.().then(data => {
+      if (Array.isArray(data)) setApiProfiles(data);
+    }).catch(() => {}); // silently ignore — local fallback covers this
+  }, []);
+
+  // Cleanup animation timer on unmount
+  useEffect(() => () => { if (animTimerRef.current) clearTimeout(animTimerRef.current); }, []);
 
   // Result pane active tab: 'overview' | 'feasibility'
   const [resultTab, setResultTab] = useState('overview');
@@ -212,8 +237,9 @@ export default function CentreOfGravity({ isOpen, onClose, areaId, areaName, ini
         {/* ── Investment Profile presets ───────────────────────────────── */}
         <div className="cog-profile-strip">
           <InvestmentProfiles
+            profiles={apiProfiles.length > 0 ? apiProfiles : undefined}
             activeProfile={cog.scenario}
-            onSelect={cog.applyScenario}
+            onSelect={handleProfileSelect}
             compact
           />
         </div>
@@ -235,6 +261,7 @@ export default function CentreOfGravity({ isOpen, onClose, areaId, areaName, ini
               onClearAll={cog.clearAllZoning}
               activeProfile={cog.scenario}
               onApplyProfile={cog.applyProfile}
+              animatingProfile={animatingProfile}
               onDragStart={cog.onDragStart}
               onDragMove={cog.onDragMove}
               onDragEnd={cog.onDragEnd}

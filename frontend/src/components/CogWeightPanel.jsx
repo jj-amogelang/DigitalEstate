@@ -78,6 +78,8 @@ export default function CogWeightPanel({
   // Investor profile bar
   activeProfile  = null,
   onApplyProfile = () => {},
+  // Slider animation gate — true briefly after a profile chip is selected
+  animatingProfile = false,
   // Drag lifecycle
   onDragStart  = () => {},
   onDragMove   = () => {},
@@ -103,7 +105,12 @@ export default function CogWeightPanel({
               <div className="cog-slider-track">
                 <div
                   className="cog-slider-fill"
-                  style={{ width: `${pct}%` }}
+                  style={{
+                    width: `${pct}%`,
+                    transition: animatingProfile
+                      ? 'width 420ms cubic-bezier(0.4, 0, 0.2, 1)'
+                      : 'width 80ms ease',
+                  }}
                 />
                 <input
                   type="range"

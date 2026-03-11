@@ -2,6 +2,15 @@
    InvestmentProfiles.css
    ============================================================ */
 
+:root {
+  --ip-risk-low-bg:    #e8f5ee;
+  --ip-risk-low-fg:    #2e7d52;
+  --ip-risk-med-bg:    #fdf3e3;
+  --ip-risk-med-fg:    #8B6A3A;
+  --ip-risk-high-bg:   #fdecea;
+  --ip-risk-high-fg:   #c0392b;
+}
+
 .ip-root {
   width: 100%;
   display: flex;
@@ -10,7 +19,6 @@
 }
 
 .ip-heading {
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.12em;
@@ -23,7 +31,7 @@
 .ip-track {
   display: flex;
   flex-direction: row;
-  gap: 8px;
+  gap: 6px;
   overflow-x: auto;
   padding-bottom: 2px;
   scrollbar-width: none;
@@ -37,16 +45,17 @@
   align-items: center;
   gap: 5px;
   flex-shrink: 0;
-  padding: 8px 14px;
+  padding: 7px 10px;
   background: #fff;
   border: 1px solid var(--border-grey, #E8E8E8);
-  border-radius: 1px;
+  border-radius: 2px;
   cursor: pointer;
   transition: border-color 0.16s, background 0.16s, box-shadow 0.16s;
   white-space: nowrap;
 }
 .ip-chip:hover {
   border-color: var(--accent-gold, #C9A96E);
+  background: #fdf9f2;
 }
 .ip-chip:focus-visible {
   outline: 2px solid var(--accent-gold, #C9A96E);
@@ -55,49 +64,95 @@
 .ip-chip--active {
   border-color: var(--accent-gold, #C9A96E);
   background: var(--accent-gold, #C9A96E);
+  box-shadow: 0 0 0 1px var(--accent-gold, #C9A96E);
+}
+.ip-chip--active:hover {
+  background: #b8913d;
+  border-color: #b8913d;
 }
 
 .ip-chip-icon {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1;
+  flex-shrink: 0;
 }
 .ip-chip-label {
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
-  color: var(--primary-black, #000);
+  color: var(--primary-black, #1A1A1A);
   letter-spacing: 0.01em;
 }
 .ip-chip--active .ip-chip-label {
   color: #fff;
 }
-.ip-chip-check {
-  font-size: 11px;
-  color: #fff;
-  margin-left: 2px;
+
+/* ─── Risk badge ──────────────────────────────────────────── */
+.ip-risk {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 20px;
+  flex-shrink: 0;
+  line-height: 1.6;
+}
+.ip-risk--low  { background: var(--ip-risk-low-bg);  color: var(--ip-risk-low-fg); }
+.ip-risk--medium { background: var(--ip-risk-med-bg);  color: var(--ip-risk-med-fg); }
+.ip-risk--high { background: var(--ip-risk-high-bg); color: var(--ip-risk-high-fg); }
+
+/* Inverted (on active gold chip) */
+.ip-risk--inv.ip-risk--low    { background: rgba(255,255,255,0.25); color: #fff; }
+.ip-risk--inv.ip-risk--medium { background: rgba(255,255,255,0.25); color: #fff; }
+.ip-risk--inv.ip-risk--high   { background: rgba(255,255,255,0.25); color: #fff; }
+
+/* ─── Active profile panel ────────────────────────────────── */
+.ip-active-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: #fafafa;
+  border: 1px solid var(--border-grey, #E8E8E8);
+  border-left: 3px solid var(--accent-gold, #C9A96E);
+  border-radius: 2px;
+  animation: ip-fadein 0.18s ease;
 }
 
-/* ─── Active description ──────────────────────────────────── */
-.ip-description {
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  font-size: 11px;
-  color: #888;
-  margin: 0;
-  padding-left: 2px;
-  min-height: 15px;
-  transition: opacity 0.2s;
+@keyframes ip-fadein {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ─── Compact variant (inside modal) ─────────────────────── */
-.ip-compact .ip-chip {
-  padding: 6px 11px;
+.ip-active-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
-.ip-compact .ip-chip-label {
+.ip-active-icon {
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.ip-active-name {
   font-size: 11px;
+  font-weight: 600;
+  color: var(--primary-black, #1A1A1A);
+  letter-spacing: 0.01em;
+  flex: 1;
 }
-.ip-compact .ip-chip-icon {
-  font-size: 12px;
-}
-.ip-compact .ip-description {
+.ip-active-copy {
   font-size: 10.5px;
+  color: #777;
+  margin: 0;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
 }
+
+/* ─── Compact variant ─────────────────────────────────────── */
+.ip-compact .ip-chip { padding: 6px 9px; }
+.ip-compact .ip-chip-label { font-size: 10.5px; }
+.ip-compact .ip-chip-icon  { font-size: 11px; }
+.ip-compact .ip-risk { font-size: 8.5px; }
+.ip-compact .ip-active-panel { padding: 6px 8px; }
+.ip-compact .ip-active-copy  { font-size: 10px; }

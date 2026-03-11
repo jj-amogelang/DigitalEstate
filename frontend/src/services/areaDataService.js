@@ -728,6 +728,17 @@ class AreaDataService {
       return null;
     }
   }
+
+  async getInvestorProfiles() {
+    await this.ready;
+    try {
+      const response = await this.api.get('/api/profiles');
+      return response?.success ? response.profiles : null;
+    } catch (error) {
+      console.error('Error fetching investor profiles:', error);
+      return null;
+    }
+  }
 }
 
 // Create and export a singleton instance
