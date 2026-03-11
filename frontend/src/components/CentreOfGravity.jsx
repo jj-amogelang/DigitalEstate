@@ -27,6 +27,8 @@ import CogWeightPanel from './CogWeightPanel';
 import CogParcelHeatmap from './CogParcelHeatmap';
 import CogAnimatedMarker from './CogAnimatedMarker';
 import InvestmentProfiles from './InvestmentProfiles';
+import FeasibilityTab from './FeasibilityTab';
+import areaDataService from '../services/areaDataService';
 import './styles/CentreOfGravity.css';
 
 // ── Fix default Leaflet marker icons ──────────────────────────────────────
@@ -82,7 +84,7 @@ function Recenter({ center, zoom }) {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
-export default function CentreOfGravity({ isOpen, onClose, areaId, areaName, initialProfile = 'balanced', onBrowseProperties }) {
+export default function CentreOfGravity({ isOpen, onClose, areaId, areaName, initialProfile = 'balanced' }) {
   // previewActive = true as soon as an area is selected, even before the modal
   // is opened. This warms the backend cache and gives the map an instant first
   // result the moment the modal renders (animated marker + heatmap).
@@ -91,6 +93,9 @@ export default function CentreOfGravity({ isOpen, onClose, areaId, areaName, ini
   // Track whether the user has run a solve at least once in this session
   const [hasSolved, setHasSolved] = useState(false);
   const prevLoadingRef = useRef(false);
+
+  // Result pane active tab: 'overview' | 'feasibility'
+  const [resultTab, setResultTab] = useState('overview');
   useEffect(() => {
     if (cog.loading && !prevLoadingRef.current) setHasSolved(true);
     prevLoadingRef.current = cog.loading;
@@ -216,21 +221,25 @@ export default function CentreOfGravity({ isOpen, onClose, areaId, areaName, ini
         {/* ── Two-column body ─────────────────────────────────────────── */}
         <div className="cog-modal-columns">
 
-          {/* Left: weight panel */}
-          <CogWeightPanel
-            weights={cog.weights}
-            totalWeight={cog.totalWeight}
-            weightsValid={cog.weightsValid}
-            onWeightChange={cog.setWeight}
-            onAutoBalance={cog.autoBalance}
-            zoning={cog.zoning}
-            onToggleZoning={cog.toggleZoning}
-            onSetAll={cog.setAllZoning}
-            onClearAll={cog.clearAllZoning}
-            onDragStart={cog.onDragStart}
-            onDragMove={cog.onDragMove}
-            onDragEnd={cog.onDragEnd}
-          />
+          {/* Left: weight panel + market intelligence */}
+          <div className="cog-modal-left">
+            <CogWeightPanel
+              weights={cog.weights}
+              totalWeight={cog.totalWeight}
+              weightsValid={cog.weightsValid}
+              onWeightChange={cog.setWeight}
+              onAutoBalance={cog.autoBalance}
+              zoning={cog.zoning}
+              onToggleZoning={cog.toggleZoning}
+              onSetAll={cog.setAllZoning}
+              onClearAll={cog.clearAllZoning}
+              activeProfile={cog.scenario}
+              onApplyProfile={cog.applyProfile}
+              onDragStart={cog.onDragStart}
+              onDragMove={cog.onDragMove}
+              onDragEnd={cog.onDragEnd}
+            />
+          </div>
 
           {/* Right: map + status + results */}
           <div className="cog-modal-right">
@@ -383,6 +392,29 @@ export default function CentreOfGravity({ isOpen, onClose, areaId, areaName, ini
             {cog.result && !cog.loading && (
               <div className="cog-results">
 
+                {/* ── Result pane tab bar ──────────────────────────── */}
+                <div className="cog-result-tabs" role="tablist">
+                  <button
+                    role="tab"
+                    className={`cog-result-tab${resultTab === 'overview' ? ' cog-result-tab--active' : ''}`}
+                    aria-selected={resultTab === 'overview'}
+                    onClick={() => setResultTab('overview')}
+                  >
+                    Overview
+                  </button>
+                  <button
+                    role="tab"
+                    className={`cog-result-tab${resultTab === 'feasibility' ? ' cog-result-tab--active' : ''}`}
+                    aria-selected={resultTab === 'feasibility'}
+                    onClick={() => setResultTab('feasibility')}
+                  >
+                    Feasibility
+                  </button>
+                </div>
+
+                {/* ── Overview tab ────────────────────────────────── */}
+                {resultTab === 'overview' && (<>
+
                 {/* Score + badges row */}
                 <div className="cog-results-header">
                   <h3 className="cog-section-title">Optimal Zone</h3>
@@ -439,26 +471,15 @@ export default function CentreOfGravity({ isOpen, onClose, areaId, areaName, ini
                   </span>
                 </div>
 
-                {/* Properties CTA */}
-                {onBrowseProperties && (
-                  <button
-                    className="cog-browse-properties-btn"
-                    onClick={() => {
-                      onBrowseProperties(cog.result, cog.weights);
-                      onClose();
-                    }}
-                  >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.7"/>
-                      <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.7"/>
-                      <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.7"/>
-                      <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.7"/>
-                    </svg>
-                    View Properties Near This Location
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{marginLeft:'auto'}}>
-                      <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </button>
+                </>)}{/* /overview tab */}
+
+                {/* ── Feasibility tab ──────────────────────────────── */}
+                {resultTab === 'feasibility' && (
+                  <FeasibilityTab
+                    cogResult={cog.result}
+                    areaStats={null}
+                    apiBase={areaDataService.getApiBase ? areaDataService.getApiBase() : undefined}
+                  />
                 )}
 
               </div>

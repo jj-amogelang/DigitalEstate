@@ -1,0 +1,559 @@
+/* investor-dashboard.css
+   Design tokens: --accent-gold #C9A96E  --dark-text #2D2D2D  --border-grey #E8E8E8
+   Font: 'Helvetica Neue', Arial, sans-serif
+*/
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+
+.investor-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 28px 32px 48px;
+  max-width: 1400px;
+  margin: 0 auto;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  color: #2D2D2D;
+}
+
+/* ── Page header ─────────────────────────────────────────────────────────── */
+
+.dash-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.dash-page-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #2D2D2D;
+}
+
+.dash-page-title h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  margin: 0;
+}
+
+.dash-page-title svg {
+  color: #C9A96E;
+  flex-shrink: 0;
+}
+
+/* ── Summary bar ─────────────────────────────────────────────────────────── */
+
+.dash-summary-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .dash-summary-bar { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .dash-summary-bar { grid-template-columns: 1fr; }
+}
+
+.dash-summary-card {
+  background: #fff;
+  border: 1px solid #E8E8E8;
+  border-radius: 10px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  transition: box-shadow 0.2s;
+}
+
+.dash-summary-card:hover {
+  box-shadow: 0 3px 10px rgba(0,0,0,.08);
+}
+
+.dash-summary-card--warn {
+  border-color: #e07b3f;
+  background: #fff8f4;
+}
+
+.dash-summary-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #faf7f2;
+  color: #C9A96E;
+  flex-shrink: 0;
+}
+
+.dash-summary-card--warn .dash-summary-icon {
+  background: #fef0e7;
+  color: #e07b3f;
+}
+
+.dash-summary-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-summary-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #2D2D2D;
+}
+
+.dash-summary-card--warn .dash-summary-value {
+  color: #e07b3f;
+}
+
+.dash-summary-label {
+  font-size: 0.73rem;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #888;
+  margin-top: 2px;
+}
+
+/* ── 3-column grid ───────────────────────────────────────────────────────── */
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .dash-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 700px) {
+  .dash-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Widget container ────────────────────────────────────────────────────── */
+
+.dash-widget {
+  background: #fff;
+  border: 1px solid #E8E8E8;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-widget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid #E8E8E8;
+  background: #fafafa;
+}
+
+.dash-widget-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #2D2D2D;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.dash-widget-title svg {
+  color: #C9A96E;
+}
+
+.dash-widget-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.dash-count {
+  background: #E8E8E8;
+  color: #555;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 10px;
+}
+
+.dash-count--alert {
+  background: #fdebd5;
+  color: #e07b3f;
+}
+
+/* ── Card list ───────────────────────────────────────────────────────────── */
+
+.dash-card-list {
+  list-style: none;
+  margin: 0;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.dash-card {
+  border: 1px solid #E8E8E8;
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color 0.18s, box-shadow 0.18s;
+  background: #fefefe;
+}
+
+.dash-card:hover {
+  border-color: #C9A96E;
+  box-shadow: 0 2px 8px rgba(201,169,110,.12);
+}
+
+.dash-card--row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: default;
+}
+
+.dash-card--triggered {
+  border-color: #e07b3f;
+  background: #fff8f4;
+}
+
+.dash-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.dash-card-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dash-card-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #2D2D2D;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.dash-card-sub {
+  font-size: 0.75rem;
+  color: #888;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dash-card-body {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #E8E8E8;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Mini-map ────────────────────────────────────────────────────────────── */
+
+.dash-mini-map-wrap {
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #E8E8E8;
+}
+
+/* ── Result grid (CoG stat cells) ────────────────────────────────────────── */
+
+.dash-result-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.stat-cell {
+  background: #f8f8f8;
+  border-radius: 6px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.stat-label {
+  font-size: 0.69rem;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.stat-value {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #2D2D2D;
+}
+
+/* ── Score badge ─────────────────────────────────────────────────────────── */
+
+.score-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.badge-green { background: #e6f9ee; color: #1d8a4e; }
+.badge-gold  { background: #fdf5e6; color: #b07d1a; }
+.badge-red   { background: #fde8e8; color: #c0392b; }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+
+.dash-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #E8E8E8;
+  background: #fff;
+  color: #2D2D2D;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.dash-btn:hover:not(:disabled) {
+  border-color: #C9A96E;
+  background: #fdf8f0;
+}
+
+.dash-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.dash-btn--primary {
+  background: #C9A96E;
+  border-color: #C9A96E;
+  color: #fff;
+}
+
+.dash-btn--primary:hover:not(:disabled) {
+  background: #b8945a;
+  border-color: #b8945a;
+}
+
+.dash-btn--outline {
+  border-color: #C9A96E;
+  color: #C9A96E;
+  background: transparent;
+}
+
+.dash-btn--outline:hover:not(:disabled) {
+  background: #fdf8f0;
+}
+
+.dash-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #aaa;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.dash-icon-btn:hover {
+  color: #C9A96E;
+  background: #fdf8f0;
+}
+
+.dash-delete-btn:hover {
+  color: #c0392b;
+  background: #fde8e8;
+}
+
+.dash-add-btn:hover {
+  color: #1d8a4e;
+  background: #e6f9ee;
+}
+
+/* ── Alert form ──────────────────────────────────────────────────────────── */
+
+.alert-form {
+  padding: 14px 16px;
+  border-bottom: 1px solid #E8E8E8;
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alert-form-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dash-input,
+.dash-select {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid #E8E8E8;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  color: #2D2D2D;
+  background: #fff;
+  transition: border-color 0.15s;
+}
+
+.dash-input:focus,
+.dash-select:focus {
+  outline: none;
+  border-color: #C9A96E;
+}
+
+.dash-input--narrow {
+  max-width: 100px;
+}
+
+.alert-form-footer {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Alert cards ─────────────────────────────────────────────────────────── */
+
+.alert-icon-col {
+  flex-shrink: 0;
+}
+
+.alert-icon {
+  color: #aaa;
+}
+
+.alert-icon--fired {
+  color: #e07b3f;
+  animation: alert-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes alert-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+.alert-metric-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 500;
+  color: #555;
+}
+
+.alert-cond {
+  color: #555;
+  font-weight: 400;
+  font-size: 0.83rem;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+
+.dash-empty {
+  padding: 36px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  color: #aaa;
+  font-size: 0.85rem;
+}
+
+.dash-empty-icon {
+  color: #E8E8E8;
+}
+
+.dash-empty-sub {
+  font-size: 0.78rem;
+  color: #ccc;
+}
+
+/* ── Loading & error states ──────────────────────────────────────────────── */
+
+.dash-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 64px 24px;
+  color: #aaa;
+  font-size: 0.9rem;
+}
+
+.dash-error-banner {
+  background: #fde8e8;
+  border: 1px solid #f5b7b7;
+  border-radius: 8px;
+  padding: 10px 16px;
+  color: #c0392b;
+  font-size: 0.84rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Spin animation ──────────────────────────────────────────────────────── */
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+/* ── Mobile adjustments ──────────────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  .investor-dashboard {
+    padding: 16px 14px 64px;
+    gap: 16px;
+  }
+
+  .dash-page-title h1 {
+    font-size: 1.2rem;
+  }
+}

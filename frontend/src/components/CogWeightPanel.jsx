@@ -34,6 +34,37 @@ const ZONING_LABELS = {
   retail:      'Retail',
 };
 
+const ZONING_ICONS = {
+  residential: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <path d="M3 9.5L12 3l9 6.5V21a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M9 22V13h6v9" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+    </svg>
+  ),
+  commercial: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="3" width="18" height="18" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M3 9h18M9 3v18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  ),
+  mixed: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <path d="M2 17h20M2 12h20M2 7h20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  ),
+  industrial: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <path d="M2 20h20M4 20V10l5-3v3l5-3v3l5-3v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  retail: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M3 6h18M16 10a4 4 0 01-8 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  ),
+};
+
 export default function CogWeightPanel({
   weights,
   totalWeight,
@@ -44,6 +75,9 @@ export default function CogWeightPanel({
   onToggleZoning,
   onSetAll,
   onClearAll,
+  // Investor profile bar
+  activeProfile  = null,
+  onApplyProfile = () => {},
   // Drag lifecycle
   onDragStart  = () => {},
   onDragMove   = () => {},
@@ -110,27 +144,43 @@ export default function CogWeightPanel({
         </div>
       </div>
 
-      {/* ── Zoning constraints ───────────────────────────────────── */}
-      <div className="cog-section">
+      {/* Zone filter */}
+      <div className="cog-section cog-section--zoning">
         <div className="cog-zoning-header">
-          <p className="cog-panel-section-label" style={{ marginBottom: 0 }}>Zoning Filter</p>
+          <div className="cog-zoning-header-left">
+            <p className="cog-panel-section-label" style={{ marginBottom: 0 }}>Zone Filter</p>
+            <span className="cog-zoning-count">{zoning.length} / {ALL_ZONINGS.length}</span>
+          </div>
           <div className="cog-zoning-actions">
             <button className="cog-zoning-link" onClick={onSetAll}>All</button>
-            <span style={{color:'#d1d5db'}}>·</span>
+            <span className="cog-zoning-sep"/>
             <button className="cog-zoning-link" onClick={onClearAll}>None</button>
           </div>
         </div>
-        <div className="cog-zoning-grid">
-          {ALL_ZONINGS.map(z => (
-            <label key={z} className="cog-zoning-chip">
-              <input
-                type="checkbox"
-                checked={zoning.includes(z)}
-                onChange={() => onToggleZoning(z)}
-              />
-              <span>{ZONING_LABELS[z] ?? z}</span>
-            </label>
-          ))}
+        <div className="cog-zoning-list">
+          {ALL_ZONINGS.map(z => {
+            const checked = zoning.includes(z);
+            return (
+              <button
+                key={z}
+                type="button"
+                role="checkbox"
+                aria-checked={checked}
+                className={`cog-zone-row${checked ? ' cog-zone-row--on' : ''}`}
+                onClick={() => onToggleZoning(z)}
+              >
+                <span className="cog-zone-icon">{ZONING_ICONS[z]}</span>
+                <span className="cog-zone-label">{ZONING_LABELS[z] ?? z}</span>
+                <span className="cog-zone-check">
+                  {checked && (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                      <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </aside>

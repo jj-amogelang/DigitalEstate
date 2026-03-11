@@ -1,0 +1,442 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   OpportunitiesPage – Zara-minimalist design system
+   Design tokens match explore-page.css / MarketIntelligencePanel.css
+   ────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --opp-gold:         #C9A96E;
+  --opp-gold-light:   #F3E9D6;
+  --opp-black:        #1A1A1A;
+  --opp-dark:         #2D2D2D;
+  --opp-mid:          #6B6B6B;
+  --opp-light:        #F8F8F6;
+  --opp-border:       #E8E8E8;
+  --opp-white:        #FFFFFF;
+  --opp-blue:         #5B8DB8;
+  --opp-teal:         #6EC9A9;
+  --opp-mauve:        #B86E9A;
+  --opp-font:         'Helvetica Neue', 'Arial', sans-serif;
+  --opp-radius:       4px;
+  --opp-radius-lg:    8px;
+  --opp-shadow:       0 2px 12px rgba(0,0,0,0.07);
+  --opp-shadow-hover: 0 6px 24px rgba(0,0,0,0.13);
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+
+.opp-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--opp-light);
+  font-family: var(--opp-font);
+  color: var(--opp-dark);
+}
+
+.opp-header {
+  padding: 20px 32px 0;
+  background: var(--opp-white);
+  border-bottom: 1px solid var(--opp-border);
+  flex-shrink: 0;
+}
+
+.opp-header-top {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.opp-header-title {
+  font-size: 1.45rem;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--opp-black);
+  margin: 0;
+}
+
+.opp-header-subtitle {
+  font-size: 0.78rem;
+  color: var(--opp-mid);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Category tabs */
+.opp-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: none;
+  margin-bottom: -1px;   /* sits flush on the header border */
+}
+
+.opp-tab {
+  padding: 10px 22px;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-family: var(--opp-font);
+  font-weight: 400;
+  color: var(--opp-mid);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.18s, border-color 0.18s;
+  white-space: nowrap;
+}
+
+.opp-tab:hover {
+  color: var(--opp-dark);
+}
+
+.opp-tab.active-yield {
+  color: var(--opp-gold);
+  border-bottom-color: var(--opp-gold);
+  font-weight: 500;
+}
+.opp-tab.active-vacancy {
+  color: var(--opp-blue);
+  border-bottom-color: var(--opp-blue);
+  font-weight: 500;
+}
+.opp-tab.active-value {
+  color: var(--opp-teal);
+  border-bottom-color: var(--opp-teal);
+  font-weight: 500;
+}
+.opp-tab.active-emerging {
+  color: var(--opp-mauve);
+  border-bottom-color: var(--opp-mauve);
+  font-weight: 500;
+}
+
+/* ── Body ───────────────────────────────────────────────────────────────── */
+
+.opp-body {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  grid-template-rows: 1fr;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Filter Panel (left) ────────────────────────────────────────────────── */
+
+.opp-filters {
+  background: var(--opp-white);
+  border-right: 1px solid var(--opp-border);
+  padding: 24px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.opp-filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.opp-filter-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--opp-mid);
+  font-weight: 500;
+}
+
+.opp-filter-select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--opp-border);
+  border-radius: var(--opp-radius);
+  font-family: var(--opp-font);
+  font-size: 0.82rem;
+  color: var(--opp-dark);
+  background: var(--opp-white);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B6B6B' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.opp-filter-select:focus {
+  outline: none;
+  border-color: var(--opp-gold);
+}
+
+.opp-filter-range {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.opp-range-input {
+  width: 100%;
+  accent-color: var(--opp-gold);
+  cursor: pointer;
+}
+
+.opp-range-value {
+  font-size: 0.78rem;
+  color: var(--opp-mid);
+  text-align: right;
+}
+
+.opp-apply-btn {
+  padding: 11px 16px;
+  background: var(--opp-black);
+  color: var(--opp-white);
+  border: none;
+  border-radius: var(--opp-radius);
+  font-family: var(--opp-font);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.18s;
+  margin-top: 4px;
+}
+
+.opp-apply-btn:hover {
+  background: var(--opp-dark);
+}
+
+.opp-reset-link {
+  background: none;
+  border: none;
+  font-size: 0.72rem;
+  color: var(--opp-mid);
+  text-decoration: underline;
+  cursor: pointer;
+  text-align: center;
+  font-family: var(--opp-font);
+  letter-spacing: 0.04em;
+}
+
+.opp-reset-link:hover {
+  color: var(--opp-dark);
+}
+
+/* ── Content Area (right) ───────────────────────────────────────────────── */
+
+.opp-content {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  overflow: hidden;
+}
+
+.opp-map-wrapper {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--opp-border);
+  min-height: 260px;
+}
+
+/* ── Cards list ─────────────────────────────────────────────────────────── */
+
+.opp-cards-wrapper {
+  overflow-y: auto;
+  padding: 16px 20px;
+  background: var(--opp-light);
+}
+
+.opp-cards-heading {
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--opp-mid);
+  margin: 0 0 12px;
+}
+
+.opp-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+/* ── Individual card ────────────────────────────────────────────────────── */
+
+.opp-card {
+  background: var(--opp-white);
+  border: 1px solid var(--opp-border);
+  border-radius: var(--opp-radius-lg);
+  padding: 16px;
+  cursor: pointer;
+  transition: box-shadow 0.18s, transform 0.12s;
+  position: relative;
+  overflow: hidden;
+}
+
+.opp-card:hover {
+  box-shadow: var(--opp-shadow-hover);
+  transform: translateY(-2px);
+}
+
+.opp-card.selected {
+  border-color: var(--opp-gold);
+  box-shadow: 0 0 0 2px var(--opp-gold-light);
+}
+
+.opp-card-rank {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--opp-mid);
+}
+
+.opp-card-name {
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--opp-black);
+  margin: 0 0 2px;
+  line-height: 1.2;
+  padding-right: 28px;   /* avoid overlapping rank badge */
+}
+
+.opp-card-location {
+  font-size: 0.72rem;
+  color: var(--opp-mid);
+  letter-spacing: 0.02em;
+  margin-bottom: 12px;
+}
+
+.opp-card-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.opp-metric-pill {
+  font-size: 0.72rem;
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: var(--opp-light);
+  color: var(--opp-dark);
+  border: 1px solid var(--opp-border);
+  white-space: nowrap;
+}
+
+.opp-metric-pill.primary {
+  background: var(--opp-gold-light);
+  border-color: var(--opp-gold);
+  color: #8B6A3A;
+  font-weight: 500;
+}
+
+/* Score bar */
+.opp-score-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.opp-score-bar-bg {
+  flex: 1;
+  height: 3px;
+  background: var(--opp-border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.opp-score-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+.opp-score-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  min-width: 28px;
+  text-align: right;
+}
+
+/* ── Loader / Empty ─────────────────────────────────────────────────────── */
+
+.opp-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--opp-mid);
+}
+
+.opp-spinner {
+  width: 28px;
+  height: 28px;
+  border: 2.5px solid var(--opp-border);
+  border-top-color: var(--opp-gold);
+  border-radius: 50%;
+  animation: opp-spin 0.8s linear infinite;
+}
+
+@keyframes opp-spin {
+  to { transform: rotate(360deg); }
+}
+
+.opp-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--opp-mid);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .opp-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .opp-filters {
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: none;
+    border-bottom: 1px solid var(--opp-border);
+    padding: 16px;
+    gap: 12px;
+    overflow-y: visible;
+  }
+
+  .opp-filter-section {
+    min-width: 140px;
+    flex: 1;
+  }
+
+  .opp-apply-btn,
+  .opp-reset-link {
+    align-self: flex-end;
+  }
+}
+
+@media (max-width: 600px) {
+  .opp-header {
+    padding: 14px 16px 0;
+  }
+
+  .opp-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .opp-content {
+    grid-template-rows: 220px 1fr;
+  }
+}

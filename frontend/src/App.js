@@ -7,13 +7,14 @@ import { LocationProvider, useAppLocation } from "./context/LocationContext";
 import LocationPermissionModal from "./components/LocationPermissionModal";
 import DashboardPage from "./pages/DashboardPage";
 import ExplorePage from "./pages/ExplorePage";
-import PropertyDetailsPage from "./pages/PropertyDetailsPage";
 import Settings from "./pages/Settings";
 import ProfileButton from "./components/ProfileButton";
 import AuthModal from "./components/AuthModal";
 import "./App.css";
 import "./styles/aws-global.css";
-import { Info, MapPinned, Settings as Cog } from "lucide-react";
+import { Info, MapPinned, Settings as Cog, TrendingUp, LayoutDashboard } from "lucide-react";
+import InvestorDashboard from "./pages/InvestorDashboard";
+import OpportunitiesPage from "./pages/OpportunitiesPage";
 
 function Sidebar({ isOpen, toggleSidebar }) {
   const location = useLocation();
@@ -54,11 +55,29 @@ function Sidebar({ isOpen, toggleSidebar }) {
       <nav className="sidebar-nav">
         <Link 
           to="/explore" 
-          className={`nav-link ${location.pathname === '/' || location.pathname === '/explore' || location.pathname === '/properties' ? 'active' : ''}`}
+          className={`nav-link ${location.pathname === '/' || location.pathname === '/explore' ? 'active' : ''}`}
           title="Explore Areas"
         >
           <MapPinned className="nav-icon" size={20} />
           {isOpen && <span className="nav-text">Explore Areas</span>}
+        </Link>
+
+        <Link
+          to="/opportunities"
+          className={`nav-link ${location.pathname === '/opportunities' ? 'active' : ''}`}
+          title="Opportunities"
+        >
+          <TrendingUp className="nav-icon" size={20} />
+          {isOpen && <span className="nav-text">Opportunities</span>}
+        </Link>
+
+        <Link
+          to="/dashboard"
+          className={`nav-link ${location.pathname === '/dashboard' ? 'active' : ''}`}
+          title="Dashboard"
+        >
+          <LayoutDashboard className="nav-icon" size={20} />
+          {isOpen && <span className="nav-text">Dashboard</span>}
         </Link>
 
         <Link 
@@ -121,9 +140,11 @@ function LocationModalBridge() {
 function BottomNav() {
   const location = useLocation();
   const navItems = [
-    { to: '/explore', icon: MapPinned, label: 'Explore', match: ['/', '/explore', '/properties'] },
-    { to: '/about',   icon: Info,      label: 'About',   match: ['/about'] },
-    { to: '/settings',icon: Cog,       label: 'Settings',match: ['/settings'] },
+    { to: '/explore',        icon: MapPinned,   label: 'Explore',        match: ['/', '/explore'] },
+    { to: '/opportunities',  icon: TrendingUp,       label: 'Opportunities',  match: ['/opportunities'] },
+    { to: '/dashboard',      icon: LayoutDashboard,  label: 'Dashboard',      match: ['/dashboard'] },
+    { to: '/about',          icon: Info,             label: 'About',          match: ['/about'] },
+    { to: '/settings',       icon: Cog,         label: 'Settings',       match: ['/settings'] },
   ];
 
   return (
@@ -186,7 +207,7 @@ function App() {
               {/* Top Navigation Bar with Profile Button */}
               <div className="top-nav">
                 <div className="nav-left">
-                  {/* Mobile Sidebar Toggle */}
+                  {/* Sidebar Toggle */}
                   <button
                     className="sidebar-toggle"
                     aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
@@ -220,11 +241,11 @@ function App() {
               <div className="content-area">
                 <Routes>
                   <Route path="/" element={<ExplorePage />} />
-                  <Route path="/properties" element={<ExplorePage />} />
                   <Route path="/explore" element={<ExplorePage />} />
                   <Route path="/about" element={<DashboardPage />} />
-                  <Route path="/property/:id" element={<PropertyDetailsPage />} />
                   {/* Analytics route removed */}
+                  <Route path="/opportunities" element={<OpportunitiesPage />} />
+                  <Route path="/dashboard" element={<InvestorDashboard />} />
                   <Route path="/settings" element={<Settings />} />
                 </Routes>
               </div>

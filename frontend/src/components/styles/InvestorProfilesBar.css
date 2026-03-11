@@ -1,0 +1,105 @@
+/* ============================================================
+   InvestorProfilesBar.css
+   Design tokens: match CentreOfGravity.css / InvestmentProfiles.css
+   ============================================================ */
+
+.ipb-root {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-grey, #E8E8E8);
+  margin-bottom: 4px;   /* spacing before the "Investment Weights" section label */
+}
+
+/* ── Section heading ────────────────────────────────────────── */
+.ipb-heading {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #999;
+  margin: 0;
+}
+
+/* ── 2-column chip grid ─────────────────────────────────────── */
+.ipb-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+/* ── Individual chip ────────────────────────────────────────── */
+.ipb-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  background: #fff;
+  border: 1px solid var(--border-grey, #E8E8E8);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: border-color 0.14s, background 0.14s, box-shadow 0.14s;
+  text-align: left;
+  width: 100%;
+  min-width: 0;
+}
+
+.ipb-chip:hover {
+  border-color: var(--accent-gold, #C9A96E);
+  background: #fdf9f2;
+}
+
+.ipb-chip:focus-visible {
+  outline: 2px solid var(--accent-gold, #C9A96E);
+  outline-offset: 2px;
+}
+
+.ipb-chip--active {
+  border-color: var(--accent-gold, #C9A96E);
+  background: var(--accent-gold, #C9A96E);
+  box-shadow: 0 0 0 1px var(--accent-gold, #C9A96E);
+}
+
+.ipb-chip--active:hover {
+  background: #b8913d;
+  border-color: #b8913d;
+}
+
+/* ── Chip icon ──────────────────────────────────────────────── */
+.ipb-chip-icon {
+  font-size: 13px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ── Chip label ─────────────────────────────────────────────── */
+.ipb-chip-label {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--primary-black, #1A1A1A);
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ipb-chip--active .ipb-chip-label {
+  color: #fff;
+}
+
+/* ── Active description ─────────────────────────────────────── */
+.ipb-description {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 11px;
+  color: #777;
+  margin: 0;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  font-style: italic;
+  min-height: 1em;
+}

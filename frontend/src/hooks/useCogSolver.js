@@ -40,8 +40,10 @@ export const SCENARIOS = {
   balanced:               { rentalYield: 25, pricePerSqm: 25, vacancy: 20, transitProximity: 15, footfall: 15 },
   valueInvestor:          { rentalYield: 40, pricePerSqm: 35, vacancy: 15, transitProximity:  5, footfall:  5 },
   transitFocused:         { rentalYield: 20, pricePerSqm: 15, vacancy: 15, transitProximity: 40, footfall: 10 },
-  highFootfall:           { rentalYield: 20, pricePerSqm: 15, vacancy: 10, transitProximity: 15, footfall: 40 },
+  highFootfall:           { rentalYield: 15, pricePerSqm: 15, vacancy: 10, transitProximity: 20, footfall: 40 },
   developmentOpportunity: { rentalYield: 15, pricePerSqm: 20, vacancy: 20, transitProximity: 15, footfall: 30 },
+  highYieldHunter:        { rentalYield: 55, pricePerSqm: 20, vacancy: 15, transitProximity:  5, footfall:  5 },
+  airbnbShortStay:        { rentalYield: 25, pricePerSqm: 10, vacancy: 25, transitProximity: 20, footfall: 20 },
 };
 
 export const FACTOR_LABELS = {
@@ -198,6 +200,19 @@ export function useCogSolver({ areaId, isActive = true, previewActive = isActive
     }
   }, [areaId]);  // eslint-disable-line react-hooks/exhaustive-deps
 
+  /**
+   * Apply a named profile and immediately kick off a fast preview so the
+   * map responds before the full solve finishes.
+   * Defined here (after `preview`) to avoid the temporal dead zone.
+   */
+  const applyProfile = useCallback((key) => {
+    if (!SCENARIOS[key]) return;
+    const w = SCENARIOS[key];
+    setScenario(key);
+    setWeights(w);
+    preview(w, zoning);
+  }, [zoning, preview]);  // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Full solve API call ────────────────────────────────────────────────
 
   const solve = useCallback(async (w = weights) => {
@@ -349,6 +364,7 @@ export function useCogSolver({ areaId, isActive = true, previewActive = isActive
     // Scenario
     scenario,
     applyScenario,
+    applyProfile,
     // Zoning
     zoning,
     toggleZoning,

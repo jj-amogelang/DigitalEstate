@@ -1,16 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
-import axios from "axios";
 import { useNavigate, useLocation } from "react-router-dom";
-import { API_ENDPOINTS } from "../config/api";
 import areaDataService from "../services/areaDataService";
 import AWSAlert from "../components/AWSAlert";
 import CentreOfGravity from "../components/CentreOfGravity";
-import CogMatchingProperties from "../components/CogMatchingProperties";
-import InsightDashboard from "../components/InsightDashboard";
 import GlobalSearchBar from "../components/GlobalSearchBar";
 import RecentAndSaved from "../components/RecentAndSaved";
 import InsightCard from "../components/InsightCard";
-import InvestmentProfiles from "../components/InvestmentProfiles";
 import useProvinceDetect from "../hooks/useProvinceDetect";
 import useRecentlyViewed from "../hooks/useRecentlyViewed";
 import { useAppLocation } from "../context/LocationContext";
@@ -20,6 +15,7 @@ import "../components/styles/AWSComponents.css";
 import "./styles/explore-page.css";
 import MetricTooltip from "../components/MetricTooltip";
 import metricGlossary from "../components/metricGlossary";
+
 
 export default function ExplorePage() {
   const navigate = useNavigate();
@@ -34,9 +30,6 @@ export default function ExplorePage() {
   // eslint-disable-next-line no-unused-vars
   const [allCities, setAllCities] = useState([]);
   const [allAreas, setAllAreas] = useState([]);
-  // eslint-disable-next-line no-unused-vars
-  const [propertyList, setPropertyList] = useState([]);
-  const [featuredProps, setFeaturedProps] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isRestoringFilters, setIsRestoringFilters] = useState(false);
   // Track previous selections to avoid clearing on initial load or same-value assignments
@@ -54,14 +47,9 @@ export default function ExplorePage() {
   const [alert, setAlert] = useState(null);
   const [isRefreshingMV, setIsRefreshingMV] = useState(false);
   const [cogOpen, setCogOpen] = useState(false);
-  // Persisted CoG result — set when user clicks "View Properties" inside the modal
-  const [savedCogContext, setSavedCogContext] = useState(null); // { result, weights, areaName }
-  const propertiesRef = useRef(null);
 
-  // Province auto-detection + landing dashboard
+  // Province auto-detection (used for search bias + recently-viewed province label)
   const detected = useProvinceDetect(allProvinces);
-  const [provinceInsights, setProvinceInsights] = useState(null);
-  const [insightsLoading, setInsightsLoading] = useState(false);
 
   // Recently viewed + saved areas (localStorage-backed)
   // eslint-disable-next-line no-unused-vars
@@ -119,63 +107,6 @@ export default function ExplorePage() {
     area: "", 
     areaName: ""
   });
-
-  // Context province — tracks the selected area's province first, then detected province.
-  // Declared here (after `selected` and `selectedAreaDetails`) to avoid TDZ errors.
-  const contextProvinceId =
-    (selectedAreaDetails?.province_id) ||
-    (selected.province ? Number(selected.province) : null) ||
-    detected.provinceId;
-  const contextProvinceName =
-    selectedAreaDetails?.province ||
-    provinces.find(p => String(p.id) === String(contextProvinceId))?.name ||
-    detected.provinceName;
-
-  // Fetch province-level intelligence whenever context province changes.
-  // Must be after contextProvinceId/contextProvinceName declarations.
-  useEffect(() => {
-    if (!contextProvinceId || detected.loading) return;
-    let cancelled = false;
-    setInsightsLoading(true);
-    areaDataService.getProvinceInsights(contextProvinceId)
-      .then(data => {
-        if (!cancelled) {
-          setProvinceInsights(data);
-          setInsightsLoading(false);
-        }
-      })
-      .catch(err => {
-        console.warn('Province insights fetch failed:', err);
-        if (!cancelled) {
-          setProvinceInsights(null);
-          setInsightsLoading(false);
-        }
-      });
-    return () => { cancelled = true; };
-  }, [contextProvinceId, detected.loading]);
-
-  const [selectedPropertyType, setSelectedPropertyType] = useState(() => {
-    const urlParams = new URLSearchParams(location.search);
-    return urlParams.get('type') || 'residential';  // default to residential so properties always show
-  });
-  // Load featured properties when area or property type changes
-  useEffect(() => {
-    (async () => {
-      if (!selected.area) {
-        setFeaturedProps([]);
-        return;
-      }
-      try {
-        // If no type selected yet, load all featured properties (no type filter)
-        const typeParam = selectedPropertyType || undefined;
-        const props = await areaDataService.getAreaProperties(selected.area, typeParam, true);
-        setFeaturedProps(props || []);
-      } catch (e) {
-        console.error('Error loading featured properties', e);
-        setFeaturedProps([]);
-      }
-    })();
-  }, [selected.area, selectedPropertyType]);
 
   // Restore filters from URL parameters, navigation state, or localStorage on component mount
   useEffect(() => {
@@ -399,62 +330,6 @@ export default function ExplorePage() {
         setSelected(prev => ({ ...prev, country: 1 }));
       }
       setLoading(false);
-    }
-  };
-
-  // Load properties for display (separate from location filtering)
-  // eslint-disable-next-line no-unused-vars
-  const loadPropertiesForDisplay = async () => {
-    try {
-      console.log('🔍 Fetching properties for display...');
-      const response = await axios.get(API_ENDPOINTS.API_PROPERTIES);
-      const properties = response.data.properties || response.data;
-      
-      console.log('✅ Properties loaded for display:', properties.length);
-      setPropertyList(properties);
-    } catch (err) {
-      console.error('❌ Error loading properties for display:', err);
-      console.log('ℹ️ Note: Properties endpoint not available on area API server');
-      console.log('🔄 Using mock property data for demonstration');
-      
-      // Create mock property data based on our premium areas for demonstration
-      const mockProperties = [
-        {
-          id: 1,
-          title: "Luxury Penthouse in Sandton",
-          price: 2800000,
-          suburb: "Sandton",
-          city: "Johannesburg", 
-          province: "Gauteng",
-          bedrooms: 3,
-          bathrooms: 2,
-          area: 150
-        },
-        {
-          id: 2,
-          title: "Sea View Villa in Camps Bay",
-          price: 8500000,
-          suburb: "Camps Bay",
-          city: "Cape Town",
-          province: "Western Cape", 
-          bedrooms: 4,
-          bathrooms: 3,
-          area: 200
-        },
-        {
-          id: 3,
-          title: "Beachfront Apartment in Umhlanga",
-          price: 3200000,
-          suburb: "Umhlanga",
-          city: "Umhlanga",
-          province: "KwaZulu-Natal",
-          bedrooms: 2,
-          bathrooms: 2,
-          area: 120
-        }
-      ];
-      
-      setPropertyList(mockProperties);
     }
   };
 
@@ -740,36 +615,6 @@ export default function ExplorePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected.area]);
 
-  /**
-   * Called when user clicks "View Properties Near This Location" inside the CoG modal.
-   * Stores the result, closes the modal, and scrolls to the properties section.
-   */
-  const handleBrowseProperties = (cogResult, weights) => {
-    setSavedCogContext({ result: cogResult, weights, areaName: selected.areaName });
-    setCogOpen(false);
-    setTimeout(() => {
-      propertiesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 120);
-  };
-
-  /**
-   * Called when user clicks an area card in the InsightDashboard.
-   * Sets the area in state so the area-insights section opens.
-   * Also seeds the province dropdown so the cascading filters stay consistent.
-   */
-  const handleDashboardAreaClick = (areaId, areaName) => {
-    if (!areaId) return;
-    setSelected(prev => ({
-      ...prev,
-      province: detected.provinceId ? String(detected.provinceId) : prev.province,
-      city: '',
-      area: String(areaId),
-      areaName: areaName || '',
-    }));
-    // Scroll into view so the user sees the area details section
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   // Push to recently-viewed whenever a new area is selected
   useEffect(() => {
     if (!selected.area || !selected.areaName) return;
@@ -848,22 +693,6 @@ export default function ExplorePage() {
               className="explore-hero-search"
             />
 
-            {/* Property type toggle */}
-            <div className="property-type-buttons" style={{display:'flex',gap:'0.5rem'}}>
-              <button
-                className={`property-type-btn ${selectedPropertyType === 'residential' ? 'active' : ''}`}
-                onClick={() => setSelectedPropertyType('residential')}
-              >
-                Residential
-              </button>
-              <button
-                className={`property-type-btn ${selectedPropertyType === 'commercial' ? 'active' : ''}`}
-                onClick={() => setSelectedPropertyType('commercial')}
-              >
-                Commercial
-              </button>
-            </div>
-
             {/* Admin: refresh metrics */}
             <button className="toolbar-refresh" onClick={handleRefreshMetrics} disabled={isRefreshingMV} title="Refresh metrics">
               <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v-3l4 4-4 4V8a5 5 0 105 5h2a7 7 0 11-7-7z" fill="currentColor"/></svg>
@@ -901,18 +730,6 @@ export default function ExplorePage() {
         </div>
       )}
 
-
-      {/* Province Intelligence Panels — always visible, compact strip when an area is active */}
-      <InsightDashboard
-        insights={provinceInsights?.insights}
-        hot_zones={provinceInsights?.hot_zones}
-        provinceName={contextProvinceName || provinceInsights?.province_name}
-        detectionSource={detected.source}
-        loading={detected.loading || insightsLoading}
-        onAreaClick={handleDashboardAreaClick}
-        onCogClick={() => setCogOpen(true)}
-        compact={!!selected.area}
-      />
 
       {/* Area Insights Section — visible as long as an area ID is set.
            areaName may briefly be empty while the detail API is in-flight;
@@ -1029,14 +846,6 @@ export default function ExplorePage() {
             </div>
           </div>
 
-          {/* Investment Profile quick presets */}
-          <div style={{ padding: '16px 0 8px' }}>
-            <InvestmentProfiles
-              activeProfile={selectedProfile}
-              onSelect={(key) => { setSelectedProfile(key); setCogOpen(true); }}
-            />
-          </div>
-
           {/* ── Market Intelligence — area-specific data ─────────────────── */}
           <div className="area-market-intelligence">
             <div className="area-mi-header">
@@ -1055,13 +864,11 @@ export default function ExplorePage() {
                         values="0 12 12;360 12 12" dur="1s" repeatCount="indefinite"/>
                     </circle>
                   </svg>
-                  Loading data…
                 </span>
               )}
             </div>
-
             <div className="area-data-grid">
-              {(areaStatistics || areaLatestMetrics) ? (
+              {areaStatistics || areaLatestMetrics ? (
                 <>
                   <div className="area-data-card">
                     <div className="data-icon">
@@ -1078,22 +885,18 @@ export default function ExplorePage() {
                       </div>
                       <div className="data-def">{metricGlossary.avg_price.definition}</div>
                       <div className="data-value">
-                        {areaDataService.formatPrice(
-                          areaStatistics?.average_price ||
-                          areaStatistics?.metrics?.average_price?.value ||
-                          areaLatestMetrics?.avg_price?.value_numeric
-                        )}
+                        {(areaStatistics?.average_price ?? areaLatestMetrics?.avg_price?.value_numeric)
+                          ? `R ${Number(areaStatistics?.average_price ?? areaLatestMetrics?.avg_price?.value_numeric).toLocaleString()}`
+                          : 'N/A'}
                       </div>
-                      <div className={`data-trend ${areaDataService.getTrendClass(areaStatistics?.price_trend ?? areaStatistics?.metrics?.average_price?.pct_change)}`}>
-                        {areaDataService.formatPercentage(areaStatistics?.price_trend ?? areaStatistics?.metrics?.average_price?.pct_change)} YoY
-                      </div>
+                      <div className="data-trend positive">Market Rate</div>
                     </div>
                   </div>
 
                   <div className="area-data-card">
                     <div className="data-icon">
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                        <path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" stroke="currentColor" strokeWidth="1.5"/>
+                        <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </div>
                     <div className="data-content">
@@ -1104,13 +907,11 @@ export default function ExplorePage() {
                       </div>
                       <div className="data-def">{metricGlossary.rental_yield.definition}</div>
                       <div className="data-value">
-                        {(areaStatistics?.rental_yield ?? areaStatistics?.metrics?.rental_yield?.value ?? areaLatestMetrics?.rental_yield?.value_numeric)
-                          ? `${Number(areaStatistics?.rental_yield ?? areaStatistics?.metrics?.rental_yield?.value ?? areaLatestMetrics?.rental_yield?.value_numeric).toFixed(1)}%`
+                        {(areaStatistics?.rental_yield ?? areaLatestMetrics?.rental_yield?.value_numeric) != null
+                          ? `${Number(areaStatistics?.rental_yield ?? areaLatestMetrics?.rental_yield?.value_numeric).toFixed(1)}%`
                           : 'N/A'}
                       </div>
-                      <div className={`data-trend ${areaDataService.getTrendClass(areaStatistics?.rental_trend ?? areaStatistics?.metrics?.rental_yield?.pct_change)}`}>
-                        {areaDataService.formatPercentage(areaStatistics?.rental_trend ?? areaStatistics?.metrics?.rental_yield?.pct_change)} YoY
-                      </div>
+                      <div className="data-trend positive">Income Return</div>
                     </div>
                   </div>
 
@@ -1118,7 +919,7 @@ export default function ExplorePage() {
                     <div className="data-icon">
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                         <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        <polyline points="9,22 9,12 15,12 15,22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </div>
                     <div className="data-content">
@@ -1129,21 +930,19 @@ export default function ExplorePage() {
                       </div>
                       <div className="data-def">{metricGlossary.vacancy_rate.definition}</div>
                       <div className="data-value">
-                        {(areaStatistics?.vacancy_rate ?? areaStatistics?.metrics?.vacancy_rate?.value ?? areaLatestMetrics?.vacancy_rate?.value_numeric)
-                          ? `${Number(areaStatistics?.vacancy_rate ?? areaStatistics?.metrics?.vacancy_rate?.value ?? areaLatestMetrics?.vacancy_rate?.value_numeric).toFixed(1)}%`
+                        {(areaStatistics?.vacancy_rate ?? areaLatestMetrics?.vacancy_rate?.value_numeric) != null
+                          ? `${Number(areaStatistics?.vacancy_rate ?? areaLatestMetrics?.vacancy_rate?.value_numeric).toFixed(1)}%`
                           : 'N/A'}
                       </div>
-                      <div className={`data-trend ${areaDataService.getTrendClass(-((areaStatistics?.vacancy_trend ?? areaStatistics?.metrics?.vacancy_rate?.pct_change ?? 0)))}`}>
-                        {areaDataService.formatPercentage(areaStatistics?.vacancy_trend ?? areaStatistics?.metrics?.vacancy_rate?.pct_change)} YoY
-                      </div>
+                      <div className="data-trend neutral">Lower is better</div>
                     </div>
                   </div>
 
-                  {selectedAreaDetails && (
+                  {selectedAreaDetails?.safety_rating && (
                     <div className="area-data-card">
                       <div className="data-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                          <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                       </div>
                       <div className="data-content">
@@ -1153,9 +952,7 @@ export default function ExplorePage() {
                           </MetricTooltip>
                         </div>
                         <div className="data-def">{metricGlossary.safety_rating.definition}</div>
-                        <div className="data-value">
-                          {selectedAreaDetails.safety_rating ? `${selectedAreaDetails.safety_rating}/10` : 'N/A'}
-                        </div>
+                        <div className="data-value">{selectedAreaDetails.safety_rating}/100</div>
                         <div className="data-trend positive">Premium Area</div>
                       </div>
                     </div>
@@ -1302,102 +1099,10 @@ export default function ExplorePage() {
           </div>
         </div>
       )}
-      {/* Featured Properties Section – shown whenever an area has featured listings */}
-      {selected.area && featuredProps.length > 0 && (
-        <div className="properties-featured-modern">
-          <div className="header-content-modern">
-            <h2 className="page-title-modern">
-              Featured {selectedPropertyType === 'commercial' ? 'Commercial' : 'Residential'} Properties{selected.areaName ? ` in ${selected.areaName}` : ''}
-            </h2>
-            <p className="page-subtitle-modern">
-              {selectedPropertyType === 'commercial' ? 'Commercial listings by Eris Property Group' : 'Residential listings by Balwin Properties'}
-            </p>
-          </div>
-          <div className="featured-grid-modern">
-            {featuredProps.map(p => (
-              <div className="featured-card" key={p.id}>
-                <div className="featured-image" style={{backgroundImage:`url(${p.image_url})`}} aria-label={p.name}></div>
-                <div className="featured-body">
-                  <div className="featured-header">
-                    <h3 className="featured-title">{p.name}</h3>
-                    <span className="featured-developer">{p.developer}</span>
-                  </div>
-                  <p className="featured-address">{p.address}</p>
-                  <div className="featured-meta">
-                    {p.property_type === 'residential' && (
-                      <span className="featured-beds">{p.bedrooms ?? '—'} bed</span>
-                    )}
-                    {p.price ? (
-                      <span className="featured-price">R{Number(p.price).toLocaleString()}</span>
-                    ) : (
-                      <span className="featured-price">POA</span>
-                    )}
-                  </div>
-                  {p.description && <p className="featured-desc">{p.description}</p>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {loading && (
         <div className="loading-indicator-modern">
           <div className="loading-spinner-modern"></div>
-          <span>Loading properties...</span>
-        </div>
-      )}
-
-      {/* ── CoG Properties Section ───────────────────────────────────────── */}
-      {savedCogContext && (
-        <div className="cog-properties-section" ref={propertiesRef}>
-          {/* Resume banner */}
-          <div className="cog-resume-banner">
-            <div className="cog-resume-banner-left">
-              <div className="cog-resume-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5"/>
-                  <circle cx="12" cy="12" r="2.5" fill="currentColor"/>
-                  <line x1="12" y1="2" x2="12" y2="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  <line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  <line x1="2" y1="12" x2="6" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  <line x1="18" y1="12" x2="22" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-              </div>
-              <div>
-                <p className="cog-resume-title">
-                  Properties near your CoG in&nbsp;<strong>{savedCogContext.areaName}</strong>
-                </p>
-                <p className="cog-resume-sub">
-                  Potential score:&nbsp;<strong>{(savedCogContext.result.potential * 100).toFixed(1)}%</strong>
-                  &nbsp;· radius ±{savedCogContext.result.uncertainty?.radius_m?.toFixed(0)} m
-                </p>
-              </div>
-            </div>
-            <div className="cog-resume-banner-right">
-              <button
-                className="cog-resume-btn"
-                onClick={() => setCogOpen(true)}
-              >
-                ↩ Resume CoG
-              </button>
-              <button
-                className="cog-resume-dismiss"
-                onClick={() => setSavedCogContext(null)}
-                aria-label="Dismiss"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                  <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          {/* Matching properties list */}
-          <CogMatchingProperties
-            cogResult={savedCogContext.result}
-            weights={savedCogContext.weights}
-          />
+          <span>Loading...</span>
         </div>
       )}
 
@@ -1407,7 +1112,6 @@ export default function ExplorePage() {
         areaId={selected.area}
         areaName={selected.areaName}
         initialProfile={selectedProfile}
-        onBrowseProperties={handleBrowseProperties}
       />
     </div>
   );

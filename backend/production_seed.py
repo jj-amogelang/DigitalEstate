@@ -203,12 +203,9 @@ AREA_STATS_SEED = {
     'Morningside Durban': dict(avg_price=2800000, median_price=2300000, ppsqm=26000, growth=3.8, avg_rent=16000, yield_=8.0, vac=5.2, dom=48, crime=42, edu=80, trans=65, amen=75),
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Extra properties – (area_name, name, developer, type, address,
-#                     price, bedrooms, img_url, featured, description)
-# ─────────────────────────────────────────────────────────────────────────────
-_R = 'residential'; _C = 'commercial'; _I = 'industrial'; _T = 'retail'
-PROPERTIES_EXTRA = [
+PROPERTIES_EXTRA = []  # removed – platform no longer shows individual properties
+if False:  # kept for reference only, never executed
+  _disabled = [
     # --- Existing areas gap-fills ---
     ('Sandton',  'Longmeadow Business Estate Unit', 'Redefine', _I, 'Longmeadow Business Estate, Sandton', 22000000, None, 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=800', False, '1000m2 warehouse/logistics unit in premier Longmeadow park.'),
     ('Sandton',  'Sandton Drive Retail Pavilion',   'Atterbury', _T, 'Sandton Dr, Sandton', 12500000, None, 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800', False, 'Street-facing retail unit 280m2 in high-footfall Sandton corridor.'),
@@ -325,9 +322,6 @@ PROPERTIES_EXTRA = [
     ('Morningside Durban', 'Florida Road Office Park', 'Eris', _C, 'Florida Rd, Morningside Durban', 8500000, None, 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800', False, '320m2 B-grade office in Florida Road lifestyle corridor.'),
     ('Morningside Durban', 'Inanda Rd Commercial',    'Growthpoint', _C, 'Inanda Rd, Morningside Durban', 6200000, None, 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=800', False, '240m2 commercial on the prestigious Inanda Road corridor.'),
     ('Morningside Durban', 'Brickfield Industrial',   'BPROP', _I, 'Brickfield Rd, Morningside Durban', 7800000, None, 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=800', False, '370m2 light industrial with truck access.'),
-    ('Morningside Durban', 'Musgrave Centre Retail',  'Hyprop', _T, 'Musgrave Centre, Morningside Durban', 9200000, None, 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800', True,  '220m2 retail inside Musgrave Centre.'),
-]
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Province snapshot base data (6 months x 3 provinces)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -387,27 +381,6 @@ def main():
             )
         """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_area_amenities_area ON area_amenities(area_id)")
-
-        # 4. Ensure properties table exists
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS properties (
-                id SERIAL PRIMARY KEY,
-                area_id INTEGER NOT NULL REFERENCES areas(id) ON DELETE CASCADE,
-                name VARCHAR(200) NOT NULL,
-                developer VARCHAR(120),
-                property_type VARCHAR(40) NOT NULL,
-                address VARCHAR(240),
-                price DECIMAL(18,2),
-                bedrooms INTEGER,
-                image_url TEXT,
-                is_featured BOOLEAN DEFAULT FALSE,
-                description TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_properties_area ON properties(area_id)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_properties_type ON properties(property_type)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_properties_featured ON properties(is_featured)")
 
         # 5. Ensure market_trends table exists
         cur.execute("""
@@ -514,22 +487,6 @@ def main():
             amen_count += cur.rowcount
         conn.commit()
         print(f"  ✅ {amen_count} amenities inserted")
-
-        # 10. Seed properties
-        print("Seeding properties…")
-        cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_properties_area_name ON properties(area_id, name)")
-        prop_count = 0
-        for row in PROPERTIES:
-            cur.execute("""
-                INSERT INTO properties
-                  (area_id, name, developer, property_type, address, price,
-                   bedrooms, image_url, is_featured, description)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                ON CONFLICT DO NOTHING
-            """, row)
-            prop_count += cur.rowcount
-        conn.commit()
-        print(f"  ✅ {prop_count} properties inserted")
 
         # 11. Seed metrics catalog
         print("Seeding metrics catalog…")

@@ -547,6 +547,187 @@ class AreaDataService {
       return [];
     }
   }
+
+  // Market intelligence — yield/vacancy/price trends, footfall, transit, crime
+  async getAreaMarketIntel(areaId) {
+    await this.ready;
+    try {
+      const response = await this.api.get(`/api/areas/${areaId}/market-intel`);
+      if (response && response.success) return response;
+      return null;
+    } catch (error) {
+      console.error('Error fetching market intel:', error);
+      return null;
+    }
+  }
+
+  // ── Opportunities endpoints ──────────────────────────────────────────────
+
+  async getTopYieldOpportunities({ limit = 20, provinceId, cityId, minYield } = {}) {
+    await this.ready;
+    try {
+      const params = new URLSearchParams({ limit });
+      if (provinceId) params.append('province_id', provinceId);
+      if (cityId)     params.append('city_id',     cityId);
+      if (minYield)   params.append('min_yield',   minYield);
+      const response = await this.api.get(`/api/opportunities/top-yield?${params}`);
+      return response?.success ? response : null;
+    } catch (error) {
+      console.error('Error fetching top-yield opportunities:', error);
+      return null;
+    }
+  }
+
+  async getLowVacancyOpportunities({ limit = 20, provinceId, cityId, maxVacancy } = {}) {
+    await this.ready;
+    try {
+      const params = new URLSearchParams({ limit });
+      if (provinceId)  params.append('province_id',  provinceId);
+      if (cityId)      params.append('city_id',      cityId);
+      if (maxVacancy != null) params.append('max_vacancy', maxVacancy);
+      const response = await this.api.get(`/api/opportunities/low-vacancy?${params}`);
+      return response?.success ? response : null;
+    } catch (error) {
+      console.error('Error fetching low-vacancy opportunities:', error);
+      return null;
+    }
+  }
+
+  async getValueOpportunities({ limit = 20, provinceId, cityId } = {}) {
+    await this.ready;
+    try {
+      const params = new URLSearchParams({ limit });
+      if (provinceId) params.append('province_id', provinceId);
+      if (cityId)     params.append('city_id',     cityId);
+      const response = await this.api.get(`/api/opportunities/value?${params}`);
+      return response?.success ? response : null;
+    } catch (error) {
+      console.error('Error fetching value opportunities:', error);
+      return null;
+    }
+  }
+
+  async getEmergingOpportunities({ limit = 20, provinceId, cityId, minGrowth } = {}) {
+    await this.ready;
+    try {
+      const params = new URLSearchParams({ limit });
+      if (provinceId) params.append('province_id', provinceId);
+      if (cityId)     params.append('city_id',     cityId);
+      if (minGrowth)  params.append('min_growth',  minGrowth);
+      const response = await this.api.get(`/api/opportunities/emerging?${params}`);
+      return response?.success ? response : null;
+    } catch (error) {
+      console.error('Error fetching emerging opportunities:', error);
+      return null;
+    }
+  }
+
+  // ── Dashboard ─────────────────────────────────────────────────────────────
+
+  async getDashboardSummary() {
+    await this.ready;
+    try {
+      const response = await this.api.get('/api/dashboard');
+      return response?.success ? response : null;
+    } catch (error) {
+      console.error('Error fetching dashboard summary:', error);
+      return null;
+    }
+  }
+
+  async saveCogRun({ name, areaName, areaId, result }) {
+    await this.ready;
+    try {
+      const response = await this.api.post('/api/dashboard/saved-runs', {
+        name, area_name: areaName, area_id: areaId, result,
+      });
+      return response?.success ? response : null;
+    } catch (error) {
+      console.error('Error saving CoG run:', error);
+      return null;
+    }
+  }
+
+  async deleteSavedRun(runId) {
+    await this.ready;
+    try {
+      const response = await this.api.delete(`/api/dashboard/saved-runs/${runId}`);
+      return response?.success ? response : null;
+    } catch (error) {
+      console.error('Error deleting saved run:', error);
+      return null;
+    }
+  }
+
+  async addBookmark({ areaId, areaName, city }) {
+    await this.ready;
+    try {
+      const response = await this.api.post('/api/dashboard/bookmarks', {
+        area_id: areaId, area_name: areaName, city,
+      });
+      return response?.success ? response : null;
+    } catch (error) {
+      console.error('Error adding bookmark:', error);
+      return null;
+    }
+  }
+
+  async removeBookmark(areaId) {
+    await this.ready;
+    try {
+      const response = await this.api.delete(`/api/dashboard/bookmarks/${areaId}`);
+      return response?.success ? response : null;
+    } catch (error) {
+      console.error('Error removing bookmark:', error);
+      return null;
+    }
+  }
+
+  async getAlerts() {
+    await this.ready;
+    try {
+      const response = await this.api.get('/api/dashboard/alerts');
+      return response?.success ? response.alerts : [];
+    } catch (error) {
+      console.error('Error fetching alerts:', error);
+      return [];
+    }
+  }
+
+  async createAlert({ areaId, areaName, metric, condition, threshold }) {
+    await this.ready;
+    try {
+      const response = await this.api.post('/api/dashboard/alerts', {
+        area_id: areaId, area_name: areaName, metric, condition, threshold,
+      });
+      return response?.success ? response : null;
+    } catch (error) {
+      console.error('Error creating alert:', error);
+      return null;
+    }
+  }
+
+  async deleteAlert(alertId) {
+    await this.ready;
+    try {
+      const response = await this.api.delete(`/api/dashboard/alerts/${alertId}`);
+      return response?.success ? response : null;
+    } catch (error) {
+      console.error('Error deleting alert:', error);
+      return null;
+    }
+  }
+
+  async checkAlerts() {
+    await this.ready;
+    try {
+      const response = await this.api.get('/api/dashboard/alerts/check');
+      return response?.success ? response : null;
+    } catch (error) {
+      console.error('Error checking alerts:', error);
+      return null;
+    }
+  }
 }
 
 // Create and export a singleton instance

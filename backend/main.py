@@ -7,7 +7,7 @@ from flask import Flask, jsonify, request, send_file, Response
 from flask_cors import CORS
 from app_config import Config
 from db_core import db
-from area_models import Country, Province, City, Area, AreaImage, AreaAmenity, MarketTrend as LegacyMarketTrend, AreaStatistics, Property  # keep for potential reuse
+from area_models import Country, Province, City, Area, AreaImage, AreaAmenity, MarketTrend as LegacyMarketTrend, AreaStatistics
 from sqlalchemy import func, desc, and_, or_, text, inspect
 from datetime import datetime, date
 import os
@@ -65,22 +65,6 @@ FrontendOrigin = os.getenv('FRONTEND_ORIGIN', 'https://digital-estate.vercel.app
 is_prod = os.getenv('FLASK_ENV') == 'production'
 CorsAllowedOrigins = ['*'] if not is_prod else [FrontendOrigin]
 CORS(app, origins=CorsAllowedOrigins, allow_headers=['Content-Type', 'Authorization'], methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
-@app.get('/api/areas/<int:area_id>/properties')
-def get_area_properties(area_id: int):
-    try:
-        q_type = request.args.get('type')
-        featured = request.args.get('featured')
-        qry = Property.query.filter(Property.area_id == area_id)
-        if q_type:
-            qry = qry.filter(Property.property_type.ilike(q_type))
-        if featured is not None:
-            val = featured.lower() in ('1','true','yes')
-            qry = qry.filter(Property.is_featured == val)
-        items = [p.to_dict() for p in qry.order_by(Property.created_at.desc()).limit(24).all()]
-        return jsonify({'success': True, 'properties': items})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
 # ---- URL helpers ----
 def _absolute_url(path: str) -> str:
     """Return a fully-qualified URL for a given absolute or relative path.
@@ -2369,6 +2353,245 @@ def api_province_metrics_rollup(province_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# ---------------------------------------------------------------------------
+#  Market Intelligence endpoint
+# ---------------------------------------------------------------------------
+
+@app.route('/api/areas/<int:area_id>/market-intel', methods=['GET'])
+def api_area_market_intel(area_id):
+    """Return aggregated market intelligence for a specific area.
+
+    Reuses existing DB tables:
+      area_metric_values + metrics  → yield trend, vacancy trend, price/m² trend, crime
+      parcel_snapshots              → footfall score, transit accessibility score
+      area_statistics               → fallback scores when parcel data is absent
+
+    Response shape:
+    {
+      success, area_id, generated_at,
+      yield:       { current, trend_3m, trend_6m, trend_12m, direction, unit },
+      vacancy:     { current, trend_3m, trend_6m, trend_12m, direction, unit },
+      price_per_m2:{ current, trend_3m, trend_6m, trend_12m, direction, unit },
+      footfall:    { score, label },
+      transit:     { score, label },
+      crime:       { score, direction, label }
+    }
+    """
+    try:
+        engine = db.engine
+        driver = engine.url.drivername
+        is_sqlite = 'sqlite' in driver
+
+        def _date_offset(months):
+            """Cross-dialect SQL fragment for N months ago."""
+            if is_sqlite:
+                return f"date('now', '-{months} months')"
+            return f"(CURRENT_DATE - INTERVAL '{months} month')"
+
+        def _fetch_series(metric_code, months):
+            """Return avg value for metric_code over the last `months` months."""
+            with engine.connect() as conn:
+                sql = text(f"""
+                    SELECT AVG(v.value_numeric) AS avg_val
+                    FROM area_metric_values v
+                    JOIN metrics m ON m.id = v.metric_id
+                    WHERE v.area_id = :area_id
+                      AND m.code = :code
+                      AND v.period_start >= {_date_offset(months)}
+                """)
+                row = conn.execute(sql, {'area_id': area_id, 'code': metric_code}).first()
+            return float(row[0]) if (row and row[0] is not None) else None
+
+        def _fetch_latest(metric_code):
+            """Return most recent single value for metric_code."""
+            with engine.connect() as conn:
+                if is_sqlite:
+                    sql = text("""
+                        SELECT v.value_numeric
+                        FROM area_metric_values v
+                        JOIN metrics m ON m.id = v.metric_id
+                        WHERE v.area_id = :area_id AND m.code = :code
+                        ORDER BY v.period_start DESC
+                        LIMIT 1
+                    """)
+                else:
+                    sql = text("""
+                        SELECT v.value_numeric
+                        FROM area_metric_values v
+                        JOIN metrics m ON m.id = v.metric_id
+                        WHERE v.area_id = :area_id AND m.code = :code
+                        ORDER BY v.period_start DESC, v.created_at DESC
+                        LIMIT 1
+                    """)
+                row = conn.execute(sql, {'area_id': area_id, 'code': metric_code}).first()
+            return float(row[0]) if (row and row[0] is not None) else None
+
+        def _direction(current, older, inverted=False):
+            """Compute cardinal direction from change between current and older value.
+            inverted=True means a decrease is good (e.g. crime, vacancy)."""
+            if current is None or older is None or older == 0:
+                return 'stable'
+            pct_change = (current - older) / abs(older) * 100
+            if pct_change > 1.5:
+                return 'worsening' if inverted else 'up'
+            if pct_change < -1.5:
+                return 'improving' if inverted else 'down'
+            return 'stable'
+
+        def _score_label(score, thresholds, labels):
+            """Map a numeric score to a text label using threshold breakpoints."""
+            if score is None:
+                return 'unavailable'
+            for threshold, label in zip(thresholds, labels):
+                if score <= threshold:
+                    return label
+            return labels[-1]
+
+        # ── Yield (rental_yield) ──────────────────────────────────────────
+        yield_current  = _fetch_latest('rental_yield')
+        yield_3m_avg   = _fetch_series('rental_yield', 3)
+        yield_6m_avg   = _fetch_series('rental_yield', 6)
+        yield_12m_avg  = _fetch_series('rental_yield', 12)
+        yield_direction = _direction(yield_current, yield_6m_avg)
+
+        # ── Vacancy (vacancy_rate) ────────────────────────────────────────
+        vac_current   = _fetch_latest('vacancy_rate')
+        vac_3m_avg    = _fetch_series('vacancy_rate', 3)
+        vac_6m_avg    = _fetch_series('vacancy_rate', 6)
+        vac_12m_avg   = _fetch_series('vacancy_rate', 12)
+        vac_direction = _direction(vac_current, vac_6m_avg, inverted=True)
+
+        # ── Price per m² – try dedicated metric first, fallback to avg_price ─
+        price_current = _fetch_latest('price_per_sqm') or _fetch_latest('avg_price')
+        price_3m_avg  = _fetch_series('price_per_sqm', 3) or _fetch_series('avg_price', 3)
+        price_6m_avg  = _fetch_series('price_per_sqm', 6) or _fetch_series('avg_price', 6)
+        price_12m_avg = _fetch_series('price_per_sqm', 12) or _fetch_series('avg_price', 12)
+        price_direction = _direction(price_current, price_6m_avg)
+
+        # ── Footfall & Transit — parcel_snapshots aggregate first, then stats ─
+        footfall_score = None
+        transit_score  = None
+        try:
+            with engine.connect() as conn:
+                agg_sql = text("""
+                    SELECT AVG(p.footfall_score) AS avg_footfall,
+                           AVG(p.transit_score)  AS avg_transit
+                    FROM parcel_snapshots p
+                    WHERE p.area_id = :area_id
+                """)
+                row = conn.execute(agg_sql, {'area_id': area_id}).first()
+                if row:
+                    footfall_score = float(row[0]) if row[0] is not None else None
+                    transit_score  = float(row[1]) if row[1] is not None else None
+        except Exception:
+            pass  # table may not exist in dev
+
+        # Fallback: area_metric_values for transport_score / footfall_score
+        if footfall_score is None:
+            footfall_score = _fetch_latest('footfall_score')
+        if transit_score is None:
+            transit_score = _fetch_latest('transport_score') or _fetch_latest('transit_score')
+
+        # Fallback: legacy area_statistics row
+        if footfall_score is None or transit_score is None:
+            try:
+                stats = (
+                    db.session.query(AreaStatistics)
+                    .filter(AreaStatistics.area_id == area_id)
+                    .order_by(AreaStatistics.id.desc())
+                    .first()
+                )
+                if stats:
+                    if footfall_score is None and stats.amenities_score is not None:
+                        footfall_score = float(stats.amenities_score)
+                    if transit_score is None and stats.transport_score is not None:
+                        transit_score = float(stats.transport_score)
+            except Exception:
+                pass
+
+        footfall_label = _score_label(
+            footfall_score,
+            [30, 55, 75, 90],
+            ['Very Low', 'Low', 'Moderate', 'High', 'Very High']
+        )
+        transit_label = _score_label(
+            transit_score,
+            [30, 55, 75, 90],
+            ['Very Low', 'Low', 'Moderate', 'High', 'Very High']
+        )
+
+        # ── Crime (crime_index — lower is safer) ─────────────────────────
+        crime_current   = _fetch_latest('crime_index')
+        crime_6m_avg    = _fetch_series('crime_index', 6)
+        crime_direction = _direction(crime_current, crime_6m_avg, inverted=True)
+
+        if crime_current is None:
+            # fallback from area_statistics
+            try:
+                stats = stats if 'stats' in dir() else (
+                    db.session.query(AreaStatistics)
+                    .filter(AreaStatistics.area_id == area_id)
+                    .order_by(AreaStatistics.id.desc())
+                    .first()
+                )
+                if stats and stats.crime_index_score is not None:
+                    crime_current = float(stats.crime_index_score)
+            except Exception:
+                pass
+
+        crime_label = _score_label(
+            crime_current,
+            [20, 40, 60, 80],
+            ['Very Safe', 'Safe', 'Moderate', 'Elevated', 'High Risk']
+        )
+
+        return jsonify({
+            'success': True,
+            'area_id': area_id,
+            'generated_at': datetime.utcnow().isoformat(),
+            'yield': {
+                'current':    yield_current,
+                'trend_3m':   yield_3m_avg,
+                'trend_6m':   yield_6m_avg,
+                'trend_12m':  yield_12m_avg,
+                'direction':  yield_direction,
+                'unit': '%',
+            },
+            'vacancy': {
+                'current':    vac_current,
+                'trend_3m':   vac_3m_avg,
+                'trend_6m':   vac_6m_avg,
+                'trend_12m':  vac_12m_avg,
+                'direction':  vac_direction,
+                'unit': '%',
+            },
+            'price_per_m2': {
+                'current':    price_current,
+                'trend_3m':   price_3m_avg,
+                'trend_6m':   price_6m_avg,
+                'trend_12m':  price_12m_avg,
+                'direction':  price_direction,
+                'unit': 'ZAR/m²',
+            },
+            'footfall': {
+                'score': footfall_score,
+                'label': footfall_label,
+            },
+            'transit': {
+                'score': transit_score,
+                'label': transit_label,
+            },
+            'crime': {
+                'score':     crime_current,
+                'direction': crime_direction,
+                'label':     crime_label,
+            },
+        })
+    except Exception as e:
+        app.logger.exception('market-intel error for area %s', area_id)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/insights/province/<int:province_id>/dashboard', methods=['GET'])
 def province_insights_dashboard(province_id):
     """
@@ -3038,4 +3261,1176 @@ def api_area_price_series(area_ref):
             series[key].append({'date': r['period_start'].isoformat(), 'value': val})
         return jsonify({'success': True, 'series': series})
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ===========================================================================
+#  Opportunities endpoints
+#  Each returns a ranked list of areas with summary stats suitable for the
+#  Opportunities page cards + OpportunityHeatLayer map.
+#
+#  Common response item shape:
+#  {
+#    area_id, area_name, city_name, province_name,
+#    lat, lng,
+#    rank,
+#    score,          # 0-100 composite for this category
+#    highlights: {}  # category-specific key metrics
+#  }
+#
+#  Data source priority:
+#    1. area_metric_values (latest period per metric)
+#    2. area_statistics     (legacy fallback)
+# ===========================================================================
+
+def _parse_coordinates(coord_str):
+    """Parse 'lat,lng' string → (float, float) or (None, None)."""
+    if not coord_str:
+        return None, None
+    try:
+        parts = str(coord_str).split(',')
+        if len(parts) == 2:
+            return float(parts[0].strip()), float(parts[1].strip())
+    except (ValueError, TypeError):
+        pass
+    return None, None
+
+
+def _opportunities_base_query(limit, province_id=None, city_id=None):
+    """Return (area rows with latest stats) filtered by optional province/city.
+
+    Returns a list of dicts with keys:
+      area_id, area_name, city_name, province_name,
+      coordinates, rental_yield, vacancy_rate, price_per_sqm,
+      price_growth_yoy, crime_index_score, transport_score,
+      amenities_score, days_on_market
+    """
+    engine = db.engine
+    driver = engine.url.drivername
+    is_sqlite = 'sqlite' in driver
+
+    # Build dynamic WHERE clauses
+    conditions = ['a.id IS NOT NULL']
+    params = {}
+    if province_id:
+        conditions.append('pv.id = :province_id')
+        params['province_id'] = int(province_id)
+    if city_id:
+        conditions.append('c.id = :city_id')
+        params['city_id'] = int(city_id)
+    where = ' AND '.join(conditions)
+
+    # Latest AreaStatistics per area — different syntax for SQLite vs Postgres
+    if is_sqlite:
+        sql_str = f"""
+            SELECT
+                a.id         AS area_id,
+                a.name       AS area_name,
+                a.coordinates,
+                c.name       AS city_name,
+                c.id         AS city_id,
+                pv.name      AS province_name,
+                s.rental_yield,
+                s.vacancy_rate,
+                s.price_per_sqm,
+                s.price_growth_yoy,
+                s.crime_index_score,
+                s.transport_score,
+                s.amenities_score,
+                s.days_on_market,
+                s.average_property_price
+            FROM areas a
+            JOIN cities c  ON c.id  = a.city_id
+            JOIN provinces pv ON pv.id = c.province_id
+            LEFT JOIN area_statistics s ON s.area_id = a.id
+                AND s.id = (
+                    SELECT MAX(s2.id) FROM area_statistics s2
+                    WHERE s2.area_id = a.id
+                )
+            WHERE {where}
+            ORDER BY a.id
+            LIMIT :lim
+        """
+    else:
+        sql_str = f"""
+            SELECT
+                a.id         AS area_id,
+                a.name       AS area_name,
+                a.coordinates,
+                c.name       AS city_name,
+                c.id         AS city_id,
+                pv.name      AS province_name,
+                s.rental_yield,
+                s.vacancy_rate,
+                s.price_per_sqm,
+                s.price_growth_yoy,
+                s.crime_index_score,
+                s.transport_score,
+                s.amenities_score,
+                s.days_on_market,
+                s.average_property_price
+            FROM areas a
+            JOIN cities c  ON c.id  = a.city_id
+            JOIN provinces pv ON pv.id = c.province_id
+            LEFT JOIN LATERAL (
+                SELECT * FROM area_statistics
+                WHERE area_id = a.id
+                ORDER BY id DESC
+                LIMIT 1
+            ) s ON TRUE
+            WHERE {where}
+            ORDER BY a.id
+            LIMIT :lim
+        """
+    params['lim'] = limit * 4   # over-fetch so that after filtering we still have `limit` items
+
+    with engine.connect() as conn:
+        rows = conn.execute(text(sql_str), params).mappings().all()
+
+    results = []
+    for r in rows:
+        lat, lng = _parse_coordinates(r['coordinates'])
+        results.append({
+            'area_id':              r['area_id'],
+            'area_name':            r['area_name'],
+            'city_name':            r['city_name'],
+            'city_id':              r['city_id'],
+            'province_name':        r['province_name'],
+            'lat':                  lat,
+            'lng':                  lng,
+            'rental_yield':         float(r['rental_yield'])         if r['rental_yield']         is not None else None,
+            'vacancy_rate':         float(r['vacancy_rate'])         if r['vacancy_rate']         is not None else None,
+            'price_per_sqm':        float(r['price_per_sqm'])        if r['price_per_sqm']        is not None else None,
+            'price_growth_yoy':     float(r['price_growth_yoy'])     if r['price_growth_yoy']     is not None else None,
+            'crime_index_score':    int(r['crime_index_score'])      if r['crime_index_score']    is not None else None,
+            'transport_score':      int(r['transport_score'])        if r['transport_score']      is not None else None,
+            'amenities_score':      int(r['amenities_score'])        if r['amenities_score']      is not None else None,
+            'days_on_market':       int(r['days_on_market'])         if r['days_on_market']       is not None else None,
+            'average_property_price': float(r['average_property_price']) if r['average_property_price'] is not None else None,
+        })
+    return results
+
+
+def _normalise(value, lo, hi, invert=False):
+    """Clamp and normalise a value to [0, 100].  invert=True for metrics where lower is better."""
+    if value is None:
+        return None
+    if hi == lo:
+        return 50.0
+    raw = max(lo, min(hi, float(value)))
+    norm = (raw - lo) / (hi - lo) * 100.0
+    return (100.0 - norm) if invert else norm
+
+
+def _rank_items(rows, key='score', limit=20):
+    """Sort rows desc by `key`, drop rows with None score, add 1-based rank."""
+    scored = [r for r in rows if r.get(key) is not None]
+    scored.sort(key=lambda r: r[key], reverse=True)
+    for i, r in enumerate(scored[:limit], start=1):
+        r['rank'] = i
+    return scored[:limit]
+
+
+@app.route('/api/opportunities/top-yield', methods=['GET'])
+def opportunities_top_yield():
+    """Return areas ranked by highest rental yield.
+
+    Query params (all optional):
+      limit       int  default 20
+      province_id int
+      city_id     int
+      min_yield   float  minimum yield threshold
+    """
+    try:
+        limit       = request.args.get('limit',       20,   type=int)
+        province_id = request.args.get('province_id', None, type=int)
+        city_id     = request.args.get('city_id',     None, type=int)
+        min_yield   = request.args.get('min_yield',   0.0,  type=float)
+
+        rows = _opportunities_base_query(limit, province_id, city_id)
+
+        # Filter & score
+        for r in rows:
+            y = r['rental_yield']
+            if y is None or y < min_yield:
+                r['score'] = None
+                continue
+            # Yield score 0-100: 0 % → 0, 15 % → 100 (cap at 15)
+            yield_score   = _normalise(y, 0, 15)
+            # Bonus: low vacancy boosts yield quality
+            vac_bonus     = _normalise(r['vacancy_rate'], 0, 30, invert=True) or 50.0
+            # Weighted composite
+            r['score']        = round(yield_score * 0.70 + vac_bonus * 0.30, 1)
+            r['highlights']   = {
+                'rental_yield':  y,
+                'vacancy_rate':  r['vacancy_rate'],
+                'growth_yoy':    r['price_growth_yoy'],
+            }
+
+        ranked = _rank_items(rows, limit=limit)
+        return jsonify({'success': True, 'category': 'top-yield', 'count': len(ranked), 'items': ranked})
+    except Exception as e:
+        app.logger.exception('opportunities/top-yield error')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/opportunities/low-vacancy', methods=['GET'])
+def opportunities_low_vacancy():
+    """Return areas ranked by lowest vacancy rate (tightest rental markets).
+
+    Query params (all optional):
+      limit       int  default 20
+      province_id int
+      city_id     int
+      max_vacancy float  maximum vacancy threshold (default 10 %)
+    """
+    try:
+        limit       = request.args.get('limit',       20,   type=int)
+        province_id = request.args.get('province_id', None, type=int)
+        city_id     = request.args.get('city_id',     None, type=int)
+        max_vacancy = request.args.get('max_vacancy', 10.0, type=float)
+
+        rows = _opportunities_base_query(limit, province_id, city_id)
+
+        for r in rows:
+            v = r['vacancy_rate']
+            if v is None or v > max_vacancy:
+                r['score'] = None
+                continue
+            # Vacancy score: 0 % = 100, 10 % = 0  (inverted)
+            vac_score   = _normalise(v, 0, 10, invert=True)
+            # Yields in tight markets are a secondary signal
+            yield_bonus = _normalise(r['rental_yield'], 0, 15) or 50.0
+            r['score']       = round(vac_score * 0.70 + yield_bonus * 0.30, 1)
+            r['highlights']  = {
+                'vacancy_rate':  v,
+                'rental_yield':  r['rental_yield'],
+                'days_on_market': r['days_on_market'],
+            }
+
+        ranked = _rank_items(rows, limit=limit)
+        return jsonify({'success': True, 'category': 'low-vacancy', 'count': len(ranked), 'items': ranked})
+    except Exception as e:
+        app.logger.exception('opportunities/low-vacancy error')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/opportunities/value', methods=['GET'])
+def opportunities_value():
+    """Return best-value areas: high yield + low price/m² relative to province median.
+
+    Query params (all optional):
+      limit       int  default 20
+      province_id int
+      city_id     int
+    """
+    try:
+        limit       = request.args.get('limit',       20,   type=int)
+        province_id = request.args.get('province_id', None, type=int)
+        city_id     = request.args.get('city_id',     None, type=int)
+
+        rows = _opportunities_base_query(limit, province_id, city_id)
+
+        # Compute province-level median price/m² for relative value scoring
+        valid_prices = [r['price_per_sqm'] for r in rows if r['price_per_sqm'] is not None]
+        if valid_prices:
+            valid_prices.sort()
+            mid = len(valid_prices) // 2
+            median_price = valid_prices[mid]
+        else:
+            median_price = 18_000.0  # sensible SA fallback
+
+        for r in rows:
+            y = r['rental_yield']
+            p = r['price_per_sqm']
+            if y is None and p is None:
+                r['score'] = None
+                continue
+            yield_score = _normalise(y, 0, 15) if y is not None else 50.0
+            # Value score: lower-than-median price is better
+            if p is not None:
+                # Price relative to median: 50% below median = 100, above median = 0
+                price_score = _normalise(median_price - p, -median_price, median_price)
+            else:
+                price_score = 50.0
+            r['score']      = round(yield_score * 0.60 + price_score * 0.40, 1)
+            r['highlights'] = {
+                'price_per_sqm':       p,
+                'median_price_per_sqm': round(median_price, 0),
+                'rental_yield':         y,
+                'avg_property_price':   r['average_property_price'],
+            }
+
+        ranked = _rank_items(rows, limit=limit)
+        return jsonify({'success': True, 'category': 'value', 'count': len(ranked), 'items': ranked})
+    except Exception as e:
+        app.logger.exception('opportunities/value error')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/opportunities/emerging', methods=['GET'])
+def opportunities_emerging():
+    """Return emerging areas: strong YoY price growth + good liveability scores.
+
+    Query params (all optional):
+      limit       int  default 20
+      province_id int
+      city_id     int
+      min_growth  float  minimum YoY growth % (default 0)
+    """
+    try:
+        limit      = request.args.get('limit',      20,  type=int)
+        province_id= request.args.get('province_id',None,type=int)
+        city_id    = request.args.get('city_id',    None,type=int)
+        min_growth = request.args.get('min_growth', 0.0, type=float)
+
+        rows = _opportunities_base_query(limit, province_id, city_id)
+
+        for r in rows:
+            g = r['price_growth_yoy']
+            if g is None or g < min_growth:
+                r['score'] = None
+                continue
+            # Growth score: 0 % → 0, 20 % → 100 (cap at 20)
+            growth_score  = _normalise(g, 0, 20)
+            # Liveability: transport + low crime
+            transport_s   = _normalise(r['transport_score'],   0, 100) or 50.0
+            crime_s       = _normalise(r['crime_index_score'], 0, 100, invert=True) or 50.0
+            liveability   = (transport_s + crime_s) / 2.0
+            r['score']      = round(growth_score * 0.60 + liveability * 0.40, 1)
+            r['highlights'] = {
+                'price_growth_yoy': g,
+                'transport_score':  r['transport_score'],
+                'crime_index':      r['crime_index_score'],
+                'amenities_score':  r['amenities_score'],
+            }
+
+        ranked = _rank_items(rows, limit=limit)
+        return jsonify({'success': True, 'category': 'emerging', 'count': len(ranked), 'items': ranked})
+    except Exception as e:
+        app.logger.exception('opportunities/emerging error')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ===========================================================================
+#  Investor Profiles endpoint
+#  Returns the static list of CoG solver profiles that map directly to the
+#  frontend SCENARIOS keys.  The weight keys match the solver's expected
+#  field names: rentalYield, pricePerSqm, vacancy, transitProximity, footfall.
+# ===========================================================================
+
+_INVESTOR_PROFILES = [
+    {
+        'key':         'valueInvestor',
+        'label':       'Value Investor',
+        'description': 'Maximise yield and minimise entry price. Low transit/footfall weighting.',
+        'icon':        '💎',
+        'weights':     {'rentalYield': 40, 'pricePerSqm': 35, 'vacancy': 15, 'transitProximity':  5, 'footfall':  5},
+    },
+    {
+        'key':         'balanced',
+        'label':       'Balanced Investor',
+        'description': 'Equal spread across all five investment metrics.',
+        'icon':        '⚖️',
+        'weights':     {'rentalYield': 25, 'pricePerSqm': 25, 'vacancy': 20, 'transitProximity': 15, 'footfall': 15},
+    },
+    {
+        'key':         'highFootfall',
+        'label':       'Footfall-Driven',
+        'description': 'Optimise for maximum pedestrian and consumer activity.',
+        'icon':        '🚶',
+        'weights':     {'rentalYield': 15, 'pricePerSqm': 15, 'vacancy': 10, 'transitProximity': 20, 'footfall': 40},
+    },
+    {
+        'key':         'transitFocused',
+        'label':       'Transit-Smart',
+        'description': 'Prioritise strong public transport accessibility.',
+        'icon':        '🚇',
+        'weights':     {'rentalYield': 20, 'pricePerSqm': 15, 'vacancy': 15, 'transitProximity': 40, 'footfall': 10},
+    },
+    {
+        'key':         'highYieldHunter',
+        'label':       'High-Yield Hunter',
+        'description': 'Chase the highest rental yield regardless of amenity proximity.',
+        'icon':        '🎯',
+        'weights':     {'rentalYield': 55, 'pricePerSqm': 20, 'vacancy': 15, 'transitProximity':  5, 'footfall':  5},
+    },
+    {
+        'key':         'airbnbShortStay',
+        'label':       'AirBnB / Short-Stay',
+        'description': 'Short-term rental focus: footfall, transit, low vacancy.',
+        'icon':        '🏡',
+        'weights':     {'rentalYield': 25, 'pricePerSqm': 10, 'vacancy': 25, 'transitProximity': 20, 'footfall': 20},
+    },
+    {
+        'key':         'developmentOpportunity',
+        'label':       'Developer / Redevelopment',
+        'description': 'Target low-cost parcels with high footfall for redevelopment.',
+        'icon':        '🏗️',
+        'weights':     {'rentalYield': 15, 'pricePerSqm': 20, 'vacancy': 20, 'transitProximity': 15, 'footfall': 30},
+    },
+]
+
+
+@app.route('/api/profiles', methods=['GET'])
+def get_investor_profiles():
+    """Return the static list of investor profiles used by the CoG solver UI."""
+    return jsonify({'success': True, 'profiles': _INVESTOR_PROFILES})
+
+
+# ===========================================================================
+#  Feasibility calculators  –  POST /api/feasibility/run
+#
+#  Request body:
+#    { "calculator": "<key>", "inputs": { ... } }
+#
+#  Supported calculator keys:
+#    bond              – bond affordability (monthly payment, total interest)
+#    cash_on_cash      – cash-on-cash ROI, cap rate, gross / net yield
+#    irr               – internal rate of return + equity multiple
+#    rent_sensitivity  – NOI / cash-flow across a vacancy sweep (0-50 %)
+#    vacancy_stress    – scenario stress test at user-defined vacancy levels
+#    renovation_uplift – before/after valuation, ROI on renovation spend
+# ===========================================================================
+
+import math as _math
+
+
+def _irr(cash_flows, guess=0.10, tol=1e-8, max_iter=1000):
+    """Newton-Raphson IRR from a list of cash flows."""
+    r = guess
+    for _ in range(max_iter):
+        npv  = sum(cf / (1 + r) ** t for t, cf in enumerate(cash_flows))
+        dnpv = sum(-t * cf / (1 + r) ** (t + 1) for t, cf in enumerate(cash_flows))
+        if dnpv == 0:
+            break
+        r_new = r - npv / dnpv
+        if abs(r_new - r) < tol:
+            return r_new
+        r = r_new
+    return r
+
+
+def _calc_bond(inp):
+    P = float(inp['purchase_price'])
+    D = float(inp.get('deposit', 0))
+    r_annual = float(inp['annual_rate']) / 100.0
+    n_years  = int(inp.get('term_years', 20))
+
+    loan    = max(0.0, P - D)
+    r_month = r_annual / 12.0
+    n_month = n_years * 12
+
+    if r_month == 0:
+        monthly_payment = loan / n_month if n_month else 0
+    else:
+        monthly_payment = loan * r_month / (1 - (1 + r_month) ** (-n_month))
+
+    total_payment   = monthly_payment * n_month
+    total_interest  = total_payment - loan
+    deposit_pct     = (D / P * 100) if P else 0
+    ltv             = (loan / P * 100) if P else 0
+
+    # Affordability multiples (rough SA guideline: payment ≤ 30 % of gross income)
+    recommended_income_monthly = monthly_payment / 0.30
+
+    return {
+        'loan_amount':              round(loan, 2),
+        'monthly_payment':          round(monthly_payment, 2),
+        'total_payment':            round(total_payment, 2),
+        'total_interest':           round(total_interest, 2),
+        'deposit_pct':              round(deposit_pct, 2),
+        'ltv':                      round(ltv, 2),
+        'term_years':               n_years,
+        'recommended_gross_income': round(recommended_income_monthly, 2),
+    }
+
+
+def _calc_cash_on_cash(inp):
+    P          = float(inp['purchase_price'])
+    D          = float(inp.get('deposit', P * 0.10))
+    gross_rent = float(inp['gross_monthly_rent']) * 12  # annualise
+    vac_rate   = float(inp.get('vacancy_rate', 5)) / 100.0
+    annual_opex       = float(inp.get('monthly_opex', 0)) * 12
+    annual_debt       = float(inp.get('monthly_debt_service', 0)) * 12
+
+    vacancy_loss     = gross_rent * vac_rate
+    effective_income = gross_rent - vacancy_loss
+    noi              = effective_income - annual_opex
+    cash_flow        = noi - annual_debt
+    total_cash_in    = D + float(inp.get('acquisition_costs', P * 0.04))
+
+    cash_on_cash = (cash_flow / total_cash_in * 100) if total_cash_in else 0
+    cap_rate     = (noi / P * 100) if P else 0
+    gross_yield  = (gross_rent / P * 100) if P else 0
+    net_yield    = (noi / P * 100) if P else 0
+
+    return {
+        'annual_gross_income':   round(gross_rent, 2),
+        'vacancy_loss':          round(vacancy_loss, 2),
+        'effective_income':      round(effective_income, 2),
+        'annual_opex':           round(annual_opex, 2),
+        'noi':                   round(noi, 2),
+        'annual_debt_service':   round(annual_debt, 2),
+        'annual_cash_flow':      round(cash_flow, 2),
+        'total_cash_invested':   round(total_cash_in, 2),
+        'cash_on_cash_pct':      round(cash_on_cash, 2),
+        'cap_rate_pct':          round(cap_rate, 2),
+        'gross_yield_pct':       round(gross_yield, 2),
+        'net_yield_pct':         round(net_yield, 2),
+    }
+
+
+def _calc_irr(inp):
+    init_invest   = float(inp['initial_investment'])
+    annual_rent   = float(inp['annual_rent_income'])
+    annual_opex   = float(inp.get('annual_opex', 0))
+    holding_years = int(inp.get('holding_years', 5))
+    growth_rate   = float(inp.get('annual_rent_growth_pct', 3)) / 100.0
+    terminal_cap  = float(inp.get('terminal_cap_rate_pct', 7)) / 100.0
+    exit_val_override = inp.get('exit_value')
+
+    # Build annual NOI cash flows with rent growth
+    noi_flows = []
+    for yr in range(1, holding_years + 1):
+        noi = (annual_rent * (1 + growth_rate) ** (yr - 1)) - annual_opex
+        noi_flows.append(noi)
+
+    # Terminal value from terminal cap rate (using final year NOI)
+    if exit_val_override is not None:
+        exit_value = float(exit_val_override)
+    else:
+        exit_value = noi_flows[-1] / terminal_cap if terminal_cap else 0
+
+    # All cash-flows: -investment at t=0, NOI each year, +exit at final year
+    cfs = [-init_invest] + noi_flows[:-1] + [noi_flows[-1] + exit_value]
+
+    try:
+        irr_decimal = _irr(cfs)
+        irr_pct = irr_decimal * 100
+    except Exception:
+        irr_pct = None
+
+    # NPV at 10 % discount rate
+    discount = 0.10
+    npv_10 = sum(cf / (1 + discount) ** t for t, cf in enumerate(cfs))
+
+    # Payback years (cumulative cash flow turns positive)
+    cumulative = -init_invest
+    payback = None
+    for yr, cf in enumerate(cfs[1:], start=1):
+        cumulative += cf
+        if cumulative >= 0:
+            payback = yr
+            break
+
+    # Equity multiple = total inflows / initial investment
+    total_inflows = sum(cf for cf in cfs if cf > 0)
+    equity_multiple = total_inflows / init_invest if init_invest else None
+
+    return {
+        'cash_flows':      [round(cf, 2) for cf in cfs],
+        'noi_flows':       [round(n, 2) for n in noi_flows],
+        'exit_value':      round(exit_value, 2),
+        'irr_pct':         round(irr_pct, 2) if irr_pct is not None else None,
+        'npv_at_10pct':    round(npv_10, 2),
+        'payback_years':   payback,
+        'equity_multiple': round(equity_multiple, 2) if equity_multiple else None,
+        'holding_years':   holding_years,
+    }
+
+
+def _calc_rent_sensitivity(inp):
+    monthly_rent   = float(inp['monthly_rent'])
+    monthly_opex   = float(inp.get('monthly_opex', 0))
+    monthly_debt   = float(inp.get('monthly_debt_service', 0))
+    property_value = float(inp.get('property_value', 0))
+
+    gross_annual = monthly_rent * 12
+    opex_annual  = monthly_opex * 12
+    debt_annual  = monthly_debt * 12
+
+    rows = []
+    for vac_pct in range(0, 55, 5):
+        eff_income = gross_annual * (1 - vac_pct / 100)
+        noi        = eff_income - opex_annual
+        cash_flow  = noi - debt_annual
+        yield_on_val = (noi / property_value * 100) if property_value else None
+        rows.append({
+            'vacancy_pct':   vac_pct,
+            'effective_income': round(eff_income, 2),
+            'noi':           round(noi, 2),
+            'cash_flow':     round(cash_flow, 2),
+            'net_yield_pct': round(yield_on_val, 2) if yield_on_val is not None else None,
+        })
+
+    # Break-even: minimum rent so cash_flow = 0  →  rent = (opex + debt) / 12 / (1 - max_vac)
+    default_vac = float(inp.get('current_vacancy_pct', 10)) / 100.0
+    if (1 - default_vac) > 0:
+        break_even_monthly = (opex_annual + debt_annual) / 12 / (1 - default_vac)
+    else:
+        break_even_monthly = None
+
+    return {
+        'sensitivity_table':    rows,
+        'break_even_monthly_rent': round(break_even_monthly, 2) if break_even_monthly else None,
+        'gross_annual_at_full_occupancy': round(gross_annual, 2),
+    }
+
+
+def _calc_vacancy_stress(inp):
+    monthly_rent = float(inp['current_monthly_rent'])
+    monthly_opex = float(inp.get('monthly_opex', 0))
+    monthly_debt = float(inp.get('monthly_debt_service', 0))
+    reserves_m   = float(inp.get('monthly_cash_reserves', 0))
+
+    scenarios_vac = inp.get('stress_scenarios', [10, 20, 30, 40, 50])
+    base_vac_pct  = float(inp.get('current_vacancy_pct', 5))
+
+    annual_rent   = monthly_rent * 12
+    annual_opex   = monthly_opex * 12
+    annual_debt   = monthly_debt * 12
+
+    def _row(vac_pct):
+        eff = annual_rent * (1 - vac_pct / 100)
+        noi = eff - annual_opex
+        cf  = noi - annual_debt
+        months_reserves = (reserves_m / abs(cf / 12)) if cf < 0 and reserves_m > 0 else None
+        be_rent = (annual_opex + annual_debt) / 12 / max(0.01, 1 - vac_pct / 100)
+        return {
+            'vacancy_pct':              vac_pct,
+            'effective_annual_income':  round(eff, 2),
+            'noi':                      round(noi, 2),
+            'annual_cash_flow':         round(cf, 2),
+            'monthly_cash_flow':        round(cf / 12, 2),
+            'shortfall':                round(min(0, cf), 2),
+            'break_even_monthly_rent':  round(be_rent, 2),
+            'months_reserves_cover':    round(months_reserves, 1) if months_reserves is not None else None,
+        }
+
+    base_row = _row(base_vac_pct)
+    stress_rows = [_row(v) for v in scenarios_vac]
+
+    return {
+        'base_case':        base_row,
+        'stress_scenarios': stress_rows,
+        'reserves_held_monthly': reserves_m,
+    }
+
+
+def _calc_renovation_uplift(inp):
+    current_value  = float(inp['current_value'])
+    reno_cost      = float(inp['reno_cost'])
+    uplift_pct     = float(inp['expected_uplift_pct']) / 100.0
+    holding_years  = int(inp.get('holding_years', 1))
+    monthly_rent   = float(inp.get('monthly_rent', 0))
+    monthly_opex   = float(inp.get('monthly_opex', 0))
+
+    after_value      = current_value * (1 + uplift_pct)
+    equity_created   = after_value - (current_value + reno_cost)
+    total_cost_basis = current_value + reno_cost
+
+    roi_on_reno      = (equity_created / reno_cost  * 100) if reno_cost else 0
+    roi_on_total     = ((after_value - total_cost_basis) / total_cost_basis * 100) if total_cost_basis else 0
+
+    # Annualised ROI
+    if holding_years > 0 and total_cost_basis > 0:
+        ann_roi = ((_math.pow(after_value / total_cost_basis, 1 / holding_years)) - 1) * 100
+    else:
+        ann_roi = roi_on_total
+
+    # Break-even uplift needed to cover reno cost
+    be_uplift_pct = (reno_cost / current_value * 100) if current_value else 0
+
+    # Rental yield before and after (if rent provided)
+    rent_annual  = monthly_rent * 12 - (monthly_opex * 12)
+    yield_before = (rent_annual / current_value * 100)  if current_value else None
+    yield_after  = (rent_annual / after_value   * 100)  if after_value   else None
+
+    return {
+        'current_value':          round(current_value, 2),
+        'reno_cost':              round(reno_cost, 2),
+        'after_reno_value':       round(after_value, 2),
+        'uplift_pct':             round(uplift_pct * 100, 2),
+        'equity_created':         round(equity_created, 2),
+        'total_cost_basis':       round(total_cost_basis, 2),
+        'roi_on_reno_spend_pct':  round(roi_on_reno, 2),
+        'roi_on_total_cost_pct':  round(roi_on_total, 2),
+        'annualised_roi_pct':     round(ann_roi, 2),
+        'break_even_uplift_pct':  round(be_uplift_pct, 2),
+        'net_yield_before_pct':   round(yield_before, 2) if yield_before is not None else None,
+        'net_yield_after_pct':    round(yield_after,  2) if yield_after  is not None else None,
+    }
+
+
+_CALC_DISPATCH = {
+    'bond':              _calc_bond,
+    'cash_on_cash':      _calc_cash_on_cash,
+    'irr':               _calc_irr,
+    'rent_sensitivity':  _calc_rent_sensitivity,
+    'vacancy_stress':    _calc_vacancy_stress,
+    'renovation_uplift': _calc_renovation_uplift,
+}
+
+
+@app.route('/api/feasibility/run', methods=['POST'])
+def feasibility_run():
+    """Run one of the six feasibility calculators.
+
+    Request JSON
+    ------------
+    {
+      "calculator": "bond" | "cash_on_cash" | "irr" |
+                    "rent_sensitivity" | "vacancy_stress" | "renovation_uplift",
+      "inputs": { ... }   // calculator-specific fields
+    }
+
+    All monetary values are in South African Rand (ZAR).
+    Rates / percentages are supplied as whole numbers (e.g. 11.5 for 11.5 %).
+    """
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        calc_key = body.get('calculator', '').strip().lower()
+        inputs   = body.get('inputs', {})
+
+        if calc_key not in _CALC_DISPATCH:
+            return jsonify({
+                'success': False,
+                'error':   f"Unknown calculator '{calc_key}'. "
+                           f"Valid keys: {', '.join(_CALC_DISPATCH)}",
+            }), 400
+
+        fn = _CALC_DISPATCH[calc_key]
+        results = fn(inputs)
+
+        return jsonify({'success': True, 'calculator': calc_key, 'results': results})
+
+    except KeyError as e:
+        return jsonify({'success': False, 'error': f'Missing required input: {e}'}), 422
+    except (ValueError, TypeError, ZeroDivisionError) as e:
+        return jsonify({'success': False, 'error': f'Calculation error: {e}'}), 422
+    except Exception as e:
+        app.logger.exception('feasibility/run error')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# DASHBOARD — in-memory stores (replace with DB tables for production)
+# ---------------------------------------------------------------------------
+import uuid
+import threading
+import time as _time
+
+_dashboard_lock           = threading.Lock()
+_saved_cog_runs: dict     = {}   # { run_id: {run_id, name, area_name, result, saved_at} }
+_bookmarked_areas: dict   = {}   # { area_id: {area_id, area_name, city, bookmarked_at} }
+_dashboard_alerts: dict   = {}   # { alert_id: {alert_id, area_id, area_name, metric, condition, threshold, triggered, last_checked} }
+
+
+# ── GET /api/dashboard ──────────────────────────────────────────────────────
+
+@app.route('/api/dashboard', methods=['GET'])
+def dashboard_summary():
+    """Return all saved CoG runs, bookmarked areas and alert summaries."""
+    try:
+        with _dashboard_lock:
+            runs       = list(_saved_cog_runs.values())
+            bookmarks  = list(_bookmarked_areas.values())
+            alerts     = list(_dashboard_alerts.values())
+
+        runs.sort(key=lambda x: x.get('saved_at', ''), reverse=True)
+        bookmarks.sort(key=lambda x: x.get('bookmarked_at', ''), reverse=True)
+        triggered_count = sum(1 for a in alerts if a.get('triggered'))
+
+        return jsonify({
+            'success':          True,
+            'saved_runs':       runs,
+            'bookmarked_areas': bookmarks,
+            'alerts':           alerts,
+            'summary': {
+                'saved_runs_count':       len(runs),
+                'bookmarked_areas_count': len(bookmarks),
+                'alerts_count':           len(alerts),
+                'triggered_alerts':       triggered_count,
+            }
+        })
+    except Exception as e:
+        app.logger.exception('dashboard summary error')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ── Saved CoG runs ───────────────────────────────────────────────────────────
+
+@app.route('/api/dashboard/saved-runs', methods=['POST'])
+def dashboard_save_run():
+    """Save a CoG solver result.
+
+    Request JSON: { "name": "...", "area_name": "...", "area_id": "...", "result": {...} }
+    """
+    try:
+        from datetime import datetime, timezone
+        body     = request.get_json(force=True, silent=True) or {}
+        run_id   = str(uuid.uuid4())
+        saved_at = datetime.now(timezone.utc).isoformat()
+        entry = {
+            'run_id':    run_id,
+            'name':      body.get('name') or f"Run {saved_at[:10]}",
+            'area_name': body.get('area_name', 'Unknown area'),
+            'area_id':   body.get('area_id'),
+            'result':    body.get('result', {}),
+            'saved_at':  saved_at,
+        }
+        with _dashboard_lock:
+            if len(_saved_cog_runs) >= 20:
+                oldest = min(_saved_cog_runs.values(), key=lambda x: x.get('saved_at', ''))
+                del _saved_cog_runs[oldest['run_id']]
+            _saved_cog_runs[run_id] = entry
+        return jsonify({'success': True, 'run_id': run_id, 'entry': entry}), 201
+    except Exception as e:
+        app.logger.exception('dashboard save-run error')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/dashboard/saved-runs/<run_id>', methods=['DELETE'])
+def dashboard_delete_run(run_id):
+    with _dashboard_lock:
+        if run_id not in _saved_cog_runs:
+            return jsonify({'success': False, 'error': 'Run not found'}), 404
+        del _saved_cog_runs[run_id]
+    return jsonify({'success': True})
+
+
+# ── Bookmarked areas ─────────────────────────────────────────────────────────
+
+@app.route('/api/dashboard/bookmarks', methods=['POST'])
+def dashboard_add_bookmark():
+    """Bookmark an area. Body: { "area_id": "...", "area_name": "...", "city": "..." }"""
+    try:
+        from datetime import datetime, timezone
+        body    = request.get_json(force=True, silent=True) or {}
+        area_id = str(body.get('area_id', '')).strip()
+        if not area_id:
+            return jsonify({'success': False, 'error': 'area_id required'}), 400
+        entry = {
+            'area_id':       area_id,
+            'area_name':     body.get('area_name', 'Unknown'),
+            'city':          body.get('city', ''),
+            'bookmarked_at': datetime.now(timezone.utc).isoformat(),
+        }
+        with _dashboard_lock:
+            _bookmarked_areas[area_id] = entry
+        return jsonify({'success': True, 'entry': entry}), 201
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/dashboard/bookmarks/<area_id>', methods=['DELETE'])
+def dashboard_remove_bookmark(area_id):
+    with _dashboard_lock:
+        if area_id not in _bookmarked_areas:
+            return jsonify({'success': False, 'error': 'Bookmark not found'}), 404
+        del _bookmarked_areas[area_id]
+    return jsonify({'success': True})
+
+
+# ── Alerts ────────────────────────────────────────────────────────────────────
+
+_ALERT_METRICS    = ('yield_pct', 'vacancy_rate', 'crime_index', 'price_per_sqm')
+_ALERT_CONDITIONS = ('above', 'below')
+
+
+@app.route('/api/dashboard/alerts', methods=['GET'])
+def dashboard_list_alerts():
+    with _dashboard_lock:
+        alerts = list(_dashboard_alerts.values())
+    return jsonify({'success': True, 'alerts': alerts})
+
+
+@app.route('/api/dashboard/alerts', methods=['POST'])
+def dashboard_create_alert():
+    """Create a metric alert.
+
+    Body: { "area_id": "...", "area_name": "...", "metric": "yield_pct",
+            "condition": "above" | "below", "threshold": 8.5 }
+    """
+    try:
+        from datetime import datetime, timezone
+        body      = request.get_json(force=True, silent=True) or {}
+        metric    = body.get('metric', '').strip()
+        condition = body.get('condition', '').strip()
+        threshold = body.get('threshold')
+
+        if metric not in _ALERT_METRICS:
+            return jsonify({'success': False,
+                            'error': f"metric must be one of: {', '.join(_ALERT_METRICS)}"}), 400
+        if condition not in _ALERT_CONDITIONS:
+            return jsonify({'success': False, 'error': "condition must be 'above' or 'below'"}), 400
+        if threshold is None:
+            return jsonify({'success': False, 'error': 'threshold required'}), 400
+
+        alert_id = str(uuid.uuid4())
+        entry = {
+            'alert_id':     alert_id,
+            'area_id':      str(body.get('area_id', '')),
+            'area_name':    body.get('area_name', 'Unknown'),
+            'metric':       metric,
+            'condition':    condition,
+            'threshold':    float(threshold),
+            'triggered':    False,
+            'triggered_at': None,
+            'created_at':   datetime.now(timezone.utc).isoformat(),
+            'last_checked': None,
+        }
+        with _dashboard_lock:
+            _dashboard_alerts[alert_id] = entry
+        return jsonify({'success': True, 'alert_id': alert_id, 'entry': entry}), 201
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/dashboard/alerts/<alert_id>', methods=['DELETE'])
+def dashboard_delete_alert(alert_id):
+    with _dashboard_lock:
+        if alert_id not in _dashboard_alerts:
+            return jsonify({'success': False, 'error': 'Alert not found'}), 404
+        del _dashboard_alerts[alert_id]
+    return jsonify({'success': True})
+
+
+@app.route('/api/dashboard/alerts/check', methods=['GET'])
+def dashboard_check_alerts():
+    """Evaluate all configured alerts against latest AreaStatistics."""
+    from datetime import datetime, timezone
+    try:
+        with _dashboard_lock:
+            alerts_snapshot = list(_dashboard_alerts.values())
+
+        now_iso  = datetime.now(timezone.utc).isoformat()
+        _col_map = {
+            'yield_pct':     'rental_yield',
+            'vacancy_rate':  'vacancy_rate',
+            'crime_index':   'crime_index',
+            'price_per_sqm': 'price_per_sqm',
+        }
+        updated = []
+        for alert in alerts_snapshot:
+            area_id      = alert.get('area_id', '')
+            metric       = alert['metric']
+            condition    = alert['condition']
+            threshold    = alert['threshold']
+            col          = _col_map.get(metric)
+            triggered    = alert.get('triggered', False)
+            triggered_at = alert.get('triggered_at')
+
+            if col and area_id:
+                try:
+                    row = db.session.execute(
+                        text(f"SELECT {col} FROM area_statistics "
+                             f"WHERE area_id = :aid ORDER BY recorded_at DESC LIMIT 1"),
+                        {'aid': area_id}
+                    ).fetchone()
+                    if row and row[0] is not None:
+                        val  = float(row[0])
+                        fired = (val > threshold) if condition == 'above' else (val < threshold)
+                        if fired and not triggered:
+                            triggered = True;  triggered_at = now_iso
+                        elif not fired:
+                            triggered = False; triggered_at = None
+                except Exception:
+                    pass
+
+            with _dashboard_lock:
+                if alert['alert_id'] in _dashboard_alerts:
+                    _dashboard_alerts[alert['alert_id']].update({
+                        'triggered':    triggered,
+                        'triggered_at': triggered_at,
+                        'last_checked': now_iso,
+                    })
+            updated.append({**alert, 'triggered': triggered,
+                             'triggered_at': triggered_at, 'last_checked': now_iso})
+
+        return jsonify({'success': True, 'alerts': updated, 'checked_at': now_iso})
+    except Exception as e:
+        app.logger.exception('dashboard alerts/check error')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ── Background alert-checker (runs every 6 hours) ────────────────────────────
+
+def _alert_checker_loop(interval_seconds: int = 21_600):
+    while True:
+        _time.sleep(interval_seconds)
+        try:
+            with app.app_context():
+                app.test_client().get('/api/dashboard/alerts/check')
+        except Exception:
+            pass
+
+
+threading.Thread(
+    target=_alert_checker_loop,
+    kwargs={'interval_seconds': 21_600},
+    daemon=True,
+    name='dashboard-alert-checker',
+).start()
+
+
+# ── Market Intelligence endpoint ─────────────────────────────────────────────
+
+def _score_label(score, thresholds):
+    """Map a numeric score to a human label.
+
+    thresholds: list of (max_exclusive, label) in ascending order.
+    """
+    if score is None:
+        return 'N/A'
+    for limit, label in thresholds:
+        if score < limit:
+            return label
+    return thresholds[-1][1]
+
+
+_FOOTFALL_TRANSIT_LABELS = [(40, 'Low'), (65, 'Moderate'), (80, 'Good'), (101, 'High')]
+_CRIME_LABELS = [(30, 'Low Risk'), (60, 'Moderate'), (80, 'Elevated'), (101, 'High Risk')]
+
+
+def _market_direction(current, historical_avg, inverted=False):
+    """Return a direction string comparing current to a historical average.
+
+    inverted=True flips the "positive = good" assumption (used for vacancy/crime).
+    Returns: 'up' | 'down' | 'stable' | 'improving' | 'worsening'
+    """
+    if current is None or historical_avg is None or historical_avg == 0:
+        return 'stable'
+    pct = (current - historical_avg) / abs(historical_avg) * 100
+    if abs(pct) < 2.0:
+        return 'stable'
+    going_up = pct > 0
+    if inverted:
+        return 'improving' if not going_up else 'worsening'
+    return 'up' if going_up else 'down'
+
+
+@app.route('/api/areas/<int:area_id>/market-intel', methods=['GET'])
+def area_market_intel(area_id):
+    """Market intelligence summary for MarketIntelligencePanel.
+
+    Returns yield, vacancy, price/m², footfall, transit and crime metrics
+    with directional trend indicators and human-readable labels.
+    """
+    from datetime import date, timedelta
+    try:
+        area = Area.query.get(area_id)
+        if not area:
+            return jsonify({'success': False, 'error': 'Area not found'}), 404
+
+        # Latest AreaStatistics row
+        stats = (
+            AreaStatistics.query
+            .filter_by(area_id=area_id)
+            .order_by(AreaStatistics.created_at.desc())
+            .first()
+        )
+
+        # Helper: average of LegacyMarketTrend values for a metric within the last N days
+        today = date.today()
+
+        def _trend_avg(metric_type, days):
+            cutoff = today - timedelta(days=days)
+            rows = (
+                LegacyMarketTrend.query
+                .filter(
+                    LegacyMarketTrend.area_id == area_id,
+                    LegacyMarketTrend.metric_type == metric_type,
+                    LegacyMarketTrend.metric_date >= cutoff,
+                )
+                .all()
+            )
+            vals = [float(r.metric_value) for r in rows if r.metric_value is not None]
+            return round(sum(vals) / len(vals), 4) if vals else None
+
+        # Pull current scalar values from the stats row
+        def _fv(attr):
+            v = getattr(stats, attr, None) if stats else None
+            return float(v) if v is not None else None
+
+        yld_cur = _fv('rental_yield')
+        vac_cur = _fv('vacancy_rate')
+        ppm_cur = _fv('price_per_sqm')
+        foot_sc = _fv('amenities_score')
+        tran_sc = _fv('transport_score')
+        crim_sc = _fv('crime_index_score')
+        ry_yoy  = _fv('rental_growth_yoy')   # % YoY growth
+        pg_yoy  = _fv('price_growth_yoy')    # % YoY growth
+
+        # Trend averages — prefer real MarketTrend rows; fall back to YoY arithmetic
+        def _yoy_back(cur, yoy_pct, fraction):
+            """Back-calculate a historical value from a YoY growth rate.
+
+            fraction: 0.25 = 3 months, 0.5 = 6 months, 1.0 = 12 months
+            """
+            if cur is None:
+                return None
+            g = (yoy_pct or 0) / 100.0
+            return round(cur / (1 + g * fraction), 4) if (1 + g * fraction) != 0 else cur
+
+        yld_3m  = _trend_avg('rental_yield', 90)  or _yoy_back(yld_cur, ry_yoy, 0.25)
+        yld_6m  = _trend_avg('rental_yield', 180) or _yoy_back(yld_cur, ry_yoy, 0.50)
+        yld_12m = _trend_avg('rental_yield', 365) or _yoy_back(yld_cur, ry_yoy, 1.00)
+
+        vac_3m  = _trend_avg('vacancy_rate', 90)
+        vac_6m  = _trend_avg('vacancy_rate', 180)
+        vac_12m = _trend_avg('vacancy_rate', 365)
+
+        ppm_3m  = _trend_avg('price_per_sqm', 90)  or _yoy_back(ppm_cur, pg_yoy, 0.25)
+        ppm_6m  = _trend_avg('price_per_sqm', 180) or _yoy_back(ppm_cur, pg_yoy, 0.50)
+        ppm_12m = _trend_avg('price_per_sqm', 365) or _yoy_back(ppm_cur, pg_yoy, 1.00)
+
+        def _r2(v):
+            return round(v, 2) if v is not None else None
+
+        def _r0(v):
+            return round(v, 0) if v is not None else None
+
+        return jsonify({
+            'success':   True,
+            'area_id':   area_id,
+            'area_name': area.name,
+            'yield': {
+                'current':   _r2(yld_cur),
+                'direction': _market_direction(yld_cur, yld_12m),
+                'trend_3m':  _r2(yld_3m),
+                'trend_6m':  _r2(yld_6m),
+                'trend_12m': _r2(yld_12m),
+            },
+            'vacancy': {
+                'current':   _r2(vac_cur),
+                'direction': _market_direction(vac_cur, vac_12m, inverted=True),
+                'trend_3m':  _r2(vac_3m),
+                'trend_6m':  _r2(vac_6m),
+                'trend_12m': _r2(vac_12m),
+            },
+            'price_per_m2': {
+                'current':   _r0(ppm_cur),
+                'direction': _market_direction(ppm_cur, ppm_12m),
+                'trend_3m':  _r0(ppm_3m),
+                'trend_6m':  _r0(ppm_6m),
+                'trend_12m': _r0(ppm_12m),
+            },
+            'footfall': {
+                'score': foot_sc,
+                'label': _score_label(foot_sc, _FOOTFALL_TRANSIT_LABELS),
+            },
+            'transit': {
+                'score': tran_sc,
+                'label': _score_label(tran_sc, _FOOTFALL_TRANSIT_LABELS),
+            },
+            'crime': {
+                'score':     crim_sc,
+                'direction': _market_direction(crim_sc, crim_sc, inverted=True),  # no trend data → stable
+                'label':     _score_label(crim_sc, _CRIME_LABELS),
+            },
+        })
+    except Exception as e:
+        app.logger.exception('area_market_intel error for area_id=%s', area_id)
         return jsonify({'success': False, 'error': str(e)}), 500

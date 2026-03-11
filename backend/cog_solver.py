@@ -8,18 +8,30 @@ Architecture
 2.  Normalise – QuantileNormaliser clips each metric to [p5, p95] then scales
                 to [0, 1].  Lower-is-better metrics are flipped so that 1.0
                 always means "most desirable for investment".
-3.  Potential – _score_all vectorises V(j) = w·m - penalties for all N
-                parcels in one matrix multiply + two boolean mask ops.
-4.  Solver    – Discrete k-NN best-neighbour ascent:
-                    a. Pre-build a k=20 KD-tree neighbour index (scipy,
+3.  Barriers  – _compute_proximity_field builds a soft repulsion field: each
+                parcel receives a penalty that decays exponentially with its
+                distance to the nearest hazard / zoning-infeasible parcel
+                (default 1/e radius = 400 m).  This graduates the hard-stop
+                flat penalty into a smooth geospatial influence zone.
+4.  Potential – _score_all vectorises V(j) = w·m - hard_penalties - soft_field
+                for all N parcels in one matmul + a few masked subtractions.
+5.  Solver    – Multi-start tabu-enhanced best-neighbour ascent:
+                    a. Pre-build a k=30 KD-tree neighbour index (scipy,
                        O(N log N)) or fall back to O(N²) brute-force.
-                    b. Multi-restart from the top-n_restarts feasible seeds
-                       to avoid early convergence to local maxima.
-                    c. Inner hot-loop JIT-compiled by Numba (cache=True,
+                    b. Farthest-first (maximin) seeding: n_restarts seeds
+                       chosen to be both high-scoring AND geographically
+                       spread — 60% diversity, 40% V-quality weighting.
+                    c. Tabu circular buffer (length cfg.tabu_size=8) prevents
+                       re-visiting recent positions, allowing plateau
+                       traversal and escape from shallow local maxima.
+                    d. Expanded-neighbour retry: if no restart converged,
+                       re-run seeds with k × k_expand_factor neighbours
+                       (variable-neighbourhood search without index rebuild).
+                    e. Inner hot-loop JIT-compiled by Numba (cache=True,
                        fastmath=True) if available, plain NumPy otherwise.
-5.  Ellipse   – confidence_ellipse eigen-decomposes the position covariance
-                of the 20 *lowest*-potential parcels to give a 1-sigma
-                risk ellipse in metres.
+6.  Ellipse   – confidence_ellipse eigen-decomposes the position covariance
+                of the 20 *lowest*-potential parcels weighted by 1/|V| to
+                give a 1-sigma risk ellipse in metres.
 
 Acceleration tiers (auto-detected at import time)
 --------------------------------------------------
@@ -99,10 +111,15 @@ HIGHER_IS_BETTER: dict[str, bool] = {
     "footfall_score": True,
 }
 
-ZONING_PENALTY: float = 0.35   # subtracted from V when zoning is infeasible
-HAZARD_PENALTY: float = 0.40   # subtracted from V when hazard_flag is True
-K_NEIGHBOURS:   int   = 20     # number of nearest neighbours evaluated per step
-M_PER_DEG_LAT:  float = 111_320.0
+ZONING_PENALTY:       float = 0.35     # subtracted from V when zoning is infeasible
+HAZARD_PENALTY:       float = 0.40     # subtracted from V when hazard_flag is True
+K_NEIGHBOURS:         int   = 30       # nearest neighbours evaluated per ascent step
+M_PER_DEG_LAT:        float = 111_320.0
+
+# Soft barrier parameters — graduated penalty that decays with distance to the
+# nearest hazard/infeasible parcel (rather than the flat hard-stop above).
+HAZARD_DECAY_M:       float = 400.0   # 1/e decay radius in metres
+BARRIER_SOFT_WEIGHT:  float = 0.15    # max contribution of soft penalty to V
 
 
 # ---------------------------------------------------------------------------
@@ -141,7 +158,7 @@ def warmup_jit() -> None:
     _dpos = np.zeros((8, 2), dtype=np.float64)
     _dnb  = np.arange(24, dtype=np.int64).reshape(8, 3) % 8
     _dmsk = np.ones(8, dtype=np.bool_)
-    _discrete_solve_core(_dV, _dpos, _dnb, _dmsk, 3, M_PER_DEG_LAT, 0)
+    _discrete_solve_core(_dV, _dpos, _dnb, _dmsk, 3, M_PER_DEG_LAT, 0, 4)
 
 
 # ---------------------------------------------------------------------------
@@ -254,11 +271,35 @@ class SolverConfig:
     hazard_penalty:     float = HAZARD_PENALTY
     uncertainty_sigma:  float = 1.0
     bandwidth_override: dict[str, tuple[float, float]] = field(default_factory=dict)
+
+    # ── Multi-start / diversity ──────────────────────────────────────────
+    n_restarts: int = 5
+    # Seeds are chosen by farthest-first (maximin) geographic diversity
+    # within the top-50% feasible parcels by score.  Significantly reduces
+    # local-maximum sensitivity for irregular spatial distributions.
+
+    # ── Tabu-enhanced ascent ─────────────────────────────────────────────
+    tabu_size: int = 8
+    # Length of the circular tabu buffer.  Visited nodes are forbidden for
+    # tabu_size steps, allowing the solver to traverse flat plateaus and
+    # escape shallow local maxima.  0 → plain greedy ascent (original).
+
+    # ── Expanded-neighbour retry on stall ───────────────────────────────
+    k_expand_factor: int = 2
+    # After a restart converges, if neither it nor any other restart found
+    # a feasible solution, re-run each seed with k * k_expand_factor
+    # neighbours.  Acts as variable-neighbourhood search without rebuilding
+    # the KD-tree index.
+
+    # ── Soft barrier field ───────────────────────────────────────────────
+    hazard_decay_m:      float = HAZARD_DECAY_M
+    barrier_soft_weight: float = BARRIER_SOFT_WEIGHT
+    # Each non-hazard parcel receives a proximity penalty proportional to
+    # exp(-d / hazard_decay_m) where d is the distance to the nearest
+    # hazard/infeasible parcel.  Creates a smooth repulsion field that
+    # deflects trajectories away from barrier zones before they reach them.
+
     # ── Performance options ──────────────────────────────────────────────
-    n_restarts: int  = 3
-    # Run the ascent from the top-n_restarts feasible seeds and keep the
-    # best result.  Significantly improves solution quality for large areas
-    # (N > 1 000) where multiple local maxima exist.  Cost: O(n_restarts).
     use_float32: bool = False
     # Store normed metrics as float32 instead of float64.  Halves the
     # matrix memory footprint and speeds up the matmul on SIMD hardware.
@@ -377,24 +418,89 @@ def _score_all(
     feasible_mask: np.ndarray,
     hazard_mask: np.ndarray,
     cfg: SolverConfig,
+    proximity_field: "np.ndarray | None" = None,
 ) -> np.ndarray:
     """
     Vectorised hybrid_potential for all N parcels.  Returns (N,) float64.
 
     Always promotes inputs to float64 before the matmul to prevent BLAS
     overflow / NaN warnings when the caller supplies float32 arrays.
+
+    ``proximity_field`` (N,)  — optional precomputed soft barrier penalties.
+    Each value is the distance-decayed proximity to the nearest
+    hazard/infeasible parcel, scaled to [0, 1].  Multiplied by
+    cfg.barrier_soft_weight and subtracted from the raw score.
     """
-    n64 = normed.astype(np.float64)     # no-op if already float64
+    n64 = normed.astype(np.float64)
     w64 = weight_vec.astype(np.float64)
-    # Suppress BLAS-level float warnings before nan_to_num cleans up any
-    # edge-case NaN/inf from degenerate columns (all-same value, etc.)
-    # np.errstate uses IEEE 754 names: 'over' (not 'overflow') in NumPy 2+
     with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
         v = (n64 @ w64).copy()
     np.nan_to_num(v, copy=False, nan=0.0, posinf=1.0, neginf=-1.0)
     v[~feasible_mask] -= cfg.zoning_penalty
     v[hazard_mask]    -= cfg.hazard_penalty
+    if proximity_field is not None:
+        # Graduated soft repulsion — decays with distance so parcels far
+        # from any barrier zone are minimally penalised.
+        v -= cfg.barrier_soft_weight * proximity_field
     return v
+
+
+# ---------------------------------------------------------------------------
+#  Soft barrier proximity field
+# ---------------------------------------------------------------------------
+
+def _compute_proximity_field(
+    positions: np.ndarray,     # (N, 2)  lat/lng
+    hazard_mask: np.ndarray,   # (N,)    bool
+    feasible_mask: np.ndarray, # (N,)    bool
+    decay_m: float,            # 1/e decay distance in metres
+) -> np.ndarray:
+    """
+    Pre-compute a soft repulsion penalty for every parcel based on its
+    distance to the nearest hazard or infeasible (zoning-excluded) parcel.
+
+    Returns a (N,) array where each value is in [0, 1]:
+        penalty[j] = exp( -dist_to_nearest_barrier_m / decay_m )
+
+    Parcels far from any barrier receive ≈ 0 (no penalty).
+    Parcels immediately adjacent to a barrier receive ≈ 1 (full weight).
+
+    Multiplied by ``cfg.barrier_soft_weight`` in ``_score_all``.
+
+    Strategy
+    --------
+    scipy available  — KD-tree query on metre-projected coords.  O(N log B)
+                       where B = number of barrier parcels.
+    scipy missing    — O(N × B) pairwise, only practical for small datasets.
+    """
+    N = positions.shape[0]
+    penalties = np.zeros(N, dtype=np.float64)
+    decay_m   = max(decay_m, 1.0)
+
+    barrier_idx = np.where(hazard_mask | (~feasible_mask))[0]
+    if len(barrier_idx) == 0:
+        return penalties  # no barriers → no proximity penalty
+
+    # Project to approximate metres for distance calculation
+    lat_rad       = math.radians(float(np.mean(positions[:, 0])))
+    m_per_deg_lng = M_PER_DEG_LAT * math.cos(lat_rad)
+    scale         = np.array([M_PER_DEG_LAT, m_per_deg_lng], dtype=np.float64)
+    pos_m         = positions * scale
+
+    if _HAS_SCIPY:
+        tree   = _KDTree(pos_m[barrier_idx])
+        dists, _ = tree.query(pos_m, k=1, workers=-1)   # (N,) in metres
+        penalties = np.exp(-dists / decay_m)
+    else:
+        barrier_m = pos_m[barrier_idx]                   # (B, 2)
+        diff  = pos_m[:, None, :] - barrier_m[None, :, :]  # (N, B, 2)
+        dists = np.sqrt((diff ** 2).sum(axis=2)).min(axis=1)   # (N,)
+        penalties = np.exp(-dists / decay_m)
+
+    # Parcels that ARE barriers already carry hard penalties; zero out their
+    # soft field so we don't double-penalise them.
+    penalties[barrier_idx] = 0.0
+    return penalties
 
 
 # ---------------------------------------------------------------------------
@@ -451,43 +557,105 @@ def _discrete_solve_core_py(
     max_iter:      int,
     m_per_deg_lat: float,
     start:         int,          # explicit starting parcel index
+    tabu_size:     int,          # circular tabu buffer length (0 = disabled)
 ) -> tuple[int, int, bool, float]:
     """
-    Single-start best-neighbour ascent.
+    Single-start tabu-enhanced best-neighbour ascent.
 
     Returns (best_idx, iterations, converged, last_delta_m).
-    Written in a Numba-friendly style: no dynamic allocation, no Python
-    built-ins that Numba cannot lower to LLVM IR.
+
+    Tabu mechanism (Numba-compatible circular buffer)
+    -------------------------------------------------
+    Each visited node is written into a fixed-length circular buffer.
+    While seeking the next move:
+      1. Prefer the best non-tabu strictly-improving neighbour.
+      2. If all non-tabu neighbours are non-improving, accept a lateral
+         (equal / slightly worse) non-tabu move — allows plateau traversal.
+      3. If all k neighbours are currently tabu, fall back to the globally
+         best neighbour regardless of tabu (aspiration criterion).
+      4. Declare convergence only when truly stuck (step == current).
+
+    Written in a Numba-friendly style: no dynamic allocation beyond the
+    fixed tabu buffer, no Python built-ins Numba cannot lower to LLVM IR.
     """
-    k       = nb.shape[1]
-    current = start
-    converged   = False
+    k         = nb.shape[1]
+    current   = int(start)
+    converged = False
     iterations  = 0
     last_delta  = 0.0
 
+    # Circular tabu buffer — initialised to -1 (empty marker)
+    tabu_buf = np.empty(max(tabu_size, 1), dtype=np.int64)
+    for _ti in range(tabu_buf.shape[0]):
+        tabu_buf[_ti] = -1
+    tabu_ptr = 0
+
     for t in range(max_iter):
-        best_v    = V[current]
-        best_next = current
+        best_nontabu_v    = -1e18
+        best_nontabu_next = -1
+        best_any_v        = -1e18
+        best_any_next     = -1
 
-        # Check all k neighbours
         for ki in range(k):
-            j = nb[current, ki]
-            if V[j] > best_v:
-                best_v    = V[j]
-                best_next = j
+            j  = int(nb[current, ki])
+            vj = V[j]
 
-        dlat       = positions[best_next, 0] - positions[current, 0]
-        dlng       = positions[best_next, 1] - positions[current, 1]
-        last_delta = math.sqrt(dlat * dlat + dlng * dlng) * m_per_deg_lat
-        iterations = t + 1
+            # Track unconditional best (aspiration fallback)
+            if vj > best_any_v:
+                best_any_v    = vj
+                best_any_next = j
 
-        if best_next == current:    # local maximum — stop
+            # Check tabu membership
+            in_tabu = False
+            if tabu_size > 0:
+                for ti in range(tabu_size):
+                    if tabu_buf[ti] == j:
+                        in_tabu = True
+                        break
+
+            if not in_tabu and vj > best_nontabu_v:
+                best_nontabu_v    = vj
+                best_nontabu_next = j
+
+        # ── Choose move ──────────────────────────────────────────────────
+        v_curr = V[current]
+
+        if best_nontabu_next >= 0 and best_nontabu_v > v_curr:
+            # Case 1: Non-tabu strictly improving step
+            move_to = best_nontabu_next
+
+        elif best_any_next >= 0 and best_any_v > v_curr:
+            # Case 2: Non-tabu choices exist but none improve; however a
+            # tabu candidate is better → aspiration criterion applies.
+            move_to = best_any_next
+
+        elif best_nontabu_next >= 0:
+            # Case 3: Lateral non-tabu step — traverse plateau
+            move_to = best_nontabu_next
+
+        else:
+            # Case 4: Fully stuck (all tabu, no improvement anywhere)
             converged = True
             break
 
-        current = best_next
+        dlat       = positions[move_to, 0] - positions[current, 0]
+        dlng       = positions[move_to, 1] - positions[current, 1]
+        last_delta = math.sqrt(dlat * dlat + dlng * dlng) * m_per_deg_lat
+        iterations = t + 1
+
+        if move_to == current:
+            converged = True
+            break
+
+        # Write current to tabu buffer before moving
+        if tabu_size > 0:
+            tabu_buf[tabu_ptr % tabu_size] = current
+            tabu_ptr += 1
+
+        current = move_to
 
     return current, iterations, converged, last_delta
+
 
 
 # JIT-compile if Numba is present; fall back transparently otherwise.
@@ -499,6 +667,76 @@ else:
     _discrete_solve_core = _discrete_solve_core_py
 
 
+# ---------------------------------------------------------------------------
+#  Farthest-first (maximin) seed selection
+# ---------------------------------------------------------------------------
+
+def _diverse_seeds(
+    pos_m: np.ndarray,         # (N, 2)   metre-projected positions
+    V: np.ndarray,             # (N,)     scored potentials
+    feasible_mask: np.ndarray, # (N,)     bool
+    n_seeds: int,
+) -> np.ndarray:
+    """
+    Select ``n_seeds`` starting positions that are both high-scoring AND
+    geographically spread across the feasible parcel set.
+
+    Algorithm: farthest-first (k-means++ style maximin).
+     1.  First seed = feasible parcel with the highest V.
+     2.  Each subsequent seed is chosen from the top-50% of feasible parcels
+         by V to maximise the minimum distance to any already-chosen seed.
+         Distance and score are combined: 60% diversity, 40% score quality.
+
+    This approach ensures different restarts explore meaningfully different
+    landscape regions, greatly reducing sensitivity to local maxima in areas
+    with uneven spatial distribution of high-scoring parcels.
+
+    Returns an int array of parcel indices, length ≤ n_seeds.
+    """
+    pool = np.where(feasible_mask)[0]
+    if len(pool) == 0:
+        pool = np.arange(len(V), dtype=np.intp)
+
+    n_seeds = min(n_seeds, len(pool))
+    if n_seeds <= 1:
+        return np.array([pool[int(np.argmax(V[pool]))]], dtype=np.intp)
+
+    # Sort pool by V descending; first seed = highest-score feasible parcel
+    sorted_pool = pool[np.argsort(V[pool])[::-1]]
+    seeds: list[int] = [int(sorted_pool[0])]
+
+    # Top-50% candidates (by V) used for diversity selection
+    top_half = sorted_pool[:max(1, len(sorted_pool) // 2)]
+    pool_pos = pos_m[pool]            # (pool_size, 2)
+
+    for _ in range(n_seeds - 1):
+        chosen_pos   = pos_m[seeds]   # (n_chosen, 2)
+        diff         = pool_pos[:, None, :] - chosen_pos[None, :, :]  # (P, C, 2)
+        dist_min     = np.sqrt((diff ** 2).sum(axis=2)).min(axis=1)   # (P,)
+
+        # Normalise V and distance to [0, 1] for combination
+        pv      = V[pool]
+        v_score = (pv - pv.min()) / (pv.max() - pv.min() + 1e-9)
+        d_score = dist_min / (dist_min.max() + 1e-9)
+        combined = 0.4 * v_score + 0.6 * d_score
+
+        # Restrict to top-half, exclude already chosen
+        mask_chosen = np.zeros(len(pool), dtype=np.bool_)
+        for s in seeds:
+            mask_chosen |= (pool == s)
+        mask_top    = np.isin(pool, top_half)
+        candidates  = np.where(mask_top & ~mask_chosen)[0]
+        if len(candidates) == 0:
+            candidates = np.where(~mask_chosen)[0]
+        if len(candidates) == 0:
+            break
+
+        best = candidates[int(np.argmax(combined[candidates]))]
+        seeds.append(int(pool[best]))
+
+    return np.array(seeds, dtype=np.intp)
+
+
 def discrete_solve(
     positions: np.ndarray,
     normed: np.ndarray,
@@ -506,70 +744,117 @@ def discrete_solve(
     feasible_mask: np.ndarray,
     hazard_mask: np.ndarray,
     cfg: SolverConfig,
+    proximity_field: "np.ndarray | None" = None,
 ) -> tuple[int, dict[str, Any]]:
     """
-    Multi-start best-neighbour ascent on the parcel graph.
+    Multi-start tabu-enhanced best-neighbour ascent on the parcel graph.
 
-    Builds a KD-tree neighbour index once (O(N log N) with scipy, O(N²)
-    fallback), then runs up to ``cfg.n_restarts`` ascents from the
-    highest-scoring feasible seeds, returning the best result.
-
-    The inner loop is JIT-compiled by Numba when available, making each
-    ascent O(max_iter × k) with near-zero Python overhead.
+    Improvements over previous version
+    -----------------------------------
+    Seeding     Farthest-first (maximin) geographic diversity among the top-50%
+                feasible parcels by score, not pure score-rank.
+    Inner loop  Tabu circular buffer (length cfg.tabu_size) prevents cycling
+                and enables plateau traversal via lateral tabu-free moves.
+    Barriers    Accepts an optional ``proximity_field`` soft-barrier term that
+                gradually deflects trajectories away from hazard zones.
+    Stall retry After all restarts, if solution came from a non-converged run,
+                re-run each seed with k × cfg.k_expand_factor neighbours to
+                catch improvements the original index width missed.
+    Jitter      Reports geographic spread (std dev of landing positions in
+                metres), not V-value spread, for more interpretable output.
 
     Returns
     -------
     best_parcel_index : int
-    convergence_dict  : dict  (iterations, delta_m, converged, jitter_m)
+    convergence_dict  : dict  (iterations, delta_m, converged, jitter_m, n_restarts)
     """
     N  = positions.shape[0]
     k  = min(cfg.k_neighbours, N - 1)
-    V  = _score_all(normed, weight_vec, feasible_mask, hazard_mask, cfg)
+
+    # ── Score all parcels (incorporating soft barrier field if given) ────
+    V  = _score_all(normed, weight_vec, feasible_mask, hazard_mask, cfg,
+                    proximity_field=proximity_field)
     nb = _build_neighbour_index(positions, k)          # (N, k)  int64
 
-    # ── Pick starting seeds ──────────────────────────────────────────
-    feas_idx = np.where(feasible_mask)[0]
-    pool     = feas_idx if len(feas_idx) > 0 else np.arange(N, dtype=np.intp)
-    n_rest   = max(1, min(cfg.n_restarts, len(pool)))
-    seeds    = pool[np.argsort(V[pool])[::-1][:n_rest]]
+    # ── Metre-projected positions for seed diversity computation ────────
+    lat_rad       = math.radians(float(np.mean(positions[:, 0])))
+    m_per_deg_lng = M_PER_DEG_LAT * math.cos(lat_rad)
+    scale         = np.array([M_PER_DEG_LAT, m_per_deg_lng], dtype=np.float64)
+    pos_m         = positions * scale
 
-    # ── Ensure correct dtypes for Numba specialisation ──────────────
+    # ── Geographically diverse seeds ────────────────────────────────────
+    n_rest = max(1, min(cfg.n_restarts, len(np.where(feasible_mask)[0]) or N))
+    seeds  = _diverse_seeds(pos_m, V, feasible_mask, n_rest)
+
+    # ── Ensure correct dtypes for Numba specialisation ──────────────────
     V_f64   = V.astype(np.float64)
     pos_f64 = positions.astype(np.float64)
     nb_i64  = nb.astype(np.int64)
     fm_bool = feasible_mask.astype(np.bool_)
+    tabu_sz = int(cfg.tabu_size)
+    max_it  = int(cfg.max_iter)
 
     best_idx       = int(seeds[0])
     best_V_final   = -np.inf
     best_iters     = 0
     best_converged = False
     best_delta     = 0.0
-    all_final_vs: list[float] = []
+    all_final_vs:  list[float] = []
+    all_final_pos: list[np.ndarray] = []
+
+    def _run_seed(seed: int, k_nb: np.ndarray) -> tuple[int, int, bool, float]:
+        return _discrete_solve_core(
+            V_f64, pos_f64, k_nb.astype(np.int64), fm_bool,
+            max_it, M_PER_DEG_LAT, seed, tabu_sz,
+        )
 
     for seed in seeds:
-        idx, iters, conv, delta = _discrete_solve_core(
-            V_f64, pos_f64, nb_i64, fm_bool,
-            int(cfg.max_iter), M_PER_DEG_LAT, int(seed),
-        )
-        final_v = float(V_f64[int(idx)])
-        all_final_vs.append(final_v)
-        if final_v > best_V_final:
-            best_V_final   = final_v
+        idx, iters, conv, delta = _run_seed(int(seed), nb)
+        fv = float(V_f64[int(idx)])
+        all_final_vs.append(fv)
+        all_final_pos.append(pos_m[int(idx)])
+        if fv > best_V_final:
+            best_V_final   = fv
             best_idx       = int(idx)
             best_iters     = int(iters)
             best_converged = bool(conv)
             best_delta     = float(delta)
 
-    # jitter = spread of landing values across seeds — reuses first-pass
-    # results (no redundant solver calls).
-    jitter_m = float(np.std(all_final_vs)) * M_PER_DEG_LAT * 0.01 \
-               if len(all_final_vs) > 1 else 0.0
+    # ── Expanded-neighbour retry when solution did not converge ─────────
+    # If no restart produced a converged result, try a second pass with
+    # k * k_expand_factor neighbours.  This is variable-neighbourhood
+    # search: we reuse the same (already built) index; the extra columns
+    # are queried from the existing KD-tree data.
+    if not best_converged and cfg.k_expand_factor > 1:
+        k_wide  = min(k * cfg.k_expand_factor, N - 1)
+        nb_wide = _build_neighbour_index(positions, k_wide)
+        for seed in seeds:
+            idx, iters, conv, delta = _run_seed(int(seed), nb_wide)
+            fv = float(V_f64[int(idx)])
+            if fv > best_V_final:
+                best_V_final   = fv
+                best_idx       = int(idx)
+                best_iters     = int(iters)
+                best_converged = bool(conv)
+                best_delta     = float(delta)
+
+    # ── Jitter: std dev of landing positions in metres ──────────────────
+    # Measures how much the different restarts disagree about the solution
+    # location — a geographic interpretability metric for the UI.
+    if len(all_final_pos) > 1:
+        landing = np.array(all_final_pos, dtype=np.float64)   # (R, 2) metres
+        jitter_m = float(np.std(
+            np.sqrt(((landing - landing.mean(axis=0)) ** 2).sum(axis=1))
+        ))
+    else:
+        jitter_m = 0.0
 
     return best_idx, {
         "iterations": best_iters,
         "delta_m":    round(best_delta, 2),
         "converged":  best_converged,
-        "jitter_m":   round(jitter_m, 3),
+        "jitter_m":   round(jitter_m, 1),
+        "n_restarts": len(seeds),
     }
 
 
@@ -729,10 +1014,22 @@ class CentreOfGravitySolver:
             dtype=dtype,
         )
 
-        # --- Steps 3+4: Score all parcels, then run discrete solver ---
-        V = _score_all(normed, weight_vec, feasible_mask, hazard_mask, cfg)
+        # --- Steps 3+4: Compute soft barrier field, score all parcels,
+        #     then run the multi-start tabu-enhanced discrete solver ---
+
+        # Soft barrier proximity field — graduated repulsion that decreases
+        # exponentially with distance to the nearest hazard/infeasible parcel.
+        # Computed once; shared by _score_all and discrete_solve so the same
+        # V surface drives both the confidence ellipse and the inner loop.
+        prox = _compute_proximity_field(
+            positions, hazard_mask, feasible_mask, cfg.hazard_decay_m
+        )
+
+        V = _score_all(normed, weight_vec, feasible_mask, hazard_mask, cfg,
+                       proximity_field=prox)
         best_idx, convergence = discrete_solve(
-            positions, normed, weight_vec, feasible_mask, hazard_mask, cfg
+            positions, normed, weight_vec, feasible_mask, hazard_mask, cfg,
+            proximity_field=prox,
         )
 
         solution_lat = float(positions[best_idx, 0])

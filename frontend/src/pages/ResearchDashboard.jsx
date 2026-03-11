@@ -232,11 +232,6 @@ export default function ResearchDashboard() {
     area: '',
     areaName: ''
   });
-  const [selectedPropertyType, setSelectedPropertyType] = useState(() => {
-    if (typeof window === 'undefined') return '';
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('type') || '';
-  });
 
   const handleFindCentreOfGravity = () => {
     if (!selected.area || !selected.areaName) {
@@ -476,24 +471,6 @@ export default function ResearchDashboard() {
                     <option key={a.id} value={a.id}>{a.name}</option>
                   ))}
                 </select>
-              </div>
-            </div>
-
-            <div className="selector-item-modern">
-              <label className="selector-label-modern">Property Type</label>
-              <div className="property-type-buttons">
-                <button
-                  className={`property-type-btn ${selectedPropertyType === 'residential' ? 'active' : ''}`}
-                  onClick={() => setSelectedPropertyType('residential')}
-                >
-                  Residential
-                </button>
-                <button
-                  className={`property-type-btn ${selectedPropertyType === 'commercial' ? 'active' : ''}`}
-                  onClick={() => setSelectedPropertyType('commercial')}
-                >
-                  Commercial
-                </button>
               </div>
             </div>
           </div>
