@@ -2354,6 +2354,218 @@ def api_province_metrics_rollup(province_id):
 
 
 # ---------------------------------------------------------------------------
+#  Metric Enrichment helpers + endpoint
+# ---------------------------------------------------------------------------
+
+# True  = higher value is better for investors
+# False = lower value is better
+# None  = neutral / context-dependent
+_METRIC_HIGHER_IS_BETTER = {
+    'rental_yield':       True,
+    'vacancy_rate':       False,
+    'avg_price':          None,
+    'crime_index':        False,
+    'population_growth':  True,
+    'planned_dev_count':  True,
+    'transport_score':    True,
+    'amenities_score':    True,
+    'development_score':  True,
+    'safety_rating':      True,
+    'population_density': None,
+    'price_per_sqm':      None,
+}
+
+_METRIC_DISPLAY_NAMES = {
+    'rental_yield':       'Rental yield',
+    'vacancy_rate':       'Vacancy rate',
+    'avg_price':          'Average price',
+    'crime_index':        'Crime index',
+    'population_growth':  'Population growth',
+    'planned_dev_count':  'Planned developments',
+    'transport_score':    'Transport score',
+    'amenities_score':    'Amenities score',
+    'development_score':  'Development score',
+    'safety_rating':      'Safety rating',
+    'population_density': 'Population density',
+}
+
+
+def _compute_metric_trend(area_id, metric_code, engine):
+    """Compare the latest recorded value to the oldest of the last 6 records.
+
+    Returns 'up', 'down', or 'stable'.  Falls back to 'stable' on any error.
+    """
+    try:
+        sql = text("""
+            SELECT v.value_numeric
+            FROM area_metric_values v
+            JOIN metrics m ON m.id = v.metric_id
+            WHERE v.area_id = :area_id
+              AND m.code     = :code
+              AND v.value_numeric IS NOT NULL
+            ORDER BY v.period_start DESC, v.created_at DESC
+            LIMIT 6
+        """)
+        with engine.connect() as conn:
+            rows = conn.execute(sql, {'area_id': area_id, 'code': metric_code}).mappings().all()
+        if len(rows) < 2:
+            return 'stable'
+        latest = float(rows[0]['value_numeric'])
+        older  = float(rows[-1]['value_numeric'])
+        if older == 0:
+            return 'stable'
+        pct_chg = (latest - older) / abs(older) * 100
+        if pct_chg > 2:
+            return 'up'
+        if pct_chg < -2:
+            return 'down'
+        return 'stable'
+    except Exception:
+        return 'stable'
+
+
+def _compute_metric_percentile(area_id, province_id, metric_code, engine):
+    """Return PERCENT_RANK (0–100) of this area within its province for metric_code.
+
+    Uses PostgreSQL window functions.  Returns None on SQLite or on error.
+    """
+    if 'sqlite' in engine.url.drivername:
+        return None
+    try:
+        sql = text("""
+            WITH latest_per_area AS (
+                SELECT a.id AS area_id, lv.value_numeric
+                FROM areas a
+                JOIN cities c ON c.id = a.city_id
+                JOIN LATERAL (
+                    SELECT vv.value_numeric
+                    FROM area_metric_values vv
+                    JOIN metrics m2 ON m2.id = vv.metric_id
+                    WHERE vv.area_id = a.id
+                      AND m2.code = :code
+                      AND vv.value_numeric IS NOT NULL
+                    ORDER BY vv.period_start DESC, vv.created_at DESC
+                    LIMIT 1
+                ) lv ON TRUE
+                WHERE c.province_id = :province_id
+            )
+            SELECT pct_rank
+            FROM (
+                SELECT area_id,
+                       PERCENT_RANK() OVER (ORDER BY value_numeric) * 100 AS pct_rank
+                FROM latest_per_area
+            ) ranked
+            WHERE area_id = :area_id
+        """)
+        with engine.connect() as conn:
+            row = conn.execute(sql, {
+                'code':        metric_code,
+                'province_id': province_id,
+                'area_id':     area_id,
+            }).mappings().first()
+        if row and row['pct_rank'] is not None:
+            return round(float(row['pct_rank']), 1)
+        return None
+    except Exception:
+        return None
+
+
+def _metric_insight(code, percentile, hib, trend_dir):
+    """Return a short one-sentence insight string, or None if insufficient data."""
+    name = _METRIC_DISPLAY_NAMES.get(code, code.replace('_', ' ').title())
+
+    # Effective percentile in the "good" direction
+    if percentile is None:
+        eff = None
+    elif hib is True:
+        eff = percentile          # higher raw pct = more areas below you = good
+    elif hib is False:
+        eff = 100.0 - percentile  # lower raw pct = fewer areas have lower value = good
+    else:
+        eff = percentile          # neutral: use as-is
+
+    # Trend phrase
+    trend_phrase = ''
+    if trend_dir == 'up':
+        trend_phrase = ' and trending up'
+    elif trend_dir == 'down':
+        trend_phrase = ' and trending down'
+
+    if eff is None:
+        # Just trend, no provincial data
+        if trend_dir == 'up':
+            return f'{name} is rising'
+        if trend_dir == 'down':
+            return f'{name} is falling'
+        return f'{name} is stable'
+
+    if eff >= 90:
+        base = f'{name} is in the top 10% of the province'
+    elif eff >= 75:
+        base = f'{name} is above the provincial median'
+    elif eff >= 50:
+        base = f'{name} is near the provincial median'
+    elif eff >= 25:
+        base = f'{name} is below the provincial median'
+    else:
+        base = f'{name} is in the bottom 25% of the province'
+
+    return base + trend_phrase
+
+
+@app.route('/api/areas/<int:area_id>/metrics/enriched', methods=['GET'])
+def api_area_metrics_enriched(area_id):
+    """Return trend direction, provincial percentile rank, and insight sentence
+    for each requested metric.
+
+    Query params:
+        metrics=avg_price,rental_yield,...  (optional; defaults to 6 key metrics)
+
+    Response shape:
+        {
+          success, area_id,
+          metrics: {
+            <code>: { trend_direction, percentile, insight }
+          }
+        }
+    """
+    try:
+        if not _area_metrics_supported():
+            return jsonify({'success': False, 'error': 'Metrics schema not initialized'}), 400
+
+        area = Area.query.get(area_id)
+        if not area:
+            return jsonify({'success': False, 'error': 'Area not found'}), 404
+
+        city = City.query.get(area.city_id)
+        province_id = city.province_id if city else None
+
+        metric_codes_param = request.args.get(
+            'metrics',
+            'avg_price,rental_yield,vacancy_rate,crime_index,population_growth,planned_dev_count'
+        )
+        codes = [c.strip() for c in metric_codes_param.split(',') if c.strip()]
+
+        engine = db.engine
+        result = {}
+        for code in codes:
+            trend = _compute_metric_trend(area_id, code, engine)
+            pct   = _compute_metric_percentile(area_id, province_id, code, engine) if province_id else None
+            hib   = _METRIC_HIGHER_IS_BETTER.get(code)
+            insight = _metric_insight(code, pct, hib, trend)
+            result[code] = {
+                'trend_direction': trend,
+                'percentile':      pct,
+                'insight':         insight,
+            }
+
+        return jsonify({'success': True, 'area_id': area_id, 'metrics': result})
+    except Exception as e:
+        app.logger.exception('api_area_metrics_enriched error for area_id=%s', area_id)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
 #  Market Intelligence endpoint
 # ---------------------------------------------------------------------------
 

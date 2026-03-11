@@ -16,6 +16,66 @@ import "./styles/explore-page.css";
 import MetricTooltip from "../components/MetricTooltip";
 import metricGlossary from "../components/metricGlossary";
 
+// ── Enrichment helpers (pure, defined outside component) ──────────────────
+const HIGHER_IS_BETTER = {
+  rental_yield:       true,
+  vacancy_rate:       false,
+  avg_price:          null,
+  crime_index:        false,
+  population_growth:  true,
+  planned_dev_count:  true,
+  transport_score:    true,
+  amenities_score:    true,
+  development_score:  true,
+  safety_rating:      true,
+  population_density: null,
+};
+
+function getTrendDisplay(code, direction) {
+  const hib = HIGHER_IS_BETTER[code];
+  if (!direction || direction === 'stable') return { arrow: '→', cls: 'neutral', label: 'Stable' };
+  if (direction === 'up') {
+    if (hib === true)  return { arrow: '↑', cls: 'positive', label: 'Rising' };
+    if (hib === false) return { arrow: '↑', cls: 'negative', label: 'Rising' };
+    return { arrow: '↑', cls: 'neutral', label: 'Rising' };
+  }
+  if (direction === 'down') {
+    if (hib === true)  return { arrow: '↓', cls: 'negative', label: 'Falling' };
+    if (hib === false) return { arrow: '↓', cls: 'positive', label: 'Falling' };
+    return { arrow: '↓', cls: 'neutral', label: 'Falling' };
+  }
+  return { arrow: '→', cls: 'neutral', label: '' };
+}
+
+function getPercentileLabel(code, percentile) {
+  if (percentile == null) return null;
+  const hib = HIGHER_IS_BETTER[code];
+  // Convert to "rank from top" so 100 = best
+  const eff = hib === false ? (100 - percentile) : percentile;
+  const top = Math.round(100 - eff);
+  if (top <= 10) return 'Top 10%';
+  if (top <= 25) return 'Top 25%';
+  if (top <= 50) return 'Top 50%';
+  return `Bottom ${Math.round(100 - top)}%`;
+}
+
+function MetricEnrichmentRow({ code, enriched }) {
+  if (!enriched) return <div className="data-trend neutral">—</div>;
+  const td = getTrendDisplay(code, enriched.trend_direction);
+  const pctLabel = getPercentileLabel(code, enriched.percentile);
+  return (
+    <div className="data-enrichment">
+      <div className={`data-trend ${td.cls}`}>
+        <span className="data-trend-arrow">{td.arrow}</span>
+        <span>{td.label}</span>
+        {pctLabel && <span className="data-percentile-badge">{pctLabel}</span>}
+      </div>
+      {enriched.insight && (
+        <p className="data-insight-text">{enriched.insight}</p>
+      )}
+    </div>
+  );
+}
 
 export default function ExplorePage() {
   const navigate = useNavigate();
@@ -42,6 +102,7 @@ export default function ExplorePage() {
   const [selectedAreaDetails, setSelectedAreaDetails] = useState(null);
   const [areaStatistics, setAreaStatistics] = useState(null);
   const [areaLatestMetrics, setAreaLatestMetrics] = useState(null);
+  const [areaEnrichedMetrics, setAreaEnrichedMetrics] = useState(null);
   const [areaImages, setAreaImages] = useState([]);
   const [loadingAreaData, setLoadingAreaData] = useState(false);
   const [alert, setAlert] = useState(null);
@@ -281,6 +342,7 @@ export default function ExplorePage() {
       setAreaStatistics(null);
       setAreaImages([]);
       setAreaLatestMetrics(null);
+      setAreaEnrichedMetrics(null);
       setAlert({ type: 'success', title: 'Metrics refreshed', message: (res && res.actions) ? res.actions.join(', ') : 'Refresh triggered' });
     } catch (e) {
       setAlert({ type: 'error', title: 'Refresh failed', message: e.message || 'Unable to refresh materialized views' });
@@ -497,6 +559,7 @@ export default function ExplorePage() {
       setAreaStatistics(null);
       setAreaImages([]);
       setAreaLatestMetrics(null);
+      setAreaEnrichedMetrics(null);
       return;
     }
 
@@ -505,6 +568,7 @@ export default function ExplorePage() {
     setAreaStatistics(null);
     setAreaImages([]);
     setAreaLatestMetrics(null);
+    setAreaEnrichedMetrics(null);
     setLoadingAreaData(true);
 
     try {
@@ -584,6 +648,17 @@ export default function ExplorePage() {
         } catch (e) {
           console.warn('Latest metrics unavailable for area', targetAreaId, e?.message || e);
           setAreaLatestMetrics(null);
+        }
+
+        // Fetch enrichment data: trend direction, provincial percentile, insight sentences
+        try {
+          const enriched = await areaDataService.api.get(`/api/areas/${targetAreaId}/metrics/enriched`, {
+            params: { metrics: 'avg_price,rental_yield,vacancy_rate,crime_index,population_growth,planned_dev_count' }
+          });
+          setAreaEnrichedMetrics(enriched?.metrics ?? null);
+        } catch (e) {
+          console.warn('Enriched metrics unavailable for area', targetAreaId, e?.message || e);
+          setAreaEnrichedMetrics(null);
         }
 
         console.log('✅ Area data loaded successfully:', {
@@ -890,7 +965,7 @@ export default function ExplorePage() {
                           ? `R ${Number(areaStatistics?.average_price ?? areaLatestMetrics?.avg_price?.value_numeric).toLocaleString()}`
                           : 'N/A'}
                       </div>
-                      <div className="data-trend positive">Market Rate</div>
+                      <MetricEnrichmentRow code="avg_price" enriched={areaEnrichedMetrics?.avg_price} />
                     </div>
                   </div>
 
@@ -912,7 +987,7 @@ export default function ExplorePage() {
                           ? `${Number(areaStatistics?.rental_yield ?? areaLatestMetrics?.rental_yield?.value_numeric).toFixed(1)}%`
                           : 'N/A'}
                       </div>
-                      <div className="data-trend positive">Income Return</div>
+                      <MetricEnrichmentRow code="rental_yield" enriched={areaEnrichedMetrics?.rental_yield} />
                     </div>
                   </div>
 
@@ -935,7 +1010,7 @@ export default function ExplorePage() {
                           ? `${Number(areaStatistics?.vacancy_rate ?? areaLatestMetrics?.vacancy_rate?.value_numeric).toFixed(1)}%`
                           : 'N/A'}
                       </div>
-                      <div className="data-trend neutral">Lower is better</div>
+                      <MetricEnrichmentRow code="vacancy_rate" enriched={areaEnrichedMetrics?.vacancy_rate} />
                     </div>
                   </div>
 
@@ -954,7 +1029,7 @@ export default function ExplorePage() {
                         </div>
                         <div className="data-def">{metricGlossary.safety_rating.definition}</div>
                         <div className="data-value">{selectedAreaDetails.safety_rating}/100</div>
-                        <div className="data-trend positive">Premium Area</div>
+                        <MetricEnrichmentRow code="safety_rating" enriched={areaEnrichedMetrics?.safety_rating} />
                       </div>
                     </div>
                   )}
@@ -977,7 +1052,7 @@ export default function ExplorePage() {
                           ? `${Number(areaStatistics?.population_density ?? areaStatistics?.metrics?.population_density?.value).toLocaleString()}/km²`
                           : 'N/A'}
                       </div>
-                      <div className="data-trend neutral">Premium Data</div>
+                      <MetricEnrichmentRow code="population_density" enriched={areaEnrichedMetrics?.population_density} />
                     </div>
                   </div>
 
@@ -996,7 +1071,7 @@ export default function ExplorePage() {
                       </div>
                       <div className="data-def">{metricGlossary.crime_index.definition}</div>
                       <div className="data-value">{areaLatestMetrics?.crime_index?.value_numeric ?? 'N/A'}</div>
-                      <div className="data-trend neutral">Lower is better</div>
+                      <MetricEnrichmentRow code="crime_index" enriched={areaEnrichedMetrics?.crime_index} />
                     </div>
                   </div>
 
@@ -1019,7 +1094,7 @@ export default function ExplorePage() {
                           ? `${Number(areaLatestMetrics.population_growth.value_numeric).toFixed(1)}%`
                           : 'N/A'}
                       </div>
-                      <div className="data-trend positive">Higher is growth</div>
+                      <MetricEnrichmentRow code="population_growth" enriched={areaEnrichedMetrics?.population_growth} />
                     </div>
                   </div>
 
@@ -1038,7 +1113,7 @@ export default function ExplorePage() {
                       </div>
                       <div className="data-def">{metricGlossary.planned_dev_count.definition}</div>
                       <div className="data-value">{areaLatestMetrics?.planned_dev_count?.value_numeric ?? 'N/A'}</div>
-                      <div className="data-trend neutral">Pipeline</div>
+                      <MetricEnrichmentRow code="planned_dev_count" enriched={areaEnrichedMetrics?.planned_dev_count} />
                     </div>
                   </div>
 
@@ -1060,7 +1135,7 @@ export default function ExplorePage() {
                           ? `${selectedAreaDetails.development_score}/100`
                           : 'N/A'}
                       </div>
-                      <div className="data-trend positive">Growing</div>
+                      <MetricEnrichmentRow code="development_score" enriched={areaEnrichedMetrics?.development_score} />
                     </div>
                   </div>
                 </>

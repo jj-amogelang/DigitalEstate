@@ -2091,13 +2091,53 @@ body {
 }
 
 .data-trend.negative {
-  color: var(--dark-text);
+  color: #c0392b;
   background: none;
 }
 
 .data-trend.neutral {
   color: var(--text-grey);
   background: none;
+}
+
+/* ── Metric Enrichment (trend arrow + percentile badge + insight) ── */
+
+.data-enrichment {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.1rem;
+}
+
+.data-trend-arrow {
+  font-size: 1rem;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.data-percentile-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 20px;
+  font-size: 0.65rem;
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid currentColor;
+  opacity: 0.85;
+  margin-left: 0.25rem;
+}
+
+.data-insight-text {
+  font-size: 0.72rem;
+  color: var(--text-grey);
+  font-style: italic;
+  line-height: 1.4;
+  margin: 0;
+  font-family: var(--font-primary);
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 /* Zara-Style Responsive Design */
