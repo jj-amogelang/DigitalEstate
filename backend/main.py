@@ -3643,6 +3643,45 @@ def _rank_items(rows, key='score', limit=20):
     return scored[:limit]
 
 
+def _compute_composite_score(row):
+    """Return a holistic 0–100 composite opportunity score and its breakdown.
+
+    Components
+    ----------
+    Yield  (40 %) : rental_yield normalised over 0–15 %
+    Vacancy(25 %) : vacancy_rate inverted, normalised 0–20 %
+    Growth (20 %) : price_growth_yoy normalised 0–20 %
+    Safety (15 %) : crime_index_score inverted, normalised 0–100
+
+    Any missing component is replaced with a neutral 50 to avoid penalising
+    areas that simply have no data for that field.
+    """
+    yield_s   = _normalise(row.get('rental_yield'),      0,   15)
+    vacancy_s = _normalise(row.get('vacancy_rate'),      0,   20, invert=True)
+    growth_s  = _normalise(row.get('price_growth_yoy'),  0,   20)
+    safety_s  = _normalise(row.get('crime_index_score'), 0,  100, invert=True)
+
+    # Default neutral values for missing data
+    yield_s   = yield_s   if yield_s   is not None else 50.0
+    vacancy_s = vacancy_s if vacancy_s is not None else 50.0
+    growth_s  = growth_s  if growth_s  is not None else 50.0
+    safety_s  = safety_s  if safety_s  is not None else 50.0
+
+    composite = round(
+        yield_s   * 0.40 +
+        vacancy_s * 0.25 +
+        growth_s  * 0.20 +
+        safety_s  * 0.15,
+        1
+    )
+    return composite, {
+        'yield':   round(yield_s,   1),
+        'vacancy': round(vacancy_s, 1),
+        'growth':  round(growth_s,  1),
+        'safety':  round(safety_s,  1),
+    }
+
+
 @app.route('/api/opportunities/top-yield', methods=['GET'])
 def opportunities_top_yield():
     """Return areas ranked by highest rental yield.
@@ -3678,6 +3717,9 @@ def opportunities_top_yield():
                 'vacancy_rate':  r['vacancy_rate'],
                 'growth_yoy':    r['price_growth_yoy'],
             }
+            comp, breakdown = _compute_composite_score(r)
+            r['composite_score'] = comp
+            r['score_breakdown'] = breakdown
 
         ranked = _rank_items(rows, limit=limit)
         return jsonify({'success': True, 'category': 'top-yield', 'count': len(ranked), 'items': ranked})
@@ -3719,6 +3761,9 @@ def opportunities_low_vacancy():
                 'rental_yield':  r['rental_yield'],
                 'days_on_market': r['days_on_market'],
             }
+            comp, breakdown = _compute_composite_score(r)
+            r['composite_score'] = comp
+            r['score_breakdown'] = breakdown
 
         ranked = _rank_items(rows, limit=limit)
         return jsonify({'success': True, 'category': 'low-vacancy', 'count': len(ranked), 'items': ranked})
@@ -3772,6 +3817,9 @@ def opportunities_value():
                 'rental_yield':         y,
                 'avg_property_price':   r['average_property_price'],
             }
+            comp, breakdown = _compute_composite_score(r)
+            r['composite_score'] = comp
+            r['score_breakdown'] = breakdown
 
         ranked = _rank_items(rows, limit=limit)
         return jsonify({'success': True, 'category': 'value', 'count': len(ranked), 'items': ranked})
@@ -3816,6 +3864,9 @@ def opportunities_emerging():
                 'crime_index':      r['crime_index_score'],
                 'amenities_score':  r['amenities_score'],
             }
+            comp, breakdown = _compute_composite_score(r)
+            r['composite_score'] = comp
+            r['score_breakdown'] = breakdown
 
         ranked = _rank_items(rows, limit=limit)
         return jsonify({'success': True, 'category': 'emerging', 'count': len(ranked), 'items': ranked})

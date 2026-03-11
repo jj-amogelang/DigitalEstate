@@ -252,7 +252,7 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--opp-mid);
-  margin: 0 0 12px;
+  margin: 0;
 }
 
 .opp-cards-grid {
@@ -362,6 +362,117 @@
   letter-spacing: 0.04em;
   min-width: 28px;
   text-align: right;
+}
+
+.opp-score-row-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  color: var(--opp-mid);
+  text-transform: uppercase;
+  min-width: 46px;
+}
+
+/* ── Card header row (rank + composite badge) ───────────────────────────── */
+
+.opp-card-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+/* ── Composite score badge ──────────────────────────────────────────────── */
+
+.opp-composite-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid;
+  flex-shrink: 0;
+}
+
+.opp-composite-score {
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.opp-composite-label {
+  font-size: 0.5rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.75;
+  line-height: 1.2;
+}
+
+/* ── Score breakdown ────────────────────────────────────────────────────── */
+
+.opp-breakdown {
+  margin-top: 8px;
+  padding: 8px 0 4px;
+  border-top: 1px solid var(--opp-border);
+  border-bottom: 1px solid var(--opp-border);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* ── Category score row ─────────────────────────────────────────────────── */
+
+.opp-category-score-row {
+  margin-top: 6px;
+}
+
+.opp-category-score-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  color: var(--opp-mid);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* ── Sort row (heading + toggle) ────────────────────────────────────────── */
+
+.opp-sort-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 12px 8px;
+  flex-wrap: wrap;
+}
+
+.opp-sort-toggle {
+  display: flex;
+  gap: 6px;
+}
+
+.opp-sort-btn {
+  padding: 4px 10px;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
+  border: 1px solid var(--opp-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--opp-mid);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.opp-sort-btn:hover {
+  border-color: var(--opp-gold);
+  color: var(--opp-gold);
+}
+
+.opp-sort-btn--active {
+  font-weight: 600;
 }
 
 /* ── Loader / Empty ─────────────────────────────────────────────────────── */

@@ -7,7 +7,7 @@
  *
  * Category tabs in the header switch between the 4 opportunity types.
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import areaDataService from '../services/areaDataService';
 import OpportunityHeatLayer from '../components/OpportunityHeatLayer';
 import './styles/opportunities-page.css';
@@ -86,10 +86,11 @@ const HIGHLIGHT_LABELS = {
 
 // ── ScoreBar ─────────────────────────────────────────────────────────────────
 
-function ScoreBar({ score, color }) {
+function ScoreBar({ score, color, label }) {
   const pct = score != null ? Math.min(100, Math.max(0, score)) : 0;
   return (
     <div className="opp-score-row">
+      {label && <span className="opp-score-row-label">{label}</span>}
       <div className="opp-score-bar-bg">
         <div
           className="opp-score-bar-fill"
@@ -103,10 +104,37 @@ function ScoreBar({ score, color }) {
   );
 }
 
+// ── CompositeBadge ────────────────────────────────────────────────────────────
+
+function CompositeBadge({ score, color }) {
+  if (score == null) return null;
+  return (
+    <div className="opp-composite-badge" style={{ borderColor: color, color }}>
+      <span className="opp-composite-score">{Math.round(score)}</span>
+      <span className="opp-composite-label">Score</span>
+    </div>
+  );
+}
+
 // ── OpportunityCard ───────────────────────────────────────────────────────────
 
+const BREAKDOWN_LABELS = {
+  yield:   'Yield',
+  vacancy: 'Vacancy',
+  growth:  'Growth',
+  safety:  'Safety',
+};
+
+const BREAKDOWN_COLORS = {
+  yield:   '#C9A96E',
+  vacancy: '#5B8DB8',
+  growth:  '#6EC9A9',
+  safety:  '#B86E9A',
+};
+
 function OpportunityCard({ item, accentColor, selected, onClick }) {
-  const highlights = item.highlights || {};
+  const highlights  = item.highlights || {};
+  const breakdown   = item.score_breakdown || null;
   const primaryHlKey = Object.keys(highlights)[0];
 
   return (
@@ -117,7 +145,11 @@ function OpportunityCard({ item, accentColor, selected, onClick }) {
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && onClick(item)}
     >
-      <span className="opp-card-rank">#{item.rank}</span>
+      <div className="opp-card-header-row">
+        <span className="opp-card-rank">#{item.rank}</span>
+        <CompositeBadge score={item.composite_score} color={accentColor} />
+      </div>
+
       <div className="opp-card-name">{item.area_name}</div>
       <div className="opp-card-location">
         {item.city_name}, {item.province_name}
@@ -138,7 +170,23 @@ function OpportunityCard({ item, accentColor, selected, onClick }) {
         })}
       </div>
 
-      <ScoreBar score={item.score} color={accentColor} />
+      {breakdown && (
+        <div className="opp-breakdown">
+          {Object.entries(breakdown).map(([key, val]) => (
+            <ScoreBar
+              key={key}
+              score={val}
+              color={BREAKDOWN_COLORS[key] || accentColor}
+              label={BREAKDOWN_LABELS[key] || key}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className="opp-category-score-row">
+        <span className="opp-category-score-label">Category score</span>
+        <ScoreBar score={item.score} color={accentColor} />
+      </div>
     </div>
   );
 }
@@ -161,8 +209,17 @@ export default function OpportunitiesPage() {
     limit:      DEFAULT_LIMIT,
   });
   const [pendingFilters, setPendingFilters] = useState({ ...filters });
+  const [sortBy, setSortBy] = useState('composite');
 
   const activeCat = CATEGORIES.find(c => c.key === activeCategory) || CATEGORIES[0];
+
+  const sortedItems = useMemo(() => {
+    const copy = [...items];
+    if (sortBy === 'yield')     copy.sort((a, b) => (b.rental_yield      ?? -1) - (a.rental_yield      ?? -1));
+    if (sortBy === 'growth')    copy.sort((a, b) => (b.price_growth_yoy  ?? -1) - (a.price_growth_yoy  ?? -1));
+    if (sortBy === 'composite') copy.sort((a, b) => (b.composite_score   ?? -1) - (a.composite_score   ?? -1));
+    return copy;
+  }, [items, sortBy]);
 
   // ── Load provinces once ────────────────────────────────────────────────
 
@@ -367,11 +424,25 @@ export default function OpportunitiesPage() {
               </div>
             ) : (
               <>
-                <p className="opp-cards-heading">
-                  Ranked areas — {activeCat.label}
-                </p>
+                <div className="opp-sort-row">
+                  <p className="opp-cards-heading">
+                    Ranked areas — {activeCat.label}
+                  </p>
+                  <div className="opp-sort-toggle">
+                    {[{id:'composite',label:'Score'},{id:'yield',label:'Yield'},{id:'growth',label:'Growth'}].map(s => (
+                      <button
+                        key={s.id}
+                        className={`opp-sort-btn${sortBy === s.id ? ' opp-sort-btn--active' : ''}`}
+                        style={sortBy === s.id ? { borderColor: activeCat.accentColor, color: activeCat.accentColor } : {}}
+                        onClick={() => setSortBy(s.id)}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div className="opp-cards-grid">
-                  {items.map(item => (
+                  {sortedItems.map(item => (
                     <OpportunityCard
                       key={item.area_id}
                       item={item}
