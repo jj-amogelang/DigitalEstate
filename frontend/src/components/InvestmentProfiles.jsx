@@ -127,7 +127,6 @@ export default function InvestmentProfiles({
               onClick={() => onSelect(p.key)}
               title={p.description}
             >
-              <span className="ip-chip-icon" aria-hidden="true">{p.icon}</span>
               <span className="ip-chip-label">{p.label}</span>
               <RiskBadge risk={p.risk} inverted={isActive} />
             </button>
@@ -139,7 +138,6 @@ export default function InvestmentProfiles({
       {active && (
         <div className="ip-active-panel" key={active.key} aria-live="polite">
           <div className="ip-active-header">
-            <span className="ip-active-icon" aria-hidden="true">{active.icon}</span>
             <span className="ip-active-name">{active.label}</span>
             <RiskBadge risk={active.risk} />
           </div>

@@ -71,11 +71,6 @@
   border-color: #b8913d;
 }
 
-.ip-chip-icon {
-  font-size: 12px;
-  line-height: 1;
-  flex-shrink: 0;
-}
 .ip-chip-label {
   font-size: 11px;
   font-weight: 500;
@@ -129,11 +124,6 @@
   align-items: center;
   gap: 6px;
 }
-.ip-active-icon {
-  font-size: 14px;
-  line-height: 1;
-  flex-shrink: 0;
-}
 .ip-active-name {
   font-size: 11px;
   font-weight: 600;
@@ -152,7 +142,6 @@
 /* ─── Compact variant ─────────────────────────────────────── */
 .ip-compact .ip-chip { padding: 6px 9px; }
 .ip-compact .ip-chip-label { font-size: 10.5px; }
-.ip-compact .ip-chip-icon  { font-size: 11px; }
 .ip-compact .ip-risk { font-size: 8.5px; }
 .ip-compact .ip-active-panel { padding: 6px 8px; }
 .ip-compact .ip-active-copy  { font-size: 10px; }
