@@ -18,7 +18,7 @@
  *  areaStats  object|null   – area statistics (rental_yield, price_per_sqm, …)
  *  apiBase    string        – resolved backend base URL
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import './styles/FeasibilityTab.css';
 
 // ── Helpers ───────────────────────────────────────────────────────────────

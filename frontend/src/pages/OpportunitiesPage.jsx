@@ -7,7 +7,7 @@
  *
  * Category tabs in the header switch between the 4 opportunity types.
  */
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import areaDataService from '../services/areaDataService';
 import OpportunityHeatLayer from '../components/OpportunityHeatLayer';
 import './styles/opportunities-page.css';

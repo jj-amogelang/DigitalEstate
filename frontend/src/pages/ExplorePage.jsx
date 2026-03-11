@@ -66,6 +66,7 @@ export default function ExplorePage() {
   } = useAppLocation();
 
   // Investment profile selected from the page (applied when CoG modal opens)
+  // eslint-disable-next-line no-unused-vars
   const [selectedProfile, setSelectedProfile] = useState('balanced');
 
   // Set page title
