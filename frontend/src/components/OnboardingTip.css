@@ -1,0 +1,90 @@
+/* ─────────────────────────────────────────────────────────────────
+   Onboarding Tip CSS
+   ─────────────────────────────────────────────────────────────────  */
+
+.onboarding-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #fef7ee 0%, #fef3e2 100%);
+  border: 1px solid #fed7aa;
+  border-left: 3px solid #f97316;
+  border-radius: 6px;
+  margin-top: 12px;
+  animation: tipSlideIn 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes tipSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tip-icon {
+  flex-shrink: 0;
+  font-size: 1.2rem;
+  line-height: 1;
+  margin-top: 1px;
+}
+
+.tip-content {
+  flex: 1;
+}
+
+.tip-text {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #7c2d12;
+}
+
+.tip-text strong {
+  color: #c2410c;
+  font-weight: 600;
+}
+
+.tip-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  color: #9a3412;
+  font-size: 1rem;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.tip-close:hover {
+  color: #c2410c;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .onboarding-tip {
+    background: linear-gradient(135deg, rgba(124, 45, 18, 0.15) 0%, rgba(120, 53, 15, 0.1) 100%);
+    border-color: rgba(249, 115, 22, 0.3);
+  }
+
+  .tip-text {
+    color: #fca5a5;
+  }
+
+  .tip-text strong {
+    color: #fb923c;
+  }
+
+  .tip-close {
+    color: #fb923c;
+  }
+
+  .tip-close:hover {
+    color: #fca5a5;
+  }
+}

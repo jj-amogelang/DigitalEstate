@@ -16,70 +16,28 @@
 import React from 'react';
 import './styles/InvestmentProfiles.css';
 
-// ── Local fallback data (mirrors backend _INVESTOR_PROFILES) ──────────────
+// ── Local fallback data: 3 core presets for tight deadline release ───────────
 const LOCAL_PROFILES = [
+  {
+    key:         'growth',
+    label:       'Growth Potential',
+    icon:        '🚀',
+    risk:        'High',
+    description: 'Higher prices later. Property values rise; yields lower today. Best for investors with long holding periods (5+ years) and appetite for development risk.',
+  },
+  {
+    key:         'stable',
+    label:       'Stable Returns',
+    icon:        '💎',
+    risk:        'Low',
+    description: 'Steady income now. Low vacancy risk; lower capital gains. Best for cash-flow focused investors seeking predictable returns in established neighbourhoods.',
+  },
   {
     key:         'balanced',
     label:       'Balanced',
     icon:        '⚖️',
-    risk:        'Low',
-    description: 'An even spread across all five investment factors — yield, price, '
-               + 'vacancy, transit and footfall. A sensible starting point for first-time '
-               + 'investors or diversified portfolios seeking stable, moderate returns.',
-  },
-  {
-    key:         'valueInvestor',
-    label:       'Value Investor',
-    icon:        '💎',
     risk:        'Medium',
-    description: 'Maximise rental yield while minimising entry price per m². Transit and '
-               + 'footfall carry minimal weight, making this profile best suited to '
-               + 'residential buy-to-let in emerging or under-valued suburbs.',
-  },
-  {
-    key:         'transitFocused',
-    label:       'Transit-Smart',
-    icon:        '🚇',
-    risk:        'Low',
-    description: 'Prioritises strong public-transport proximity above all other factors. '
-               + 'Ideal for urban mixed-use or residential assets where connectivity '
-               + 'directly drives tenant demand and long-term capital growth.',
-  },
-  {
-    key:         'highFootfall',
-    label:       'Footfall-Driven',
-    icon:        '🚶',
-    risk:        'Medium',
-    description: 'Optimises for maximum pedestrian and consumer activity. Best applied to '
-               + 'retail, street-facing commercial or mixed-use nodes where passing trade '
-               + 'is the primary income driver.',
-  },
-  {
-    key:         'highYieldHunter',
-    label:       'High-Yield Hunter',
-    icon:        '🎯',
-    risk:        'High',
-    description: 'Aggressively targets the highest rental yield with minimal regard for '
-               + 'transit or footfall proximity. Suits experienced investors comfortable '
-               + 'with higher vacancy risk in exchange for above-market income returns.',
-  },
-  {
-    key:         'airbnbShortStay',
-    label:       'AirBnB / Short-Stay',
-    icon:        '🏡',
-    risk:        'High',
-    description: 'Tuned for short-term rental operations: balances yield, low vacancy and '
-               + 'strong footfall/transit scores. Performs best near tourism corridors, '
-               + 'CBDs or event centres where nightly rates substantially exceed long-term rents.',
-  },
-  {
-    key:         'developmentOpportunity',
-    label:       'Developer',
-    icon:        '🏗️',
-    risk:        'High',
-    description: 'Targets low-cost parcels with strong footfall potential for value-add '
-               + 'or ground-up redevelopment. Vacancy tolerance is high; transit and '
-               + 'amenity exposure are secondary to price and pedestrian demand.',
+    description: 'Mix of both. Moderate everything; most flexibility. Ideal for newcomers or investors wanting balanced exposure across multiple success factors.',
   },
 ];
 

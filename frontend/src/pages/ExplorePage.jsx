@@ -130,6 +130,21 @@ export default function ExplorePage() {
   // eslint-disable-next-line no-unused-vars
   const [selectedProfile, setSelectedProfile] = useState('balanced');
 
+  // Maintenance controls are intentionally hidden for standard users.
+  // Show when explicitly enabled by env, query param, or localStorage toggle.
+  const maintenanceMode = React.useMemo(() => {
+    const envEnabled = process.env.REACT_APP_ENABLE_MAINTENANCE_TOOLS === 'true' || Boolean(process.env.REACT_APP_MV_REFRESH_TOKEN);
+    const query = new URLSearchParams(location.search || '');
+    const queryEnabled = query.get('maintenance') === '1' || query.get('admin') === '1';
+    let localEnabled = false;
+    try {
+      localEnabled = typeof window !== 'undefined' && window.localStorage?.getItem('digitalEstateMaintenanceMode') === 'true';
+    } catch {
+      localEnabled = false;
+    }
+    return envEnabled || queryEnabled || localEnabled;
+  }, [location.search]);
+
   // Set page title
   useEffect(() => {
     document.title = 'Explore Areas - Digital Estate';
@@ -327,23 +342,26 @@ export default function ExplorePage() {
   const handleRefreshMetrics = async () => {
     try {
       setIsRefreshingMV(true);
+      const selectedAreaBeforeRefresh = selected.area;
       const res = await areaDataService.refreshMaterializedViews();
       if (res && res.success === false) {
         // Backend returned { success: false, error: '...' } — not a real crash
         setAlert({ type: 'error', title: 'Refresh not available', message: res.error || 'Materialized views not supported in this environment' });
         return;
       }
-      // Clear selections so the user can choose afresh
-      setSelected({ country: '', province: '', city: '', area: '', areaName: '' });
-      setProvinces([]);
-      setCities([]);
-      setAreas([]);
-      setSelectedAreaDetails(null);
-      setAreaStatistics(null);
-      setAreaImages([]);
-      setAreaLatestMetrics(null);
-      setAreaEnrichedMetrics(null);
-      setAlert({ type: 'success', title: 'Metrics refreshed', message: (res && res.actions) ? res.actions.join(', ') : 'Refresh triggered' });
+
+      // Keep user context; just reload area metrics after cache refresh.
+      if (selectedAreaBeforeRefresh) {
+        await loadAreaData(selectedAreaBeforeRefresh);
+      }
+
+      setAlert({
+        type: 'success',
+        title: 'Metrics cache refreshed',
+        message: (res && res.actions)
+          ? `${res.actions.join(', ')}${selectedAreaBeforeRefresh ? ' · current area reloaded' : ''}`
+          : (selectedAreaBeforeRefresh ? 'Backend metrics refreshed and current area reloaded' : 'Backend metrics refresh triggered')
+      });
     } catch (e) {
       setAlert({ type: 'error', title: 'Refresh failed', message: e.message || 'Unable to refresh materialized views' });
     } finally {
@@ -707,103 +725,137 @@ export default function ExplorePage() {
 
   return (
     <div className="properties-page-modern">
-      {/* Hero Section */}
-      <div className="hero-section-premium">
-        <div className="hero-overlay"></div>
-        <div className="hero-content-premium">
-          <div className="hero-text-premium">
-            <h1 className="hero-title-premium">
-              Explore Market <span className="hero-accent">Intelligence</span>
-            </h1>
-          </div>
-        </div>
-      </div>
-
-      {/* Header Section */}
-      <div className="properties-header-modern">
-        <div className="header-content-modern">
-          <h2 className="page-title-modern">Discover Market Intelligence</h2>
-          <p className="page-subtitle-modern">
-            Explore neighborhoods, analyze market data, and uncover investment opportunities across South Africa
+      <section className="explore-landing-shell">
+        <div className="explore-landing-header">
+          <h1 className="explore-landing-title">Explore South African Property Intelligence</h1>
+          <p className="explore-landing-subtitle">
+            Explore areas, compare opportunities, and move into your dashboard with a single search.
           </p>
-          {/* Admin control moved into Location selectors toolbar */}
         </div>
-      </div>
 
-      {/* ── Centre of Gravity CTA ─────────────────────────────────────────────
-           Placed above search so international investors see it immediately.
-           They may not know which area to look for — CoG solves that. */}
-      <div className="explore-cog-banner">
-        <div className="explore-cog-banner-inner">
-          <div className="explore-cog-icon-wrap" aria-hidden="true">
-            <svg width="28" height="28" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="18" cy="18" r="15" stroke="currentColor" strokeWidth="2" fill="none"/>
-              <circle cx="18" cy="18" r="5" stroke="currentColor" strokeWidth="1.8" fill="none"/>
-              <line x1="18" y1="3" x2="18" y2="10" stroke="currentColor" strokeWidth="2"/>
-              <line x1="18" y1="26" x2="18" y2="33" stroke="currentColor" strokeWidth="2"/>
-              <line x1="3" y1="18" x2="10" y2="18" stroke="currentColor" strokeWidth="2"/>
-              <line x1="26" y1="18" x2="33" y2="18" stroke="currentColor" strokeWidth="2"/>
-            </svg>
-          </div>
-          <div className="explore-cog-text">
-            <span className="explore-cog-heading">Not sure which area to invest in?</span>
-            <span className="explore-cog-sub">Your Centre of Gravity pinpoints the optimal South&nbsp;African location based on your investor profile — built for local and international investors alike.</span>
-          </div>
-          <button className="explore-cog-cta-btn" onClick={() => setCogOpen(true)}>
-            Find My Centre of Gravity
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      {/* Search + Actions bar */}
-      <div className="filters-section-modern">
-        <div className="filters-container-modern">
-          <div className="filters-toolbar" style={{display:'flex',alignItems:'center',gap:'1rem',flexWrap:'wrap'}}>
-            {/* Hero search */}
+        <div className="explore-landing-actions">
+          <div className="explore-landing-search">
             <GlobalSearchBar
               variant="hero"
               provinceId={detected.provinceId}
               className="explore-hero-search"
             />
+          </div>
 
-            {/* Admin: refresh metrics */}
-            <button className="toolbar-refresh" onClick={handleRefreshMetrics} disabled={isRefreshingMV} title="Refresh metrics">
-              <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v-3l4 4-4 4V8a5 5 0 105 5h2a7 7 0 11-7-7z" fill="currentColor"/></svg>
-              <span style={{marginLeft:5}}>{isRefreshingMV ? 'Refreshing…' : 'Refresh'}</span>
-            </button>
+          {(locationPermState === 'idle' || locationPermState === 'denied' || locationPermState === 'asking') && (
+            <div className="explore-location-prompt" role="status">
+              <span className="explore-location-prompt-text">Use your location to prefill nearby area insights (optional).</span>
+              <button
+                className="explore-location-prompt-btn"
+                onClick={requestLocationPermission}
+                disabled={locationPermState === 'asking'}
+              >
+                {locationPermState === 'asking' ? 'Detecting…' : 'Use My Location'}
+              </button>
+            </div>
+          )}
 
-            {alert && (
-              <AWSAlert type={alert.type} title={alert.title} message={alert.message} onClose={() => setAlert(null)} />
-            )}
+          {locationPermState === 'granted' && isLocationBased && locationArea && (
+            <div className="explore-location-prompt explore-location-prompt--active" role="status">
+              <span className="explore-location-prompt-text">Using your location: {locationArea.name}</span>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="explore-cog-spotlight" aria-label="Centre of Gravity assistant">
+        <div className="explore-cog-spotlight-main">
+          <div className="explore-cog-spotlight-badge">AI INVESTMENT ASSISTANT</div>
+          <div className="explore-cog-spotlight-title-row">
+            <div className="explore-cog-icon-wrap" aria-hidden="true">
+              <svg width="26" height="26" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="18" cy="18" r="15" stroke="currentColor" strokeWidth="2" fill="none"/>
+                <circle cx="18" cy="18" r="5" stroke="currentColor" strokeWidth="1.8" fill="none"/>
+                <line x1="18" y1="3" x2="18" y2="10" stroke="currentColor" strokeWidth="2"/>
+                <line x1="18" y1="26" x2="18" y2="33" stroke="currentColor" strokeWidth="2"/>
+                <line x1="3" y1="18" x2="10" y2="18" stroke="currentColor" strokeWidth="2"/>
+                <line x1="26" y1="18" x2="33" y2="18" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+            </div>
+            <h3 className="explore-cog-spotlight-heading">Need direction before choosing an area?</h3>
+          </div>
+
+          <p className="explore-cog-spotlight-sub">
+            Centre of Gravity converts your investor priorities into an optimized location recommendation using local market, zoning, and feasibility signals.
+          </p>
+
+          <div className="explore-cog-spotlight-points" aria-hidden="true">
+            <span className="explore-cog-point">Profile-based weighting</span>
+            <span className="explore-cog-point">Live map optimization</span>
+            <span className="explore-cog-point">Feasibility diagnostics</span>
           </div>
         </div>
-      </div>
 
-      {/* Empty state — location resolved but no area matched (edge case) */}
-      {!selected.area && !locationLoading && !locationArea && (
-        <div className="explore-no-area-state">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="1.5"/>
-          </svg>
-          <h3>Choose an area to get started</h3>
-          <p>Use the search bar above to explore market insights, property prices, and investment data for any South African area.</p>
+        <div className="explore-cog-spotlight-aside">
+          <button className="explore-cog-cta-btn" onClick={() => setCogOpen(true)}>
+            Open Centre of Gravity
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          <p className="explore-cog-spotlight-note">Typically completes in under a minute for a full solve.</p>
+        </div>
+      </section>
+
+      {/* Maintenance / alert bar */}
+      {(alert || (maintenanceMode && selected.area)) && (
+        <div className="filters-section-modern">
+          <div className="filters-container-modern">
+            <div className="filters-toolbar">
+              {maintenanceMode && selected.area && (
+                <>
+                  <button
+                    className="toolbar-refresh"
+                    onClick={handleRefreshMetrics}
+                    disabled={isRefreshingMV || loadingAreaData}
+                    title="Maintenance: refresh backend materialized metrics cache for all areas"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v-3l4 4-4 4V8a5 5 0 105 5h2a7 7 0 11-7-7z" fill="currentColor"/></svg>
+                    <span>{isRefreshingMV ? 'Refreshing cache…' : 'Refresh Metrics Cache'}</span>
+                  </button>
+                  <span className="toolbar-maintenance-note">
+                    Maintenance tool: refreshes backend cached metrics across all areas, then reloads this area.
+                  </span>
+                </>
+              )}
+
+              {alert && (
+                <AWSAlert type={alert.type} title={alert.title} message={alert.message} onClose={() => setAlert(null)} />
+              )}
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Recently Viewed + Saved — shown when no area is currently selected */}
       {!selected.area && (
-        <div style={{ padding: '0 24px' }}>
-          <RecentAndSaved
-            recent={recent}
-            saved={saved}
-            onAreaClick={(id, name) => setSelected(prev => ({ ...prev, area: String(id), areaName: name }))}
-            onUnsave={unsaveArea}
-          />
-        </div>
+        <section className="explore-empty-layout">
+          {/* Empty state — location resolved but no area matched (edge case) */}
+          {!locationLoading && !locationArea && (
+            <div className="explore-no-area-state">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="1.5"/>
+              </svg>
+              <h3>Choose an area to get started</h3>
+              <p>Use the search bar above to explore market insights, property prices, and investment data for any South African area.</p>
+            </div>
+          )}
+
+          {/* Recently Viewed + Saved — shown when no area is currently selected */}
+          <div className="explore-recent-shell">
+            <RecentAndSaved
+              recent={recent}
+              saved={saved}
+              onAreaClick={(id, name) => setSelected(prev => ({ ...prev, area: String(id), areaName: name }))}
+              onUnsave={unsaveArea}
+            />
+          </div>
+        </section>
       )}
 
 
@@ -1042,7 +1094,7 @@ export default function ExplorePage() {
                     </div>
                     <div className="data-content">
                       <div className="data-label">
-                        <MetricTooltip label={metricGlossary.population_density.title} definition={metricGlossary.population_density.definition}>
+                        <MetricTooltip label={metricGlossary.population_density.title} definition={metricGlossary.population_density.definition} source={metricGlossary.population_density.source}>
                           <span className="metric-label">{metricGlossary.population_density.title}</span>
                         </MetricTooltip>
                       </div>
@@ -1084,7 +1136,7 @@ export default function ExplorePage() {
                     </div>
                     <div className="data-content">
                       <div className="data-label">
-                        <MetricTooltip label={metricGlossary.population_growth.title} definition={metricGlossary.population_growth.definition}>
+                        <MetricTooltip label={metricGlossary.population_growth.title} definition={metricGlossary.population_growth.definition} source={metricGlossary.population_growth.source}>
                           <span className="metric-label">{metricGlossary.population_growth.title}</span>
                         </MetricTooltip>
                       </div>

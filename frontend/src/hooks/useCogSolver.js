@@ -96,7 +96,7 @@ export function useCogSolver({ areaId, isActive = true, previewActive = isActive
   const [scenario, setScenario] = useState('balanced');
 
   // ── Zoning constraints ─────────────────────────────────────────────────
-  const [zoning, setZoning] = useState([...ALL_ZONINGS]);
+  const [zoning, setZoning] = useState(['residential']);
 
   // ── Full solve state ───────────────────────────────────────────────────
   const [loading, setLoading] = useState(false);
@@ -163,6 +163,7 @@ export function useCogSolver({ areaId, isActive = true, previewActive = isActive
 
   const setAllZoning   = useCallback(() => setZoning([...ALL_ZONINGS]), []);
   const clearAllZoning = useCallback(() => setZoning([]), []);
+  const resetZoning    = useCallback(() => setZoning(['residential']), []);
 
   // ── Preview API call ───────────────────────────────────────────────────
 
@@ -327,8 +328,10 @@ export function useCogSolver({ areaId, isActive = true, previewActive = isActive
     setPreviewResult(null);
     setError(null);
     setIsDragging(false);
-    // Warm preview — uses default weights (SCENARIOS.balanced)
-    preview(weights, zoning);
+    // Warm preview — uses default balanced weights + residential zoning
+    const defaultZoning = ['residential'];
+    setZoning(defaultZoning);
+    preview(weights, defaultZoning);
   }, [areaId, previewActive]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Modal open (isActive): schedule full solve ─────────────────────────
@@ -370,6 +373,7 @@ export function useCogSolver({ areaId, isActive = true, previewActive = isActive
     toggleZoning,
     setAllZoning,
     clearAllZoning,
+    resetZoning,
     // Full solve
     loading,
     error,

@@ -25,6 +25,80 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 db.Model = Base
 
+# Investor profiles payload (mirrors main.py endpoint contract)
+_INVESTOR_PROFILES = [
+    {
+        'key': 'balanced',
+        'label': 'Balanced',
+        'icon': '⚖️',
+        'risk': 'Low',
+        'description': 'An even spread across all five investment factors — yield, price, '
+                       'vacancy, transit and footfall. A sensible starting point for first-time '
+                       'investors or diversified portfolios seeking stable, moderate returns.',
+        'weights': {'rentalYield': 25, 'pricePerSqm': 25, 'vacancy': 20, 'transitProximity': 15, 'footfall': 15},
+    },
+    {
+        'key': 'valueInvestor',
+        'label': 'Value Investor',
+        'icon': '💎',
+        'risk': 'Medium',
+        'description': 'Maximise rental yield while minimising entry price per m². Transit and '
+                       'footfall carry minimal weight, making this profile best suited to '
+                       'residential buy-to-let in emerging or under-valued suburbs.',
+        'weights': {'rentalYield': 40, 'pricePerSqm': 35, 'vacancy': 15, 'transitProximity': 5, 'footfall': 5},
+    },
+    {
+        'key': 'transitFocused',
+        'label': 'Transit-Smart',
+        'icon': '🚇',
+        'risk': 'Low',
+        'description': 'Prioritises strong public-transport proximity above all other factors. '
+                       'Ideal for urban mixed-use or residential assets where connectivity '
+                       'directly drives tenant demand and long-term capital growth.',
+        'weights': {'rentalYield': 20, 'pricePerSqm': 15, 'vacancy': 15, 'transitProximity': 40, 'footfall': 10},
+    },
+    {
+        'key': 'highFootfall',
+        'label': 'Footfall-Driven',
+        'icon': '🚶',
+        'risk': 'Medium',
+        'description': 'Optimises for maximum pedestrian and consumer activity. Best applied to '
+                       'retail, street-facing commercial or mixed-use nodes where passing trade '
+                       'is the primary income driver.',
+        'weights': {'rentalYield': 15, 'pricePerSqm': 15, 'vacancy': 10, 'transitProximity': 20, 'footfall': 40},
+    },
+    {
+        'key': 'highYieldHunter',
+        'label': 'High-Yield Hunter',
+        'icon': '🎯',
+        'risk': 'High',
+        'description': 'Aggressively targets the highest rental yield with minimal regard for '
+                       'transit or footfall proximity. Suits experienced investors comfortable '
+                       'with higher vacancy risk in exchange for above-market income returns.',
+        'weights': {'rentalYield': 55, 'pricePerSqm': 20, 'vacancy': 15, 'transitProximity': 5, 'footfall': 5},
+    },
+    {
+        'key': 'airbnbShortStay',
+        'label': 'AirBnB / Short-Stay',
+        'icon': '🏡',
+        'risk': 'High',
+        'description': 'Tuned for short-term rental operations: balances yield, low vacancy and '
+                       'strong footfall/transit scores. Performs best near tourism corridors, '
+                       'CBDs or event centres where nightly rates substantially exceed long-term rents.',
+        'weights': {'rentalYield': 25, 'pricePerSqm': 10, 'vacancy': 25, 'transitProximity': 20, 'footfall': 20},
+    },
+    {
+        'key': 'developmentOpportunity',
+        'label': 'Developer',
+        'icon': '🏗️',
+        'risk': 'High',
+        'description': 'Targets low-cost parcels with strong footfall potential for value-add '
+                       'or ground-up redevelopment. Vacancy tolerance is high; transit and '
+                       'amenity exposure are secondary to price and pedestrian demand.',
+        'weights': {'rentalYield': 15, 'pricePerSqm': 20, 'vacancy': 20, 'transitProximity': 15, 'footfall': 30},
+    },
+]
+
 # API Routes for Areas Management
 
 @app.route('/api/countries', methods=['GET'])
@@ -202,6 +276,12 @@ def get_area_trends(area_id):
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/profiles', methods=['GET'])
+def get_investor_profiles():
+    """Return static investor profiles used by the frontend CoG profile strip."""
+    return jsonify({'success': True, 'profiles': _INVESTOR_PROFILES})
 
 # POST endpoints for adding new data
 

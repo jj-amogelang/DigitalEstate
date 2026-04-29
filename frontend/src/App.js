@@ -7,6 +7,8 @@ import { LocationProvider, useAppLocation } from "./context/LocationContext";
 import LocationPermissionModal from "./components/LocationPermissionModal";
 import DashboardPage from "./pages/DashboardPage";
 import ExplorePage from "./pages/ExplorePage";
+import FirstTimeHeroPage from "./pages/FirstTimeHeroPage";
+import AboutPage from "./pages/AboutPage";
 import Settings from "./pages/Settings";
 import ProfileButton from "./components/ProfileButton";
 import AuthModal from "./components/AuthModal";
@@ -25,12 +27,12 @@ function Sidebar({ isOpen, toggleSidebar }) {
       {/* Sidebar Header */}
       <div className="sidebar-header">
         <div className="logo-container">
-          <div className={`logo-icon ${!logoError ? 'has-image' : ''}`}>
+          <div className={`logo-icon ${!logoError ? 'has-image' : ''} ${!logoError && isOpen ? 'wordmark-mode' : ''}`}>
             {!logoError ? (
               <img
-                src="/images/Logo white.png"
+                src={isOpen ? "/images/digitalestate-wordmark.svg" : "/brand-logo.svg"}
                 alt="DigitalEstate logo"
-                className="brand-logo-img"
+                className={`brand-logo-img ${isOpen ? 'brand-logo-wordmark' : 'brand-logo-compact'}`}
                 onError={() => setLogoError(true)}
               />
             ) : (
@@ -42,7 +44,7 @@ function Sidebar({ isOpen, toggleSidebar }) {
               </svg>
             )}
           </div>
-          {isOpen && (
+          {isOpen && logoError && (
             <div className="logo-text">
               <h1 className="company-name">DigitalEstate</h1>
               <p className="company-tagline">Property Solutions</p>
@@ -226,6 +228,13 @@ function App() {
                       <path d="M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                     </svg>
                   </button>
+                  <div className="topbar-brand" aria-label="DigitalEstate">
+                    <img
+                      src="/images/digitalestate-wordmark.svg"
+                      alt="DigitalEstate"
+                      className="topbar-brand-logo"
+                    />
+                  </div>
                   {/* Global area search — navigates to /explore?areaId=X&areaName=Y */}
                   <GlobalSearchBar variant="header" />
                 </div>
@@ -240,9 +249,9 @@ function App() {
               {/* Main Content Area */}
               <div className="content-area">
                 <Routes>
-                  <Route path="/" element={<ExplorePage />} />
+                  <Route path="/" element={<FirstTimeHeroPage />} />
                   <Route path="/explore" element={<ExplorePage />} />
-                  <Route path="/about" element={<DashboardPage />} />
+                  <Route path="/about" element={<AboutPage />} />
                   {/* Analytics route removed */}
                   <Route path="/opportunities" element={<OpportunitiesPage />} />
                   <Route path="/dashboard" element={<InvestorDashboard />} />

@@ -46,14 +46,21 @@
 .content-area {
   flex: 1;
   padding: 24px;
+  padding-top: 88px;
   overflow-y: auto;
 }
 
 @media (max-width: 768px) {
-  .content-area { padding: 16px; }
+  .content-area {
+    padding: 16px;
+    padding-top: 80px;
+  }
 }
 @media (max-width: 480px) {
-  .content-area { padding: 12px; }
+  .content-area {
+    padding: 12px;
+    padding-top: 76px;
+  }
 }
 
 /* Coming Soon */
@@ -322,6 +329,20 @@
   height: 100%;
   object-fit: contain;
   display: block;
+}
+
+.brand-logo-wordmark {
+  width: 100%;
+  height: auto;
+  max-height: none;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.brand-logo-compact {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
 }
 
 /* Extra Small Mobile Devices */

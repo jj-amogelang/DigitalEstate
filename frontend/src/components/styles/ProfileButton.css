@@ -41,6 +41,50 @@
   box-shadow: 0 6px 20px rgba(212, 175, 55, 0.45);
 }
 
+.profile-button.guest-icon-button {
+  min-width: 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 999px;
+  justify-content: center;
+  background: rgba(212, 175, 55, 0.12);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  color: var(--color-blue, #232f3e);
+}
+
+.profile-button.guest-icon-button:hover {
+  background: rgba(212, 175, 55, 0.2);
+  border-color: rgba(212, 175, 55, 0.55);
+  color: var(--color-gold, #d4af37);
+}
+
+.top-nav .profile-button.guest-icon-button {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+}
+
+.top-nav .profile-button.guest-icon-button:hover {
+  background: rgba(212, 175, 55, 0.24);
+  border-color: rgba(212, 175, 55, 0.6);
+  color: var(--color-gold, #d4af37);
+}
+
+.top-nav .profile-button.authenticated {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+}
+
+.top-nav .profile-button.authenticated:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.top-nav .dropdown-arrow {
+  color: #ffffff;
+}
+
 .profile-button.authenticated {
   padding: 6px 12px 6px 6px;
   min-width: 140px;
@@ -108,6 +152,10 @@
   min-width: 280px;
   overflow: hidden;
   animation: dropdownFadeIn 0.2s ease;
+}
+
+.profile-dropdown.guest-dropdown {
+  min-width: 180px;
 }
 
 @keyframes dropdownFadeIn {

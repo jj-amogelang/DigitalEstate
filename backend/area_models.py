@@ -100,6 +100,16 @@ class Area(db.Model):
     amenities = db.relationship("AreaAmenity", back_populates="area", cascade="all, delete-orphan")
     market_trends = db.relationship("MarketTrend", back_populates="area", cascade="all, delete-orphan")
     
+    def get_coordinates(self):
+        """Parse 'lat,lng' coordinate string into (lat, lng) tuple, or (None, None)."""
+        if not self.coordinates:
+            return None, None
+        try:
+            parts = self.coordinates.split(',')
+            return float(parts[0]), float(parts[1])
+        except (ValueError, IndexError):
+            return None, None
+    
     def to_dict(self):
         primary_image = next((img for img in self.images if img.is_primary), None)
         latest_stats = max(self.statistics, key=lambda x: x.created_at) if self.statistics else None

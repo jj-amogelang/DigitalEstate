@@ -14,6 +14,80 @@ import React, { useEffect, useState, useRef } from 'react';
 import areaDataService from '../services/areaDataService';
 import './styles/InsightCard.css';
 
+const ICON_TO_METRIC_KEY = {
+  yield: 'rental_yield',
+  vacancy: 'vacancy_rate',
+  price: 'price_per_sqm',
+  transit: 'transit_score',
+  amenities: 'amenity_score',
+  crime: 'crime_index',
+};
+
+function toNumber(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function fallbackReasonsFromSummary(summary) {
+  if (!summary || typeof summary !== 'object') return [];
+  const reasons = [];
+
+  const rentalYield = toNumber(summary.rental_yield);
+  if (rentalYield != null) {
+    reasons.push({
+      metric_key: 'rental_yield',
+      text: `Rental yield ${rentalYield.toFixed(1)}%`,
+      positive: rentalYield >= 7,
+      value: rentalYield,
+      formatted_value: `${rentalYield.toFixed(1)}%`,
+    });
+  }
+
+  const vacancyRate = toNumber(summary.vacancy_rate);
+  if (vacancyRate != null) {
+    reasons.push({
+      metric_key: 'vacancy_rate',
+      text: `Vacancy rate ${vacancyRate.toFixed(1)}%`,
+      positive: vacancyRate <= 8,
+      value: vacancyRate,
+      formatted_value: `${vacancyRate.toFixed(1)}%`,
+    });
+  }
+
+  const pricePerSqm = toNumber(summary.price_per_sqm);
+  if (pricePerSqm != null) {
+    reasons.push({
+      metric_key: 'price_per_sqm',
+      text: `Price R${pricePerSqm.toLocaleString(undefined, { maximumFractionDigits: 0 })}/m²`,
+      positive: true,
+      value: pricePerSqm,
+      formatted_value: `R${pricePerSqm.toLocaleString(undefined, { maximumFractionDigits: 0 })}/m²`,
+    });
+  }
+
+  const transportScore = toNumber(summary.transport_score);
+  if (transportScore != null) {
+    reasons.push({
+      metric_key: 'transit_score',
+      text: `Transit score ${transportScore.toFixed(0)}/100`,
+      positive: transportScore >= 50,
+      value: transportScore,
+      formatted_value: `${transportScore.toFixed(0)}/100`,
+    });
+  }
+
+  return reasons.slice(0, 4);
+}
+
+function normalizeReason(reason) {
+  const metricKey = reason?.metric_key || ICON_TO_METRIC_KEY[reason?.icon] || 'info';
+  return {
+    ...reason,
+    metric_key: metricKey,
+    text: reason?.text || 'Market signal available for this location.',
+  };
+}
+
 // Icon map: metric_key → SVG
 function MetricIcon({ type }) {
   const icons = {
@@ -92,9 +166,17 @@ export default function InsightCard({ areaId, areaName }) {
     setError(null);
 
     areaDataService.getAreaWhyChosen(areaId)
-      .then(data => {
+      .then(async data => {
         if (cancelled) return;
-        setReasons(Array.isArray(data) ? data : (data?.reasons || []));
+        const apiReasons = Array.isArray(data?.reasons) ? data.reasons.map(normalizeReason) : [];
+        if (apiReasons.length > 0) {
+          setReasons(apiReasons);
+          return;
+        }
+
+        const summary = await areaDataService.getAreaSummary(areaId);
+        if (cancelled) return;
+        setReasons(fallbackReasonsFromSummary(summary));
       })
       .catch(() => {
         if (!cancelled) setError('Could not load insights');

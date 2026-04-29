@@ -105,22 +105,20 @@ class AreaDataService {
     this.api.interceptors.response.use(
       (response) => response.data,
       (error) => {
-        try {
-          const status = error?.response?.status;
-          const statusText = error?.response?.statusText;
-          const url = error?.config?.url || error?.request?.responseURL;
+        const status = error?.response?.status;
+        const statusText = error?.response?.statusText;
+        const url = error?.config?.url || error?.request?.responseURL;
+        const isOptionalProfiles404 = status === 404 && String(url || '').includes('/api/profiles');
+        if (!isOptionalProfiles404) {
           console.error('API Error:', { status, statusText, url, message: error?.message });
-          const msg = error?.response?.data?.error
-            || (status ? `${status} ${statusText || ''}`.trim() : null)
-            || 'Network error';
-          const enriched = new Error(msg);
-          enriched.status = status;
-          enriched.url = url;
-          throw enriched;
-        } catch (e) {
-          // Fallback in case building enriched error fails
-          throw new Error('Network error');
         }
+        const msg = error?.response?.data?.error
+          || (status ? `${status} ${statusText || ''}`.trim() : null)
+          || 'Network error';
+        const enriched = new Error(msg);
+        enriched.status = status;
+        enriched.url = url;
+        return Promise.reject(enriched);
       }
     );
     return true;
@@ -526,10 +524,15 @@ class AreaDataService {
     await this.ready;
     try {
       const response = await this.api.get(`/api/areas/${areaId}/why-chosen`);
-      return response.reasons || [];
+      return {
+        success: response?.success !== false,
+        areaId: response?.area_id ?? areaId,
+        areaName: response?.area_name ?? null,
+        reasons: Array.isArray(response?.reasons) ? response.reasons : [],
+      };
     } catch (error) {
       console.error('Error fetching why-chosen:', error);
-      return [];
+      throw error;
     }
   }
 
@@ -735,7 +738,9 @@ class AreaDataService {
       const response = await this.api.get('/api/profiles');
       return response?.success ? response.profiles : null;
     } catch (error) {
-      console.error('Error fetching investor profiles:', error);
+      if (error?.status !== 404) {
+        console.error('Error fetching investor profiles:', error);
+      }
       return null;
     }
   }

@@ -96,6 +96,46 @@
   line-height: 1.35;
   color: #374151; /* slate-700 */
   font-weight: 400;
+  margin-bottom: 6px;
+}
+
+.metric-tooltip-source {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  font-size: 11px;
+}
+
+.source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent-gold);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.source-link:hover {
+  color: #b8935e;
+}
+
+.source-icon {
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.source-link:hover .source-icon {
+  opacity: 1;
+}
+
+.source-description {
+  display: block;
+  font-size: 10.5px;
+  color: #6b7280;
+  font-weight: 400;
 }
 
 @keyframes tooltip-fade-in {
